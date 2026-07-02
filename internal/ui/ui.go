@@ -145,19 +145,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // updatePanel handles keys while the city panel has focus.
 func (m Model) updatePanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	list := hubs.List(m.eng.World)
+	if len(list) == 0 {
+		m.panelFocused = false
+		return m, nil
+	}
 	switch msg.Type {
 	case tea.KeyCtrlC:
 		return m, tea.Quit
 	case tea.KeyTab, tea.KeyEsc:
 		m.panelFocused = false
 	case tea.KeyUp:
-		if m.selected > 0 {
-			m.selected--
-		}
+		m.selected = (m.selected - 1 + len(list)) % len(list)
 	case tea.KeyDown:
-		if m.selected < len(list)-1 {
-			m.selected++
-		}
+		m.selected = (m.selected + 1) % len(list)
 	case tea.KeyEnter:
 		if m.selected < len(list) {
 			hub := list[m.selected]
@@ -196,8 +196,8 @@ func (m Model) View() string {
 	if !m.ready {
 		return "booting the deck..."
 	}
-	left := m.viewport.View() + "\n" + m.input.View()
-	return lipgloss.JoinHorizontal(lipgloss.Top, left, m.panel())
+	story := m.viewport.View() + "\n" + m.input.View()
+	return lipgloss.JoinHorizontal(lipgloss.Top, m.panel(), story)
 }
 
 // panel renders the city hub list.
