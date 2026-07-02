@@ -7,7 +7,10 @@
 // more than one entity graduates into a reusable component.
 package game
 
-import "github.com/pabloduke/paws-in-the-machine/internal/engine"
+import (
+	"github.com/pabloduke/paws-in-the-machine/internal/engine"
+	"github.com/pabloduke/paws-in-the-machine/internal/systems/checks"
+)
 
 // Intro is shown once when the session starts.
 const Intro = `PAWS IN THE MACHINE
@@ -103,11 +106,68 @@ func NewWorld() *engine.World {
 			"table. Its owner is in the restroom. Interesting."},
 	)
 
+	hound := engine.NewEntity("hound", "a corpo hound", "hound", "dog", "guard").With(
+		engine.Description{Text: "(Placeholder) A corpo security hound parked in " +
+			"front of the back room door. Ears up. Dogs take this job " +
+			"personally."},
+		checks.Guarded{
+			Dest: "backroom",
+			Approaches: map[checks.Approach]checks.Attempt{
+				checks.Sneak: {
+					Difficulty: 22,
+					Success: "(Placeholder) You pour yourself along the " +
+						"skirting board, one shadow among many.",
+					Failure: "(Placeholder) A low growl. The hound's eyes " +
+						"track you before you've taken two steps. Not " +
+						"like this — something has to change.",
+				},
+				checks.Parkour: {
+					Difficulty: 18,
+					Success: "(Placeholder) Counter, shelf, hanging lamp, " +
+						"transom window. The hound guards a door; you " +
+						"were never going to use the door.",
+					Failure: "(Placeholder) You misjudge the counter's " +
+						"grease factor and abort the run. The hound " +
+						"huffs. Not like this — something has to change.",
+				},
+			},
+			Refusals: map[checks.Approach]string{
+				checks.Charm: "(Placeholder) You deploy the adopt-me eyes. " +
+					"The hound stares through them into middle distance. " +
+					"Dogs are immune to cute. It's why the corpos hire them.",
+			},
+		},
+	)
+
+	// --- The Back Room --------------------------------------------------
+
+	backroom := engine.NewEntity("backroom", "The Back Room").With(
+		engine.Description{Text: "(Placeholder) Storage, a humming server " +
+			"rack that has no business in a coffee shop, and the smell " +
+			"of secrets."},
+		engine.Exits{
+			Dirs:    map[string]string{"north": "coffeeshop"},
+			Blocked: "(Placeholder) One way in, one way out: north.",
+		},
+	)
+
 	// --- Assemble the tree ---------------------------------------------
 
-	w.Root.Add(lair, coffeeshop)
+	w.Root.Add(lair, coffeeshop, backroom)
 	lair.Add(deck, shelf, shard, w.Player)
 	shelf.Add(mug)
-	coffeeshop.Add(counter, machine, laptop)
+	coffeeshop.Add(counter, machine, laptop, hound)
+
+	// Starting numbers. With the pinned seed below, the hound demos the
+	// full loop: sneak fails at Stealth 10 (and would pass at 12 —
+	// growth flips it), parkour clears, charm is refused outright.
+	w.Stats = engine.Stats{Stealth: 10, Agility: 12, Charm: 8}
+	w.XP = 0
+	// Pinned while tuning the feel; remove to randomize per new game.
+	w.Seed = 3
+
+	// Idioms a player will reach for that the generic parser can't guess.
+	w.Rewrites["jack in"] = "use deck"
+
 	return w
 }

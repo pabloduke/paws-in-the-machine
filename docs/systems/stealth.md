@@ -1,98 +1,108 @@
-# Stealth, Checks & XP
+# Stats, Checks & Obstacles
 
 Status: core model agreed; open questions listed at bottom.
 
-## Scope: what rolls and what doesn't
+## The stat rule: a stat must be a verb
 
-Boundary checks (below) are the ONLY dice in the game. They cover the
-cat talents — sneaking past observers, physical feats (leaps, ledges),
-and charming humans — all resolved against one stat for now (see XP).
-Hacking is the opposite by design: no Hacking stat, no "hack terminal"
-command with a success chance. Hacking is performed by the player —
-jacking in leads to cyberspace as real explorable rooms where the hack
-happens through play (navigate, examine, take, manipulate). Getting
-past ICE is a puzzle you solve, not a check you pass. Player skill,
-not character skill.
+A stat earns its place only if it is something Buddy *does to an
+obstacle* with a direct, visible effect. Three stats qualify:
 
-## XP: the one stat (for now)
+- **Stealth** — sneak past. Not being noticed.
+- **Agility** — parkour around. Leaps, ledges, vents, physical feats.
+- **Charm** — charm. Working humans face-to-face: purring, adopt-me
+  eyes, getting picked up and carried through a locked door.
 
-Buddy has a single visible stat: XP. Earned by actions (never by time),
-and read by every check regardless of flavor — sneaking, leaping,
-charming. Splitting into separate stats (Stealth/Agility/Charm, the
-Deus Ex direction) is deliberately deferred; if the game later wants
-build variety, the check mechanic just reads a different number and
-content re-tags its checks. Until then: one number, less bookkeeping.
-There is no Perception stat either — noticing things is handled
-deterministically by the visibility system, not rolled.
+Rejected by the rule:
 
-## Model
+- **Perception** — doesn't act on an obstacle; it multiplies content
+  branches (things you can/can't see), which is an authoring decision,
+  not a dice decision. Noticing things is deterministic (visibility
+  system).
+- **Hacking** — deliberately statless. The player performs hacks through
+  play in cyberspace rooms; ICE is a puzzle you solve, not a check you
+  pass. Player skill, not character skill.
 
-A check happens at a boundary, not in a simulation. Guards, dogs, and
-cameras do not patrol or run on a clock; they gate specific transitions
-(an exit, or an action like "paw the keyboard in view of the counter").
-Attempting a gated transition triggers one check:
+## XP: the growth currency
 
-    hidden roll + XP + situational modifiers  vs  difficulty
+Actions earn XP; XP is spent to raise stats. Checks read the stat, XP is
+the pool. Both are visible numbers (`stats` command). Earning and
+spending must follow the turns.md rule: driven by player actions, never
+by time. (Spending mechanism/costs: TBD below.)
 
-Succeed: the transition happens, narrated as the slip-past.
-Fail: the transition is refused and the failure changes the situation
-(see open questions) — it never simply says "try again."
+## Obstacles declare an approach matrix
+
+An obstacle (guard, dog, camera, gap, locked-counter human...) declares
+which approaches are possible and how hard each is — per-approach
+difficulty and flavor text. Approaches not in the matrix are impossible
+and refuse without a roll, with flavor ("the hound stares through your
+adopt-me eyes; dogs are immune to cute").
+
+    corpo hound:   sneak 12   parkour 15   charm —
+    bored barista: sneak 8    parkour 10   charm 6
+    ceiling gap:   sneak —    parkour 13   charm —
+
+The player picks the approach by picking the verb: `sneak past the
+hound`, `parkour around the hound`, `charm the barista`. One obstacle,
+up to three doors through it, each rolled separately.
+
+## The check
+
+    hidden roll + stat + situational modifiers  vs  difficulty
+
+Succeed: the transition happens, narrated as prose.
+Fail: refused, and the failure should change the situation — never a
+bare "try again" (see open questions).
 
 ## Determinism (the XCOM rule)
 
 Checks are seeded: the outcome is a pure function of
 
-    (world seed, check identity, XP + modifiers)
+    (world seed, check identity, stat + modifiers)
 
 Repeating an identical attempt gives an identical result. Save-scumming
 is not forbidden; it is useless. The roll changes only when the inputs
-change: a better stat, a new modifier (distraction arranged, item used,
-different lighting, different route), or a different check entirely.
-Failure's message is always "change something."
-
-The world seed is generated at new-game time and persists in world state
-(and therefore in future save files).
+change: a raised stat, a new modifier, or a different approach. Failure's
+message is always "change something." The world seed is generated at
+new-game time and persists in world state (and future save files).
 
 ## What the player sees
 
 - Dice are never shown. No roll output, no target numbers, no "4d6".
-- XP is visible on request (e.g. a `stats` command: "XP 10").
-- Circumstances are telegraphed in prose, not numbers: "the dog is
-  half-asleep" vs "the dog's ears are up" carries the difficulty; "your
-  fur disappears in the neon wash" signals a favorable modifier.
+- Stats and XP are visible on request (`stats`).
+- Difficulty and modifiers are telegraphed in prose, not numbers: "the
+  hound is half-asleep" vs "ears up"; "your fur disappears in the neon
+  wash."
 
 ## Modifiers (the flavor lives here)
 
 Situational, composable, content-defined. Examples:
 
-- Neon-lit rooms favor Buddy's orange fur (camouflage bonus).
-- Carrying a human object penalizes: a cat carrying nothing is invisible;
-  a cat carrying a keycard is a story.
-- A prepared distraction (crow diversion, a mug shattering in the next
-  room) grants a bonus, usually consumed on use.
-- Observer type matters — different senses, different counters:
-  - Humans: lowest difficulty; human perception filters cats out unless
-    Buddy is doing something visibly impossible-for-a-cat.
-  - Dogs: highest difficulty; smell defeats visual camouflage (no neon
-    bonus); a failed check escalates — dogs report up the hierarchy.
-  - Cameras: pattern-matching; visual modifiers apply, scent does not;
-    the most predictable observer — closest to a pure puzzle.
+- Neon-lit rooms favor Buddy's orange fur (Stealth bonus).
+- Carrying a human object penalizes Stealth: a cat carrying nothing is
+  invisible; a cat carrying a keycard is a story.
+- A prepared distraction (crow diversion, a mug shattering next door)
+  grants a bonus, usually consumed on use.
+- Observer type shapes the matrix and the modifiers:
+  - Humans: charmable; perception filters cats out (low sneak
+    difficulty) unless Buddy is doing something impossible-for-a-cat.
+  - Dogs: never charmable; smell defeats visual camouflage (no neon
+    bonus); failures escalate — dogs report up the hierarchy.
+  - Cameras: pattern-matching; visual modifiers apply, scent doesn't;
+    the most puzzle-like observer.
 
-## Engine surface (planned)
+## Engine surface
 
-- Seeded RNG + XP live in engine core world state.
+- Stats, XP, and the world seed live in engine core world state.
 - `internal/systems/checks/` package, one exposed surface: a `Check`
-  function plus a `Guarded` component that content attaches to exits or
-  entities (observer type, difficulty, modifier hooks as configuration).
-  XP increases are one legitimate way to turn a failed check into a
-  passable one (a changed input reseeds the roll).
+  function plus a `Guarded` component content attaches to obstacle
+  entities (the approach matrix as configuration).
 
 ## Open questions
 
-1. Failure consequences, concretely: shooed away (soft), area alert flag
-   raised (stateful), route burned (hard)? Probably varies by observer
-   type — decide before implementation.
-2. XP growth mechanism: story milestones? training with resistance
-   mentors? per-use practice? (Must be action-based per turns.md.)
-3. Difficulty scale and starting numbers (what does XP 10 mean against
-   what difficulty range) — decide when implementing.
+1. Failure consequences, concretely: shooed away (soft), area alert
+   flag (stateful), route burned (hard)? Probably varies by observer
+   type.
+2. XP earn amounts and stat costs; what actions grant XP.
+3. Difficulty scale calibration (what Stealth 10 means against what
+   range).
+4. Modifier implementation (not built yet; spec'd only).

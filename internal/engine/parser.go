@@ -19,7 +19,11 @@ var verbAliases = map[string]string{
 	"inventory": "inventory", "i": "inventory", "inv": "inventory",
 	"use": "use", "jack": "use", "activate": "use",
 	"knock": "knock", "push": "knock", "bat": "knock", "swat": "knock", "paw": "knock",
-	"help": "help", "?": "help",
+	"sneak":   "sneak",
+	"parkour": "parkour", "leap": "parkour", "vault": "parkour",
+	"charm": "charm", "purr": "charm",
+	"stats": "stats",
+	"help":  "help", "?": "help",
 	"quit": "quit", "q": "quit", "exit": "quit",
 }
 
@@ -39,7 +43,7 @@ var directions = map[string]string{
 var noise = map[string]bool{
 	"the": true, "a": true, "an": true, "at": true, "to": true,
 	"up": true, "on": true, "in": true, "with": true, "into": true,
-	"off": true,
+	"off": true, "past": true, "around": true, "by": true,
 }
 
 // Parse turns raw player input into a Command. It returns ok=false when

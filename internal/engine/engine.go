@@ -43,6 +43,8 @@ func (e *Engine) Execute(input string) string {
 		return dispatch(w, w.Room(), cmd, func() string { return Go(w, cmd.Object) })
 	case "inventory":
 		return Inventory(w)
+	case "stats":
+		return StatSheet(w)
 	case "help":
 		return helpText
 	case "quit":
@@ -84,8 +86,21 @@ func defaultFor(w *World, target *Entity, cmd Command) string {
 		return "You paw at it, but nothing happens."
 	case "knock":
 		return "You give it a speculative shove. It stays put. Disappointing."
+	case "sneak":
+		return fmt.Sprintf("There's no sneaking past %s. It isn't in your way.", target.Name)
+	case "parkour":
+		return fmt.Sprintf("You size up %s for a route. There's nothing to parkour around.", target.Name)
+	case "charm":
+		return fmt.Sprintf("You aim the adopt-me eyes at %s. Nothing to gain here.", target.Name)
 	}
 	return "Nothing happens."
+}
+
+// StatSheet renders Buddy's visible numbers.
+func StatSheet(w *World) string {
+	return fmt.Sprintf(
+		"Stealth %d   Agility %d   Charm %d\nXP: %d",
+		w.Stats.Stealth, w.Stats.Agility, w.Stats.Charm, w.XP)
 }
 
 // --- Default verb implementations, exported so components can invoke
@@ -184,5 +199,9 @@ const helpText = `Commands:
   take / drop <thing>   manage your possessions
   use <thing>           operate something (also: jack)
   knock <thing>         you are a cat (also: bat, swat, paw)
+  sneak past <thing>    stealth your way through
+  parkour <thing>       the acrobatic route (also: leap, vault)
+  charm <thing>         weaponized cuteness (also: purr)
+  stats                 your numbers
   inventory (i)         what you're carrying
   quit (q)              end the session`

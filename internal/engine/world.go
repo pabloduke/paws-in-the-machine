@@ -1,5 +1,16 @@
 package engine
 
+import "math/rand/v2"
+
+// Stats are Buddy's capabilities. Each stat is a verb against an
+// obstacle: Stealth = sneak past, Agility = parkour around,
+// Charm = charm. See docs/systems/stealth.md.
+type Stats struct {
+	Stealth int
+	Agility int
+	Charm   int
+}
+
 // World is the complete game state: one entity tree plus story flags.
 type World struct {
 	// Root anchors the tree; rooms are its children.
@@ -13,6 +24,15 @@ type World struct {
 	// letting content define idioms ("jack in" -> "use deck").
 	Rewrites map[string]string
 
+	// Stats and XP are visible to the player via the "stats" command.
+	// XP is the growth currency: earned by actions, spent to raise stats.
+	Stats Stats
+	XP    int
+	// Seed makes checks deterministic (the XCOM rule): identical
+	// attempts give identical results. Generated at new-game time;
+	// content or tests may overwrite it before play.
+	Seed int64
+
 	quitting bool
 }
 
@@ -24,6 +44,7 @@ func NewWorld() *World {
 		Player:   NewEntity("player", "yourself", "self", "me", "buddy"),
 		Flags:    map[string]bool{},
 		Rewrites: map[string]string{},
+		Seed:     rand.Int64(),
 	}
 }
 
