@@ -1,8 +1,9 @@
 // Package ui is the Bubble Tea terminal shell around the engine.
-// Layout: city hub panel (left), story viewport (center, largest),
-// reserved panel (right), and a bordered command box at the bottom
-// showing recent commands, with up/down recall at the prompt.
-// Tab focuses the city panel for hub travel (docs/systems/hubs.md).
+// Layout ("Option E"): city hub panel (left), live room view (center),
+// reserved panel (right), a full-width LOG panel carrying the rolling
+// command/output transcript, and a slim prompt at the bottom.
+// Tab focuses the city panel for hub travel (docs/systems/hubs.md);
+// Up/Down recall previous commands; PgUp/PgDn scroll the LOG.
 package ui
 
 import (
@@ -21,13 +22,13 @@ import (
 const (
 	leftPanelWidth  = 24
 	rightPanelWidth = 24
-	historyLines    = 4 // recent commands shown above the prompt
-	bottomPadding   = 1 // blank lines between the command box and screen edge
-	commandBoxH     = historyLines + 1 + 2 + bottomPadding
+	logHeight       = 8 // LOG panel total height, border included
+	promptHeight    = 1
 )
 
 var (
-	storyStyle  = lipgloss.NewStyle().Padding(0, 1)
+	bodyStyle   = lipgloss.NewStyle().Padding(0, 1)
+	echoStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Bold(true)
 	promptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("5"))
 	dimStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 
@@ -37,32 +38,32 @@ var (
 			Padding(0, 1)
 	panelFocusStyle = panelStyle.BorderForeground(lipgloss.Color("5"))
 	panelTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("5"))
+	roomTitleStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("3"))
 	hubSelStyle     = lipgloss.NewStyle().Reverse(true)
 )
 
-// Model is the Bubble Tea model for a session. The viewport is a live
-// room view: the current room rendered fresh from state, with recent
-// message output below it, cleared whenever Buddy changes rooms.
+// Model is the Bubble Tea model for a session. The room view renders
+// the current room fresh from world state; the LOG keeps the
+// persistent transcript.
 type Model struct {
-	eng      *engine.Engine
-	viewport viewport.Model
-	input    textinput.Model
-	intro    string // shown above the room view until Buddy first moves
-	messages []string
-	ready    bool
-	width    int
-	height   int
+	eng    *engine.Engine
+	log    viewport.Model
+	input  textinput.Model
+	ready  bool
+	width  int
+	height int
 
 	panelFocused bool
 	selected     int
 
+	entries  []string // transcript lines shown in the LOG
 	commands []string // executed commands, oldest first
 	histPos  int      // 0 = live input; n = n commands back
 	draft    string   // live input stashed while browsing history
 }
 
-// New builds a session around the engine, seeding the transcript with
-// the intro text and the opening room description.
+// New builds a session around the engine, seeding the LOG with the
+// intro text.
 func New(eng *engine.Engine, intro string) Model {
 	ti := textinput.New()
 	ti.Prompt = promptStyle.Render("> ")
@@ -70,9 +71,9 @@ func New(eng *engine.Engine, intro string) Model {
 	ti.Focus()
 
 	return Model{
-		eng:   eng,
-		input: ti,
-		intro: intro,
+		eng:     eng,
+		input:   ti,
+		entries: []string{intro},
 	}
 }
 
@@ -80,27 +81,29 @@ func (m Model) Init() tea.Cmd {
 	return textinput.Blink
 }
 
+func (m Model) mainRowHeight() int { return m.height - logHeight - promptHeight }
+
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
-		vpWidth := msg.Width - leftPanelWidth - rightPanelWidth
-		vpHeight := msg.Height - commandBoxH
+		// LOG panel: 2 border rows + 1 title row + viewport.
+		logW, logH := msg.Width-4, logHeight-3
 		if !m.ready {
-			m.viewport = viewport.New(vpWidth, vpHeight)
+			m.log = viewport.New(logW, logH)
 			// The viewport's default bindings grab letters (j, k, u,
 			// d, b, f, space) that belong to the prompt. Scrollback is
 			// PgUp/PgDn only; typing must never scroll.
-			m.viewport.KeyMap = viewport.KeyMap{
+			m.log.KeyMap = viewport.KeyMap{
 				PageUp:   key.NewBinding(key.WithKeys("pgup")),
 				PageDown: key.NewBinding(key.WithKeys("pgdown")),
 			}
 			m.ready = true
 		} else {
-			m.viewport.Width = vpWidth
-			m.viewport.Height = vpHeight
+			m.log.Width = logW
+			m.log.Height = logH
 		}
-		m.refresh()
+		m.refreshLog()
 		return m, nil
 
 	case tea.KeyMsg:
@@ -108,8 +111,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updatePanel(msg)
 		}
 		// Keystrokes go to exactly one component: PgUp/PgDn scroll the
-		// transcript, Tab focuses the city panel, Up/Down browse
-		// command history, everything else belongs to the prompt.
+		// LOG, Tab focuses the city panel, Up/Down browse command
+		// history, everything else belongs to the prompt.
 		switch msg.Type {
 		case tea.KeyCtrlC:
 			return m, tea.Quit
@@ -121,7 +124,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case tea.KeyPgUp, tea.KeyPgDown:
 			var cmd tea.Cmd
-			m.viewport, cmd = m.viewport.Update(msg)
+			m.log, cmd = m.log.Update(msg)
 			return m, cmd
 		case tea.KeyUp:
 			m.recall(1)
@@ -137,7 +140,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			m.commands = append(m.commands, line)
-			m.runCommand(line)
+			m.entries = append(m.entries, echoStyle.Render("> "+line))
+			if out := m.eng.Execute(line); out != "" {
+				m.entries = append(m.entries, out)
+			}
+			m.refreshLog()
 			if m.eng.World.Quitting() {
 				return m, tea.Quit
 			}
@@ -153,7 +160,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	m.input, cmd = m.input.Update(msg)
 	cmds = append(cmds, cmd)
-	m.viewport, cmd = m.viewport.Update(msg)
+	m.log, cmd = m.log.Update(msg)
 	cmds = append(cmds, cmd)
 	return m, tea.Batch(cmds...)
 }
@@ -195,34 +202,14 @@ func (m Model) updatePanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.selected = (m.selected + 1) % len(list)
 	case tea.KeyEnter:
 		hub := list[m.selected]
-		m.messages = nil
-		m.intro = ""
+		m.entries = append(m.entries, echoStyle.Render("> [travel] "+hub.Name))
 		if out := hubs.Travel(m.eng.World, hub.ID); out != "" {
-			m.messages = append(m.messages, out)
+			m.entries = append(m.entries, out)
 		}
-		m.refresh()
+		m.refreshLog()
 		m.panelFocused = false
 	}
 	return m, nil
-}
-
-// runCommand executes one player command and updates the room view:
-// messages reset on room change, and output that merely repeats the
-// room description (an explicit "look") is not doubled.
-func (m *Model) runCommand(line string) {
-	before := m.eng.World.Room()
-	out := m.eng.Execute(line)
-	if m.eng.World.Room() != before {
-		m.messages = nil
-		m.intro = ""
-	}
-	if out != "" && out != engine.Look(m.eng.World) {
-		m.messages = append(m.messages, out)
-	}
-	if len(m.messages) > 8 {
-		m.messages = m.messages[len(m.messages)-8:]
-	}
-	m.refresh()
 }
 
 // currentHubIndex preselects the hub Buddy is in.
@@ -236,30 +223,38 @@ func currentHubIndex(w *engine.World, list []*engine.Entity) int {
 	return 0
 }
 
-// refresh re-renders the room view: the current room from live state,
-// then recent messages, scrolled to the newest text.
-func (m *Model) refresh() {
+// refreshLog re-renders the transcript, keeping it scrolled to the
+// newest text.
+func (m *Model) refreshLog() {
 	if !m.ready {
 		return
 	}
-	var parts []string
-	if m.intro != "" {
-		parts = append(parts, m.intro)
-	}
-	parts = append(parts, engine.Look(m.eng.World))
-	parts = append(parts, m.messages...)
-	wrapped := storyStyle.Width(m.viewport.Width).Render(strings.Join(parts, "\n\n"))
-	m.viewport.SetContent(wrapped)
-	m.viewport.GotoBottom()
+	wrapped := lipgloss.NewStyle().Width(m.log.Width).
+		Render(strings.Join(m.entries, "\n"))
+	m.log.SetContent(wrapped)
+	m.log.GotoBottom()
 }
 
 func (m Model) View() string {
 	if !m.ready {
 		return "booting the deck..."
 	}
-	main := lipgloss.JoinHorizontal(lipgloss.Top,
-		m.cityPanel(), m.viewport.View(), m.rightPanel())
-	return main + "\n" + m.commandBox() + strings.Repeat("\n", bottomPadding)
+	mainRow := lipgloss.JoinHorizontal(lipgloss.Top,
+		m.cityPanel(), m.roomPanel(), m.rightPanel())
+	return mainRow + "\n" + m.logPanel() + "\n" + m.input.View()
+}
+
+// roomPanel is the live room view: title from the room name, body from
+// world state — always current, never a transcript.
+func (m Model) roomPanel() string {
+	name, body, _ := strings.Cut(engine.Look(m.eng.World), "\n\n")
+	content := roomTitleStyle.Render(strings.ToUpper(name))
+	if body != "" {
+		content += "\n\n" + body
+	}
+	width := m.width - leftPanelWidth - rightPanelWidth
+	return panelStyle.Width(width - 2).Height(m.mainRowHeight() - 2).
+		Render(bodyStyle.Width(width - 4).Render(content))
 }
 
 // cityPanel renders the hub list (docs/systems/hubs.md).
@@ -272,7 +267,7 @@ func (m Model) cityPanel() string {
 	for i, h := range list {
 		marker := "  "
 		if h == cur {
-			marker = "• "
+			marker = "* "
 		}
 		row := marker + h.Name
 		if m.panelFocused && i == m.selected {
@@ -282,7 +277,7 @@ func (m Model) cityPanel() string {
 	}
 	hint := "tab: focus"
 	if m.panelFocused {
-		hint = "↑↓ enter, esc"
+		hint = "up/down enter, esc"
 	}
 	b.WriteString("\n\n" + dimStyle.Render(hint))
 
@@ -290,29 +285,17 @@ func (m Model) cityPanel() string {
 	if m.panelFocused {
 		style = panelFocusStyle
 	}
-	return style.Width(leftPanelWidth - 2).Height(m.viewport.Height - 2).Render(b.String())
+	return style.Width(leftPanelWidth - 2).Height(m.mainRowHeight() - 2).Render(b.String())
 }
 
 // rightPanel is reserved space for a future system (inventory, stats,
 // suspicion — undecided). Kept empty on purpose.
 func (m Model) rightPanel() string {
-	return panelStyle.Width(rightPanelWidth - 2).Height(m.viewport.Height - 2).Render("")
+	return panelStyle.Width(rightPanelWidth - 2).Height(m.mainRowHeight() - 2).Render("")
 }
 
-// commandBox renders recent commands above the prompt, bordered,
-// lifted off the bottom edge.
-func (m Model) commandBox() string {
-	rows := make([]string, 0, historyLines+1)
-	start := len(m.commands) - historyLines
-	if start < 0 {
-		start = 0
-	}
-	for i := 0; i < historyLines-len(m.commands[start:]); i++ {
-		rows = append(rows, "")
-	}
-	for _, c := range m.commands[start:] {
-		rows = append(rows, dimStyle.Render("> "+c))
-	}
-	rows = append(rows, m.input.View())
-	return panelStyle.Width(m.width - 2).Render(strings.Join(rows, "\n"))
+// logPanel renders the transcript viewport.
+func (m Model) logPanel() string {
+	content := panelTitleStyle.Render("LOG") + "\n" + m.log.View()
+	return panelStyle.Width(m.width - 2).Render(content)
 }
