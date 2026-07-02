@@ -28,7 +28,6 @@ const (
 
 var (
 	storyStyle  = lipgloss.NewStyle().Padding(0, 1)
-	echoStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Bold(true)
 	promptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("5"))
 	dimStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 
@@ -41,12 +40,15 @@ var (
 	hubSelStyle     = lipgloss.NewStyle().Reverse(true)
 )
 
-// Model is the Bubble Tea model for a session.
+// Model is the Bubble Tea model for a session. The viewport is a live
+// room view: the current room rendered fresh from state, with recent
+// message output below it, cleared whenever Buddy changes rooms.
 type Model struct {
 	eng      *engine.Engine
 	viewport viewport.Model
 	input    textinput.Model
-	history  []string
+	intro    string // shown above the room view until Buddy first moves
+	messages []string
 	ready    bool
 	width    int
 	height   int
@@ -68,9 +70,9 @@ func New(eng *engine.Engine, intro string) Model {
 	ti.Focus()
 
 	return Model{
-		eng:     eng,
-		input:   ti,
-		history: []string{intro, engine.Look(eng.World)},
+		eng:   eng,
+		input: ti,
+		intro: intro,
 	}
 }
 
@@ -135,11 +137,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			m.commands = append(m.commands, line)
-			m.history = append(m.history, echoStyle.Render("> "+line))
-			if out := m.eng.Execute(line); out != "" {
-				m.history = append(m.history, out)
-			}
-			m.refresh()
+			m.runCommand(line)
 			if m.eng.World.Quitting() {
 				return m, tea.Quit
 			}
@@ -197,12 +195,34 @@ func (m Model) updatePanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.selected = (m.selected + 1) % len(list)
 	case tea.KeyEnter:
 		hub := list[m.selected]
-		m.history = append(m.history, echoStyle.Render("> [travel] "+hub.Name))
-		m.history = append(m.history, hubs.Travel(m.eng.World, hub.ID))
+		m.messages = nil
+		m.intro = ""
+		if out := hubs.Travel(m.eng.World, hub.ID); out != "" {
+			m.messages = append(m.messages, out)
+		}
 		m.refresh()
 		m.panelFocused = false
 	}
 	return m, nil
+}
+
+// runCommand executes one player command and updates the room view:
+// messages reset on room change, and output that merely repeats the
+// room description (an explicit "look") is not doubled.
+func (m *Model) runCommand(line string) {
+	before := m.eng.World.Room()
+	out := m.eng.Execute(line)
+	if m.eng.World.Room() != before {
+		m.messages = nil
+		m.intro = ""
+	}
+	if out != "" && out != engine.Look(m.eng.World) {
+		m.messages = append(m.messages, out)
+	}
+	if len(m.messages) > 8 {
+		m.messages = m.messages[len(m.messages)-8:]
+	}
+	m.refresh()
 }
 
 // currentHubIndex preselects the hub Buddy is in.
@@ -216,13 +236,19 @@ func currentHubIndex(w *engine.World, list []*engine.Entity) int {
 	return 0
 }
 
-// refresh re-renders the transcript into the viewport, wrapped to the
-// current width, and keeps it scrolled to the newest text.
+// refresh re-renders the room view: the current room from live state,
+// then recent messages, scrolled to the newest text.
 func (m *Model) refresh() {
 	if !m.ready {
 		return
 	}
-	wrapped := storyStyle.Width(m.viewport.Width).Render(strings.Join(m.history, "\n\n"))
+	var parts []string
+	if m.intro != "" {
+		parts = append(parts, m.intro)
+	}
+	parts = append(parts, engine.Look(m.eng.World))
+	parts = append(parts, m.messages...)
+	wrapped := storyStyle.Width(m.viewport.Width).Render(strings.Join(parts, "\n\n"))
 	m.viewport.SetContent(wrapped)
 	m.viewport.GotoBottom()
 }

@@ -36,9 +36,10 @@ func Current(w *engine.World) *engine.Entity {
 	return nil
 }
 
-// Travel moves the player to the hub's entry room and describes the
-// arrival. Unknown hub IDs and broken entry references are content
-// bugs; Travel reports them rather than panicking.
+// Travel moves the player to the hub's entry room. Like engine.Go it
+// returns no description — the UI renders the current room from state.
+// Unknown hub IDs and broken entry references are content bugs; Travel
+// reports them rather than panicking.
 func Travel(w *engine.World, hubID string) string {
 	for _, h := range List(w) {
 		if h.ID != hubID {
@@ -50,7 +51,7 @@ func Travel(w *engine.World, hubID string) string {
 			return "(bug) hub " + hubID + " has no entry room " + cfg.Entry
 		}
 		dest.Add(w.Player)
-		return engine.Look(w)
+		return ""
 	}
 	return "(bug) unknown hub " + hubID
 }

@@ -130,7 +130,9 @@ func Look(w *World) string {
 	return b.String()
 }
 
-// Go moves the player through a room exit.
+// Go moves the player through a room exit. Movement returns only extra
+// narration (a room's "enter" component, if any) — describing the new
+// room is the UI's job, which renders the current room from state.
 func Go(w *World, dir string) string {
 	if dir == "" {
 		return "Go where?"
@@ -148,7 +150,7 @@ func Go(w *World, dir string) string {
 		return blocked
 	}
 	dest.Add(w.Player)
-	return dispatch(w, dest, Command{Verb: "enter"}, func() string { return Look(w) })
+	return dispatch(w, dest, Command{Verb: "enter"}, func() string { return "" })
 }
 
 // Take moves a Portable entity into the player's inventory.

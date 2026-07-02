@@ -62,8 +62,8 @@ func TestCoreLoop(t *testing.T) {
 		{"i", "coin"},                       // inventory = player contents
 		{"take shelf", "isn't going"},       // no Portable component
 		{"use lever", "Clunk."},             // On escape-hatch component
-		{"north", "The Hall"},               // bare direction
-		{"look", "The hall hums."},          // Description.Fn sees flag
+		{"north", ""},                       // movement returns no description...
+		{"look", "The hall hums."},          // ...state renders the new room (Description.Fn sees flag)
 		{"east", "wall of test assertions"}, // Exits.Blocked
 		{"drop coin", "You drop"},           // carried across rooms
 		{"take coin", "You take"},           // now from the hall floor

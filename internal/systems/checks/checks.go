@@ -75,8 +75,7 @@ func (g Guarded) Handle(w *engine.World, self *engine.Entity, cmd engine.Command
 	if w.Flags[self.ID+"_bypassed"] {
 		dest := w.FindID(g.Dest)
 		dest.Add(w.Player)
-		return fmt.Sprintf("%s already knows to ignore you.\n\n%s",
-			capitalized(self.Name), engine.Look(w)), true
+		return fmt.Sprintf("%s already knows to ignore you.", capitalized(self.Name)), true
 	}
 
 	attempt, possible := g.Approaches[approach]
@@ -95,7 +94,7 @@ func (g Guarded) Handle(w *engine.World, self *engine.Entity, cmd engine.Command
 	w.Flags[self.ID+"_bypassed"] = true
 	dest := w.FindID(g.Dest)
 	dest.Add(w.Player)
-	return attempt.Success + "\n\n" + engine.Look(w), true
+	return attempt.Success, true
 }
 
 // approachStats exists to recognize approach verbs in Handle.

@@ -59,7 +59,7 @@ func mustWorld(seed int64) *engine.World {
 }
 
 func TestApproachMatrix(t *testing.T) {
-	_, eng := guardedWorld(3)
+	w, eng := guardedWorld(3)
 
 	// Impossible approach refuses with configured prose, no roll.
 	if out := eng.Execute("charm guard"); !strings.Contains(out, "immune to cute") {
@@ -75,10 +75,11 @@ func TestApproachMatrix(t *testing.T) {
 		t.Fatalf("identical attempt differed:\n%q\n%q", first, again)
 	}
 
-	// Possible approach succeeds and moves the player.
+	// Possible approach succeeds and moves the player. Movement adds no
+	// room description — the UI renders the room from state.
 	out := eng.Execute("parkour guard")
-	if !strings.Contains(out, "parkour-ok") || !strings.Contains(out, "Back") {
-		t.Fatalf("expected parkour success into Back: %q", out)
+	if !strings.Contains(out, "parkour-ok") || w.Room().ID != "back" {
+		t.Fatalf("expected parkour success into back room: %q (room %s)", out, w.Room().ID)
 	}
 
 	// Once bypassed, the guard stays solved.

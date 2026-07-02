@@ -55,9 +55,8 @@ func TestListAndCurrent(t *testing.T) {
 func TestTravel(t *testing.T) {
 	w := cityWorld()
 
-	out := hubs.Travel(w, "plaza")
-	if !strings.Contains(out, "The Square") {
-		t.Fatalf("travel should land in and describe the square: %q", out)
+	if out := hubs.Travel(w, "plaza"); out != "" {
+		t.Fatalf("travel returns no description (UI renders from state), got %q", out)
 	}
 	if w.Room().ID != "square" {
 		t.Fatalf("player should be in square, is in %s", w.Room().ID)
