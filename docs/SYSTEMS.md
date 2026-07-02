@@ -23,27 +23,29 @@ one package under `internal/systems/<name>/` — see Architecture in the readme.
 
 ### Foundational (other systems sit on these)
 
-3. ⬜ **Turns & time** — turn counter plus per-turn tick hooks. Stealth, NPC
-   schedules, and timed events all hang off this. Build first.
+3. ✅ **Turns & time** — spec'd, nothing to build: pure state machine, no
+   clock, no ticks, no counters. Only player actions change state.
+   See `systems/turns.md`.
 4. ⬜ **Visibility & scope** — formalize what anyone (Buddy, dogs, cameras)
    can perceive: nested contents, containers/surfaces, hiding spots.
    Stealth is the inverse of this system.
-5. ⬜ **Events/triggers** — scheduled and conditional events ("in 5 turns the
-   owner returns", "when flag X and Buddy enters Y"). Generalizes the
-   `engine.On` escape hatch.
+5. ⬜ **Events/triggers** — conditional events ("when flag X and Buddy
+   enters Y"), all state-based per turns.md. Generalizes the `engine.On`
+   escape hatch.
 
 ### Headline systems
 
-6. ⬜ **Stealth/detection** — the core mechanic: nobody suspects a cat.
-   Observers (dogs, cameras, humans) with perception rules; Buddy's profile
-   (baseline invisibility, modified by behavior — carrying human objects,
-   pawing keyboards, restricted zones); suspicion states; consequences;
-   counters (neon camouflage, hiding, distractions).
-7. ⬜ **NPCs** — presence, movement on the turn tick, dialogue, memory.
-   A dog = NPC component + observer component on one entity.
+6. 📝 **Stealth/detection** — the core mechanic: nobody suspects a cat.
+   Boundary checks, not simulation: hidden seeded rolls (XCOM rule —
+   identical attempt, identical result), visible stat + prose-telegraphed
+   circumstances, observer types (human/dog/camera). The only dice in the
+   game. See `systems/stealth.md`.
+7. ⬜ **NPCs** — presence, dialogue, memory. Positions are a function of
+   game state (flags), never simulated movement. A dog = NPC component +
+   observer configuration on one entity.
 8. ⬜ **Hacking/cyberspace** — jack in/out (plane switch), subnets as a
-   second tree region, ICE as cyber-observers (stealth system reused),
-   data as items.
+   second tree region, data as items. No Hacking stat, no rolls: the
+   player performs the hack through play; ICE is puzzle, not check.
 9. ⬜ **Hubs & travel** — city topology: hubs (Plaza, Industrial Zone,
    Microslop HQ, ...) containing explorable rooms; hub-to-hub travel.
 
