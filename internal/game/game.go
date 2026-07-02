@@ -10,6 +10,7 @@ package game
 import (
 	"github.com/pabloduke/paws-in-the-machine/internal/engine"
 	"github.com/pabloduke/paws-in-the-machine/internal/systems/checks"
+	"github.com/pabloduke/paws-in-the-machine/internal/systems/hubs"
 )
 
 // Intro is shown once when the session starts.
@@ -151,9 +152,39 @@ func NewWorld() *engine.World {
 		},
 	)
 
+	// --- The Plaza (hub) -------------------------------------------------
+
+	plazaSquare := engine.NewEntity("plaza_square", "Plaza Square").With(
+		engine.Description{Text: "(Placeholder) The Plaza. Ad-drones wheeling " +
+			"under the dome glow, crowds that part around you without " +
+			"noticing you. Nothing here needs a cat. Yet."},
+		engine.Exits{
+			Dirs:    map[string]string{"east": "arcade"},
+			Blocked: "(Placeholder) Crowds and chrome in every other direction.",
+		},
+	)
+
+	arcade := engine.NewEntity("arcade", "The Shuttered Arcade").With(
+		engine.Description{Text: "(Placeholder) A dead arcade, cabinets under " +
+			"dust sheets. Something hums in the back wall that shouldn't."},
+		engine.Exits{
+			Dirs:    map[string]string{"west": "plaza_square"},
+			Blocked: "(Placeholder) The square is back west.",
+		},
+	)
+
 	// --- Assemble the tree ---------------------------------------------
 
-	w.Root.Add(lair, coffeeshop, backroom)
+	neighborhood := engine.NewEntity("neighborhood", "The Neighborhood").With(
+		hubs.Hub{Entry: "lair"},
+	)
+	plaza := engine.NewEntity("plaza", "The Plaza").With(
+		hubs.Hub{Entry: "plaza_square"},
+	)
+
+	w.Root.Add(neighborhood, plaza)
+	neighborhood.Add(lair, coffeeshop, backroom)
+	plaza.Add(plazaSquare, arcade)
 	lair.Add(deck, shelf, shard, w.Player)
 	shelf.Add(mug)
 	coffeeshop.Add(counter, machine, laptop, hound)

@@ -35,7 +35,9 @@ one package under `internal/systems/<name>/` — see Architecture in the readme.
 
 ### Headline systems
 
-6. 📝 **Stats/checks/obstacles** — the core mechanic: nobody suspects a
+6. ✅ **Stats/checks/obstacles** (skeleton; XP earn/spend, failure
+   consequences, and modifiers still open) — the core mechanic: nobody
+   suspects a
    cat. Three stats, each a verb (Stealth=sneak past, Agility=parkour
    around, Charm=charm); XP is the growth currency spent to raise them.
    Obstacles declare an approach matrix (per-approach difficulty, or
@@ -48,8 +50,10 @@ one package under `internal/systems/<name>/` — see Architecture in the readme.
 8. ⬜ **Hacking/cyberspace** — jack in/out (plane switch), subnets as a
    second tree region, data as items. No Hacking stat, no rolls: the
    player performs the hack through play; ICE is puzzle, not check.
-9. ⬜ **Hubs & travel** — city topology: hubs (Plaza, Industrial Zone,
-   Microslop HQ, ...) containing explorable rooms; hub-to-hub travel.
+9. ✅ **Hubs & travel** — city topology: hubs (districts) containing
+   explorable rooms, all known/travelable from the start (Buddy's lived
+   here all his life); game state gates relevance, not access. Travel
+   via focusable side panel (Tab, arrows, Enter). See `systems/hubs.md`.
 
 ### Supporting
 
