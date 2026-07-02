@@ -84,6 +84,25 @@ func TestCoreLoop(t *testing.T) {
 	}
 }
 
+// TestDisplayNameTypable: whatever label the UI shows must resolve,
+// article or not — even when ID and aliases don't cover it.
+func TestDisplayNameTypable(t *testing.T) {
+	w := engine.NewWorld()
+	room := engine.NewEntity("room", "Room").With(engine.Exits{})
+	shard := engine.NewEntity("shard1", "a data-shard").With(
+		engine.Description{Text: "Cold."},
+	)
+	w.Root.Add(room)
+	room.Add(shard, w.Player)
+	eng := engine.New(w)
+
+	for _, input := range []string{"x data-shard", "x a data-shard"} {
+		if out := eng.Execute(input); out != "Cold." {
+			t.Fatalf("%q should resolve the shard by display name: %q", input, out)
+		}
+	}
+}
+
 // TestVisibilityScope: scope stops at closed containers; opening
 // reveals contents to both resolution and the visible list; labels
 // reflect true state via Aspect.

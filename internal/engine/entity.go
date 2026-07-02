@@ -13,6 +13,8 @@
 // construct the entity tree declaratively.
 package engine
 
+import "strings"
+
 // Entity is the one node type in the world tree. Anything the player
 // can refer to — a room, an item, a container, an NPC, the player — is
 // an entity distinguished only by its components and its place in the
@@ -64,8 +66,12 @@ func (e *Entity) removeChild(c *Entity) {
 
 // Matches reports whether name (already lowercased) refers to this
 // entity.
+// The display name matches with or without its leading article, so
+// whatever the UI shows ("a data-shard") is always typable: the parser
+// strips articles from input, this strips them from the name, and the
+// two meet in the middle.
 func (e *Entity) Matches(name string) bool {
-	if name == e.ID || name == e.Name {
+	if name == e.ID || name == e.Name || name == stripArticle(e.Name) {
 		return true
 	}
 	for _, a := range e.Aliases {
@@ -74,6 +80,15 @@ func (e *Entity) Matches(name string) bool {
 		}
 	}
 	return false
+}
+
+func stripArticle(s string) string {
+	for _, article := range []string{"a ", "an ", "the "} {
+		if rest, ok := strings.CutPrefix(s, article); ok {
+			return rest
+		}
+	}
+	return s
 }
 
 // Walk visits the subtree rooted at e depth-first. Returning false from
