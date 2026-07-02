@@ -74,18 +74,63 @@ func (w *World) FindID(id string) *Entity {
 	return found
 }
 
+// concealed reports whether e hides its contents right now (a closed
+// Openable). Visibility rule: invisible means physically enclosed —
+// see docs/systems/visibility.md.
+func (w *World) concealed(e *Entity) bool {
+	if o, ok := Part[Openable](e); ok {
+		return !o.IsOpen(w)
+	}
+	return false
+}
+
+// walkScope visits every entity the player can currently perceive or
+// reach in the room: the room's subtree, stopping at closed containers
+// (the container itself is in scope; its contents are not).
+func (w *World) walkScope(fn func(*Entity) bool) {
+	var walk func(e *Entity) bool
+	walk = func(e *Entity) bool {
+		for _, c := range e.Contents {
+			if !fn(c) {
+				return false
+			}
+			if w.concealed(c) {
+				continue
+			}
+			if !walk(c) {
+				return false
+			}
+		}
+		return true
+	}
+	walk(w.Room())
+}
+
 // InScope resolves a player-typed name against everything reachable:
-// the current room's subtree (which includes the player and inventory).
+// the current room's visible subtree plus the player's inventory.
 func (w *World) InScope(name string) *Entity {
 	var found *Entity
-	w.Room().Walk(func(e *Entity) bool {
-		if e != w.Room() && e.Matches(name) {
+	w.walkScope(func(e *Entity) bool {
+		if e.Matches(name) {
 			found = e
 			return false
 		}
 		return true
 	})
 	return found
+}
+
+// Visible lists what the player currently sees in the room, in tree
+// order: everything in scope except the player and what Buddy carries.
+func (w *World) Visible() []*Entity {
+	var out []*Entity
+	w.walkScope(func(e *Entity) bool {
+		if e != w.Player && !w.Carried(e) {
+			out = append(out, e)
+		}
+		return true
+	})
+	return out
 }
 
 // Carried reports whether the player holds e (directly or nested).

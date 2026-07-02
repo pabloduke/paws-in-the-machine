@@ -84,6 +84,54 @@ func TestCoreLoop(t *testing.T) {
 	}
 }
 
+// TestVisibilityScope: scope stops at closed containers; opening
+// reveals contents to both resolution and the visible list; labels
+// reflect true state via Aspect.
+func TestVisibilityScope(t *testing.T) {
+	w := engine.NewWorld()
+	room := engine.NewEntity("room", "Room").With(engine.Exits{})
+	drawer := engine.NewEntity("drawer", "a drawer").With(
+		engine.Openable{Flag: "open"},
+		engine.Aspect{Fn: func(w *engine.World) string {
+			if w.Flags["open"] {
+				return "an open drawer"
+			}
+			return "a drawer"
+		}},
+	)
+	ruby := engine.NewEntity("ruby", "a ruby").With(engine.Portable{})
+	w.Root.Add(room)
+	room.Add(drawer, w.Player)
+	drawer.Add(ruby)
+	eng := engine.New(w)
+
+	// Closed: the drawer is visible and targetable, the ruby is not.
+	if out := eng.Execute("take ruby"); !strings.Contains(out, `don't see any "ruby"`) {
+		t.Fatalf("enclosed ruby should be out of scope: %q", out)
+	}
+	if vis := w.Visible(); len(vis) != 1 || vis[0].ID != "drawer" {
+		t.Fatalf("expected only the drawer visible, got %v", vis)
+	}
+	if name := engine.DisplayName(w, drawer); name != "a drawer" {
+		t.Fatalf("closed label: %q", name)
+	}
+
+	// Open: the ruby enters scope, the list, and the label updates.
+	w.Flags["open"] = true
+	if out := eng.Execute("take ruby"); !strings.Contains(out, "You take") {
+		t.Fatalf("revealed ruby should be takeable: %q", out)
+	}
+	if name := engine.DisplayName(w, drawer); name != "an open drawer" {
+		t.Fatalf("open label: %q", name)
+	}
+	// Carried items don't show in the visible list.
+	for _, e := range w.Visible() {
+		if e.ID == "ruby" {
+			t.Fatal("carried ruby should not be in the visible list")
+		}
+	}
+}
+
 // TestXPAndTraining covers the growth loop: escalating level costs,
 // stat points per level, and spending them.
 func TestXPAndTraining(t *testing.T) {

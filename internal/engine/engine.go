@@ -88,6 +88,8 @@ func defaultFor(w *World, target *Entity, cmd Command) string {
 		return "You paw at it, but nothing happens."
 	case "knock":
 		return "You give it a speculative shove. It stays put. Disappointing."
+	case "turn":
+		return "You nose at it, but it doesn't turn."
 	case "sneak":
 		return fmt.Sprintf("There's no sneaking past %s. It isn't in your way.", target.Name)
 	case "parkour":
@@ -135,7 +137,9 @@ func Train(w *World, stat string) string {
 // --- Default verb implementations, exported so components can invoke
 // --- the stock behavior after their own logic runs.
 
-// Look renders the current room: name, description, contents, exits.
+// Look renders the current room: name, description, exits. Visible
+// entities are not listed here — they're the UI's YOU SEE panel
+// (World.Visible); headless consumers can query it directly.
 func Look(w *World) string {
 	room := w.Room()
 
@@ -143,11 +147,6 @@ func Look(w *World) string {
 	b.WriteString(room.Name)
 	if d, ok := Part[Description](room); ok {
 		b.WriteString("\n\n" + d.render(w))
-	}
-	for _, c := range room.Contents {
-		if c != w.Player {
-			b.WriteString(fmt.Sprintf("\n\nYou see %s here.", c.Name))
-		}
 	}
 	if x, ok := Part[Exits](room); ok && len(x.Dirs) > 0 {
 		dirs := make([]string, 0, len(x.Dirs))
@@ -230,6 +229,7 @@ const helpText = `Commands:
   take / drop <thing>   manage your possessions
   use <thing>           operate something (also: jack)
   knock <thing>         you are a cat (also: bat, swat, paw)
+  turn <thing>          rotate something (also: twist)
   sneak past <thing>    stealth your way through
   parkour <thing>       the acrobatic route (also: leap, vault)
   charm <thing>         weaponized cuteness (also: purr)

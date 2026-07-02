@@ -72,6 +72,38 @@ func (o On) Handle(w *World, self *Entity, cmd Command) (string, bool) {
 	return "", false
 }
 
+// Openable marks an entity as a container that conceals its contents
+// until opened: closed unless the flag is set. Scope resolution and
+// the visible-entity list stop at closed entities (see
+// docs/systems/visibility.md). Opening is an actor verb wired by
+// content (e.g. a candlestick's On "turn" hook setting the flag);
+// Openable itself handles nothing.
+type Openable struct {
+	Flag string
+}
+
+func (Openable) Handle(*World, *Entity, Command) (string, bool) { return "", false }
+
+// IsOpen reports whether the container currently reveals its contents.
+func (o Openable) IsOpen(w *World) bool { return w.Flags[o.Flag] }
+
+// Aspect gives an entity a state-dependent display name ("drawer" vs
+// "open drawer"). Display always reflects true world state — examine
+// is a read-only verb and never mutates anything.
+type Aspect struct {
+	Fn func(w *World) string
+}
+
+func (Aspect) Handle(*World, *Entity, Command) (string, bool) { return "", false }
+
+// DisplayName resolves how an entity is currently labeled.
+func DisplayName(w *World, e *Entity) string {
+	if a, ok := Part[Aspect](e); ok {
+		return a.Fn(w)
+	}
+	return e.Name
+}
+
 // Exits makes an entity a room: Dirs maps directions to destination
 // entity IDs. Blocked, if set, replaces the stock "you can't go that
 // way" message.

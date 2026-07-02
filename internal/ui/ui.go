@@ -7,6 +7,7 @@
 package ui
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -288,10 +289,28 @@ func (m Model) cityPanel() string {
 	return style.Width(leftPanelWidth - 2).Height(m.mainRowHeight() - 2).Render(b.String())
 }
 
-// rightPanel is reserved space for a future system (inventory, stats,
-// suspicion — undecided). Kept empty on purpose.
+// rightPanel is the YOU SEE list: visible entities (labels reflect
+// true state) and exits — see docs/systems/visibility.md.
 func (m Model) rightPanel() string {
-	return panelStyle.Width(rightPanelWidth - 2).Height(m.mainRowHeight() - 2).Render("")
+	w := m.eng.World
+
+	var b strings.Builder
+	b.WriteString(panelTitleStyle.Render("YOU SEE"))
+	for _, e := range w.Visible() {
+		b.WriteString("\n  " + engine.DisplayName(w, e))
+	}
+	if x, ok := engine.Part[engine.Exits](w.Room()); ok && len(x.Dirs) > 0 {
+		b.WriteString("\n\n" + panelTitleStyle.Render("EXITS"))
+		dirs := make([]string, 0, len(x.Dirs))
+		for dir := range x.Dirs {
+			dirs = append(dirs, dir)
+		}
+		sort.Strings(dirs)
+		for _, dir := range dirs {
+			b.WriteString("\n  " + dir)
+		}
+	}
+	return panelStyle.Width(rightPanelWidth - 2).Height(m.mainRowHeight() - 2).Render(b.String())
 }
 
 // logPanel renders the transcript viewport.

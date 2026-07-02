@@ -163,13 +163,61 @@ func NewWorld() *engine.World {
 	// --- The Back Room --------------------------------------------------
 
 	backroom := engine.NewEntity("backroom", "The Back Room").With(
-		engine.Description{Text: "(Placeholder) Storage, a humming server " +
-			"rack that has no business in a coffee shop, and the smell " +
-			"of secrets."},
+		engine.Description{Fn: func(w *engine.World) string {
+			base := "(Placeholder) Storage, a humming server rack that has " +
+				"no business in a coffee shop, and the smell of secrets. " +
+				"An old writing desk sits against the wall, a brass " +
+				"candlestick bolted to its top — bolted, in a room where " +
+				"nothing else is."
+			if w.Flags["drawer_open"] {
+				return base + "\n\nThe desk drawer hangs open, its felt " +
+					"lining glowing faintly red."
+			}
+			return base
+		}},
 		engine.Exits{
 			Dirs:    map[string]string{"north": "coffeeshop"},
 			Blocked: "(Placeholder) One way in, one way out: north.",
 		},
+	)
+
+	candlestick := engine.NewEntity("candlestick", "a brass candlestick", "candlestick", "candle").With(
+		engine.Description{Text: "(Placeholder) Brass, bolted down, and " +
+			"polished by many hands. Or paws."},
+		engine.On{Verb: "turn", Do: func(w *engine.World) string {
+			if w.Flags["drawer_open"] {
+				return "(Placeholder) It spins freely now. The drawer is " +
+					"already open."
+			}
+			w.Flags["drawer_open"] = true
+			return "(Placeholder) You brace and twist. Somewhere inside " +
+				"the desk, a counterweight shifts — the drawer slides " +
+				"open with a click."
+		}},
+	)
+
+	drawer := engine.NewEntity("drawer", "a desk drawer", "drawer", "desk").With(
+		engine.Aspect{Fn: func(w *engine.World) string {
+			if w.Flags["drawer_open"] {
+				return "an open desk drawer"
+			}
+			return "a desk drawer"
+		}},
+		engine.Description{Fn: func(w *engine.World) string {
+			if w.Flags["drawer_open"] {
+				return "(Placeholder) Felt-lined and open. The ruby catches " +
+					"what little light there is."
+			}
+			return "(Placeholder) Locked tight, no keyhole. The desk is " +
+				"cleverer than it looks."
+		}},
+		engine.Openable{Flag: "drawer_open"},
+	)
+
+	ruby := engine.NewEntity("ruby", "a ruby", "ruby", "gem").With(
+		engine.Description{Text: "(Placeholder) Deep red, real, and worth " +
+			"more than this whole block. Someone hid it well."},
+		engine.Portable{},
 	)
 
 	// --- The Plaza (hub) -------------------------------------------------
@@ -212,6 +260,8 @@ func NewWorld() *engine.World {
 
 	w.Root.Add(neighborhood, plaza)
 	neighborhood.Add(lair, coffeeshop, backroom)
+	backroom.Add(candlestick, drawer)
+	drawer.Add(ruby)
 	plaza.Add(plazaSquare, arcade)
 	arcade.Add(hum)
 	lair.Add(deck, shelf, shard, w.Player)

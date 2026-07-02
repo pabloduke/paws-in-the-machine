@@ -26,9 +26,11 @@ one package under `internal/systems/<name>/` — see Architecture in the readme.
 3. ✅ **Turns & time** — spec'd, nothing to build: pure state machine, no
    clock, no ticks, no counters. Only player actions change state.
    See `systems/turns.md`.
-4. ⬜ **Visibility & scope** — formalize what anyone (Buddy, dogs, cameras)
-   can perceive: nested contents, containers/surfaces, hiding spots.
-   Stealth is the inverse of this system.
+4. ✅ **Visibility & scope** (player side; observer-side perception for
+   stealth modifiers still later) — invisible means physically enclosed:
+   scope stops at closed containers (Openable); labels always reflect
+   true state (Aspect); observer verbs never mutate. YOU SEE panel +
+   `World.Visible()`. See `systems/visibility.md`.
 5. ⬜ **Events/triggers** — conditional events ("when flag X and Buddy
    enters Y"), all state-based per turns.md. Generalizes the `engine.On`
    escape hatch.
