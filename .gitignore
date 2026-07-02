@@ -35,3 +35,7 @@ go.work.sum
 #/pawsinthemachine
 #/.idea/pawsinthemachine.iml
 #/.idea/vcs.xml
+
+# built binaries
+/paws
+cmd/pawsinthemachine/pawsinthemachine
