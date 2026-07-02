@@ -35,11 +35,11 @@ one package under `internal/systems/<name>/` — see Architecture in the readme.
 
 ### Headline systems
 
-6. 📝 **Stealth/detection** — the core mechanic: nobody suspects a cat.
+6. 📝 **Stealth/checks/XP** — the core mechanic: nobody suspects a cat.
    Boundary checks, not simulation: hidden seeded rolls (XCOM rule —
-   identical attempt, identical result), visible stat + prose-telegraphed
-   circumstances, observer types (human/dog/camera). The only dice in the
-   game. See `systems/stealth.md`.
+   identical attempt, identical result) against a single XP stat +
+   prose-telegraphed circumstances; observer types (human/dog/camera).
+   The only dice in the game. See `systems/stealth.md`.
 7. ⬜ **NPCs** — presence, dialogue, memory. Positions are a function of
    game state (flags), never simulated movement. A dog = NPC component +
    observer configuration on one entity.
