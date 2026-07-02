@@ -45,6 +45,8 @@ func (e *Engine) Execute(input string) string {
 		return Inventory(w)
 	case "stats":
 		return StatSheet(w)
+	case "train":
+		return Train(w, cmd.Object)
 	case "help":
 		return helpText
 	case "quit":
@@ -98,9 +100,36 @@ func defaultFor(w *World, target *Entity, cmd Command) string {
 
 // StatSheet renders Buddy's visible numbers.
 func StatSheet(w *World) string {
-	return fmt.Sprintf(
-		"Stealth %d   Agility %d   Charm %d\nXP: %d",
-		w.Stats.Stealth, w.Stats.Agility, w.Stats.Charm, w.XP)
+	sheet := fmt.Sprintf(
+		"Level %d   XP %d/%d\nStealth %d   Agility %d   Charm %d",
+		w.Level, w.XP, w.NextLevelCost(),
+		w.Stats.Stealth, w.Stats.Agility, w.Stats.Charm)
+	if w.StatPoints > 0 {
+		sheet += fmt.Sprintf("\nStat points to spend: %d (train <stat>)", w.StatPoints)
+	}
+	return sheet
+}
+
+// Train spends one stat point to raise a stat by one.
+func Train(w *World, stat string) string {
+	var target *int
+	switch stat {
+	case "stealth":
+		target = &w.Stats.Stealth
+	case "agility":
+		target = &w.Stats.Agility
+	case "charm":
+		target = &w.Stats.Charm
+	default:
+		return "Train what? (stealth, agility, charm)"
+	}
+	if w.StatPoints == 0 {
+		return "No stat points to spend — level up first."
+	}
+	w.StatPoints--
+	*target++
+	return fmt.Sprintf("%s %d → %d. Points left: %d",
+		capitalize(stat), *target-1, *target, w.StatPoints)
 }
 
 // --- Default verb implementations, exported so components can invoke
@@ -205,5 +234,6 @@ const helpText = `Commands:
   parkour <thing>       the acrobatic route (also: leap, vault)
   charm <thing>         weaponized cuteness (also: purr)
   stats                 your numbers
+  train <stat>          spend a stat point (earned by leveling up)
   inventory (i)         what you're carrying
   quit (q)              end the session`

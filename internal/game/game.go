@@ -18,6 +18,16 @@ const Intro = `PAWS IN THE MACHINE
 
 (Intro text goes here. Type "help" for commands.)`
 
+// awardOnce grants XP the first time flag trips; returns the XP line
+// (with leading separator) or "" if already earned.
+func awardOnce(w *engine.World, flag string, xp int) string {
+	if w.Flags[flag] {
+		return ""
+	}
+	w.Flags[flag] = true
+	return "\n\n" + engine.AwardXP(w, xp)
+}
+
 // NewWorld constructs the world: Buddy's lair and the coffee shop,
 // connected north/south. All prose is placeholder.
 func NewWorld() *engine.World {
@@ -46,7 +56,8 @@ func NewWorld() *engine.World {
 			if !w.Flags["heard_whisper"] {
 				w.Flags["heard_whisper"] = true
 				return "(Placeholder) You jack in. Down in the dead code, " +
-					"something whispers: ...they buried the sun..."
+					"something whispers: ...they buried the sun..." +
+					awardOnce(w, "xp_whisper", 5)
 			}
 			return "(Placeholder) You jack in again. The whisper is still " +
 				"down there, circling."
@@ -67,13 +78,19 @@ func NewWorld() *engine.World {
 			}
 			w.Flags["mug_down"] = true
 			return "(Placeholder) One deliberate paw. The mug tips, hangs, " +
-				"shatters. Focus restored."
+				"shatters. Focus restored." + awardOnce(w, "xp_mug", 2)
 		}},
 	)
 
 	shard := engine.NewEntity("shard", "a data-shard", "shard", "chip").With(
-		engine.Description{Text: "(Placeholder) Matte black, colder than it " +
-			"should be."},
+		engine.On{Verb: "examine", Do: func(w *engine.World) string {
+			if w.Flags["heard_whisper"] {
+				return "(Placeholder) The glyphs on the shard almost make " +
+					"sense now. Same warmth, folded small." +
+					awardOnce(w, "xp_shard", 2)
+			}
+			return "(Placeholder) Matte black, colder than it should be."
+		}},
 		engine.Portable{},
 	)
 
@@ -103,8 +120,11 @@ func NewWorld() *engine.World {
 	)
 
 	laptop := engine.NewEntity("laptop", "a regular's laptop", "laptop").With(
-		engine.Description{Text: "(Placeholder) A laptop left open at a corner " +
-			"table. Its owner is in the restroom. Interesting."},
+		engine.On{Verb: "examine", Do: func(w *engine.World) string {
+			return "(Placeholder) A laptop left open at a corner table. Its " +
+				"owner is in the restroom. Interesting." +
+				awardOnce(w, "xp_laptop", 3)
+		}},
 	)
 
 	hound := engine.NewEntity("hound", "a corpo hound", "hound", "dog", "guard").With(
@@ -173,6 +193,14 @@ func NewWorld() *engine.World {
 		},
 	)
 
+	hum := engine.NewEntity("hum", "the humming wall", "wall", "hum").With(
+		engine.On{Verb: "examine", Do: func(w *engine.World) string {
+			return "(Placeholder) You press an ear to the wall. Something " +
+				"back there is alive in the electrical sense. Filed away." +
+				awardOnce(w, "xp_hum", 3)
+		}},
+	)
+
 	// --- Assemble the tree ---------------------------------------------
 
 	neighborhood := engine.NewEntity("neighborhood", "The Neighborhood").With(
@@ -185,6 +213,7 @@ func NewWorld() *engine.World {
 	w.Root.Add(neighborhood, plaza)
 	neighborhood.Add(lair, coffeeshop, backroom)
 	plaza.Add(plazaSquare, arcade)
+	arcade.Add(hum)
 	lair.Add(deck, shelf, shard, w.Player)
 	shelf.Add(mug)
 	coffeeshop.Add(counter, machine, laptop, hound)

@@ -66,7 +66,8 @@ func TestApproachMatrix(t *testing.T) {
 		t.Fatalf("charm should be refused: %q", out)
 	}
 
-	// Failed approach repeats identically (seed 3: sneak fails).
+	// Failed approach repeats identically (seed 3: sneak fails) and
+	// pays no XP.
 	first := eng.Execute("sneak past guard")
 	if !strings.Contains(first, "sneak-no") {
 		t.Fatalf("expected sneak failure with seed 3: %q", first)
@@ -74,18 +75,51 @@ func TestApproachMatrix(t *testing.T) {
 	if again := eng.Execute("sneak past guard"); again != first {
 		t.Fatalf("identical attempt differed:\n%q\n%q", first, again)
 	}
+	if w.Level != 1 || w.XP != 0 {
+		t.Fatalf("failed checks must not pay XP: level %d, xp %d", w.Level, w.XP)
+	}
 
-	// Possible approach succeeds and moves the player. Movement adds no
-	// room description — the UI renders the room from state.
+	// Possible approach succeeds, moves the player, and pays the roll
+	// you needed: 18 - 12 = 6 XP (crossing L1->2, leaving 1 XP over).
 	out := eng.Execute("parkour guard")
 	if !strings.Contains(out, "parkour-ok") || w.Room().ID != "back" {
 		t.Fatalf("expected parkour success into back room: %q (room %s)", out, w.Room().ID)
 	}
+	if !strings.Contains(out, "+6 XP") || w.Level != 2 || w.XP != 1 {
+		t.Fatalf("expected +6 XP and level 2: %q (level %d, xp %d)", out, w.Level, w.XP)
+	}
 
-	// Once bypassed, the guard stays solved.
+	// Once bypassed, the guard stays solved and pays nothing more.
 	eng.Execute("out")
 	if out := eng.Execute("sneak past guard"); !strings.Contains(out, "ignore you") {
 		t.Fatalf("bypassed guard should stay bypassed: %q", out)
+	}
+	if w.Level != 2 || w.XP != 1 {
+		t.Fatalf("bypassed guard must not pay again: level %d, xp %d", w.Level, w.XP)
+	}
+}
+
+// TestAwardFloor: a check you outclass still pays 1 XP, never 0 or
+// negative.
+func TestAwardFloor(t *testing.T) {
+	w := engine.NewWorld()
+	w.Seed = 3
+	w.Stats = engine.Stats{Agility: 12}
+
+	front := engine.NewEntity("front", "Front").With(engine.Exits{})
+	back := engine.NewEntity("back", "Back").With(engine.Exits{})
+	pushover := engine.NewEntity("pushover", "a pushover").With(checks.Guarded{
+		Dest: "back",
+		Approaches: map[checks.Approach]checks.Attempt{
+			checks.Parkour: {Difficulty: 5, Success: "over-it", Failure: "no"},
+		},
+	})
+	w.Root.Add(front, back)
+	front.Add(pushover, w.Player)
+
+	out := engine.New(w).Execute("parkour pushover")
+	if !strings.Contains(out, "+1 XP") {
+		t.Fatalf("outclassed check should floor at +1 XP: %q", out)
 	}
 }
 

@@ -84,6 +84,35 @@ func TestCoreLoop(t *testing.T) {
 	}
 }
 
+// TestXPAndTraining covers the growth loop: escalating level costs,
+// stat points per level, and spending them.
+func TestXPAndTraining(t *testing.T) {
+	w := engine.NewWorld()
+
+	// 15 XP crosses L1->2 (5) and L2->3 (10) in one award.
+	msg := engine.AwardXP(w, 15)
+	if w.Level != 3 || w.StatPoints != 2 || w.XP != 0 {
+		t.Fatalf("after 15 XP: level %d, points %d, xp %d", w.Level, w.StatPoints, w.XP)
+	}
+	if !strings.Contains(msg, "LEVEL 3") || !strings.Contains(msg, "2 stat points") {
+		t.Fatalf("award message should announce the level-up: %q", msg)
+	}
+
+	if out := engine.Train(w, "stealth"); !strings.Contains(out, "0 → 1") {
+		t.Fatalf("train should raise stealth: %q", out)
+	}
+	if w.Stats.Stealth != 1 || w.StatPoints != 1 {
+		t.Fatalf("stealth %d, points %d", w.Stats.Stealth, w.StatPoints)
+	}
+	if out := engine.Train(w, "whiskers"); !strings.Contains(out, "Train what?") {
+		t.Fatalf("unknown stat should be refused: %q", out)
+	}
+	engine.Train(w, "charm")
+	if out := engine.Train(w, "charm"); !strings.Contains(out, "No stat points") {
+		t.Fatalf("training without points should be refused: %q", out)
+	}
+}
+
 // TestDispatchOrder proves attachment order wins and handled=false
 // falls through to the default.
 func TestDispatchOrder(t *testing.T) {

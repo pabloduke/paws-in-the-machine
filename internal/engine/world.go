@@ -1,6 +1,9 @@
 package engine
 
-import "math/rand/v2"
+import (
+	"fmt"
+	"math/rand/v2"
+)
 
 // Stats are Buddy's capabilities. Each stat is a verb against an
 // obstacle: Stealth = sneak past, Agility = parkour around,
@@ -24,10 +27,14 @@ type World struct {
 	// letting content define idioms ("jack in" -> "use deck").
 	Rewrites map[string]string
 
-	// Stats and XP are visible to the player via the "stats" command.
-	// XP is the growth currency: earned by actions, spent to raise stats.
-	Stats Stats
-	XP    int
+	// Stats, XP, Level, and StatPoints are visible via the "stats"
+	// command. XP is earned by actions and fills a level track with
+	// escalating costs; each level grants a stat point; "train <stat>"
+	// spends points. XP counts progress toward the NEXT level only.
+	Stats      Stats
+	XP         int
+	Level      int
+	StatPoints int
 	// Seed makes checks deterministic (the XCOM rule): identical
 	// attempts give identical results. Generated at new-game time;
 	// content or tests may overwrite it before play.
@@ -45,6 +52,7 @@ func NewWorld() *World {
 		Flags:    map[string]bool{},
 		Rewrites: map[string]string{},
 		Seed:     rand.Int64(),
+		Level:    1,
 	}
 }
 
@@ -88,6 +96,36 @@ func (w *World) Carried(e *Entity) bool {
 		}
 	}
 	return false
+}
+
+// LevelCost is the XP needed to go from level n to n+1: LevelCostBase*n.
+const LevelCostBase = 5
+
+// NextLevelCost returns the XP required to reach the next level.
+func (w *World) NextLevelCost() int { return LevelCostBase * w.Level }
+
+// AwardXP is the single funnel for all XP gains (checks, hacks, story
+// beats). It resolves any level-ups — escalating cost per level — and
+// returns the player-visible message ("+5 XP — LEVEL 2! ...").
+func AwardXP(w *World, n int) string {
+	w.XP += n
+	msg := fmt.Sprintf("+%d XP", n)
+	leveled := 0
+	for w.XP >= w.NextLevelCost() {
+		w.XP -= w.NextLevelCost()
+		w.Level++
+		w.StatPoints++
+		leveled++
+	}
+	if leveled > 0 {
+		plural := "point"
+		if w.StatPoints != 1 {
+			plural = "points"
+		}
+		msg += fmt.Sprintf(" — LEVEL %d! %d stat %s to spend (train <stat>)",
+			w.Level, w.StatPoints, plural)
+	}
+	return msg
 }
 
 // Quit marks the session as over; the UI shuts down after the current

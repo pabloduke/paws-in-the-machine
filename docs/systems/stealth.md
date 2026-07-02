@@ -22,12 +22,23 @@ Rejected by the rule:
   play in cyberspace rooms; ICE is a puzzle you solve, not a check you
   pass. Player skill, not character skill.
 
-## XP: the growth currency
+## XP, levels, and stat points
 
-Actions earn XP; XP is spent to raise stats. Checks read the stat, XP is
-the pool. Both are visible numbers (`stats` command). Earning and
-spending must follow the turns.md rule: driven by player actions, never
-by time. (Spending mechanism/costs: TBD below.)
+- **Earning.** A successful check pays XP equal to the roll you needed:
+  `difficulty − stat`, min 1. Needing a 20 pays ~20; needing a 2 pays 2.
+  Self-balancing: as stats grow, old obstacles pay less, pushing the
+  player toward harder targets. Successful hacks pay XP by complexity —
+  content assigns the amount, since hacks are played, not rolled. Story
+  beats and discoveries may award one-time XP (flag-guarded). All
+  earning follows the turns.md rule: actions, never time. Bypass flags
+  prevent re-roll farming.
+- **Leveling.** XP fills a level track with escalating costs: level
+  n → n+1 costs `5 × n` XP (L1→2 = 5, L2→3 = 10, ...). Each level-up
+  grants one stat point.
+- **Spending.** `train <stat>` spends one point to raise a stat by one.
+  Stats are roll modifiers, so training directly re-seeds previously
+  failed checks.
+- Level, XP progress, stats, and unspent points are visible via `stats`.
 
 ## Obstacles declare an approach matrix
 
@@ -102,7 +113,6 @@ Situational, composable, content-defined. Examples:
 1. Failure consequences, concretely: shooed away (soft), area alert
    flag (stateful), route burned (hard)? Probably varies by observer
    type.
-2. XP earn amounts and stat costs; what actions grant XP.
-3. Difficulty scale calibration (what Stealth 10 means against what
+2. Difficulty scale calibration (what Stealth 10 means against what
    range).
-4. Modifier implementation (not built yet; spec'd only).
+3. Modifier implementation (not built yet; spec'd only).

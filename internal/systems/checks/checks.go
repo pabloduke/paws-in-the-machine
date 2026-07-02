@@ -94,7 +94,13 @@ func (g Guarded) Handle(w *engine.World, self *engine.Entity, cmd engine.Command
 	w.Flags[self.ID+"_bypassed"] = true
 	dest := w.FindID(g.Dest)
 	dest.Add(w.Player)
-	return attempt.Success, true
+	// The XP award is the roll you needed: harder-for-you pays more,
+	// and grown stats shrink old rewards (self-balancing).
+	award := attempt.Difficulty - approach.stat(w)
+	if award < 1 {
+		award = 1
+	}
+	return attempt.Success + "\n\n" + engine.AwardXP(w, award), true
 }
 
 // approachStats exists to recognize approach verbs in Handle.
