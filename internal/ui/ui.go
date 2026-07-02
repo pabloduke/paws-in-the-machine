@@ -5,6 +5,7 @@ package ui
 import (
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -53,6 +54,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		inputHeight := 1
 		if !m.ready {
 			m.viewport = viewport.New(msg.Width, msg.Height-inputHeight)
+			// The viewport's default bindings grab letters (j, k, u,
+			// d, b, f, space) that belong to the prompt. Scrollback is
+			// PgUp/PgDn only; typing must never scroll.
+			m.viewport.KeyMap = viewport.KeyMap{
+				PageUp:   key.NewBinding(key.WithKeys("pgup")),
+				PageDown: key.NewBinding(key.WithKeys("pgdown")),
+			}
 			m.ready = true
 		} else {
 			m.viewport.Width = msg.Width
@@ -62,9 +70,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		// Keystrokes go to exactly one component: PgUp/PgDn scroll the
+		// transcript, everything else belongs to the prompt. Sending
+		// keys to both is how typing "use deck" used to scroll the view.
 		switch msg.Type {
 		case tea.KeyCtrlC:
 			return m, tea.Quit
+		case tea.KeyPgUp, tea.KeyPgDown:
+			var cmd tea.Cmd
+			m.viewport, cmd = m.viewport.Update(msg)
+			return m, cmd
 		case tea.KeyEnter:
 			line := strings.TrimSpace(m.input.Value())
 			m.input.Reset()
@@ -81,8 +96,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
+		var cmd tea.Cmd
+		m.input, cmd = m.input.Update(msg)
+		return m, cmd
 	}
 
+	// Non-key messages (mouse wheel, blink ticks, ...) go to both.
 	var cmds []tea.Cmd
 	var cmd tea.Cmd
 	m.input, cmd = m.input.Update(msg)
