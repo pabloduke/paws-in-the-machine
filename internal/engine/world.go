@@ -173,6 +173,23 @@ func AwardXP(w *World, n int) string {
 	return msg
 }
 
+// Obvious filters Visible down to what the YOU SEE list shows:
+// Portable items and Notable entities. Everything else is scenery,
+// discovered through prose.
+func (w *World) Obvious() []*Entity {
+	var out []*Entity
+	for _, e := range w.Visible() {
+		if _, ok := Part[Portable](e); ok {
+			out = append(out, e)
+			continue
+		}
+		if _, ok := Part[Notable](e); ok {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
 // Quit marks the session as over; the UI shuts down after the current
 // output is shown.
 func (w *World) Quit() { w.quitting = true }

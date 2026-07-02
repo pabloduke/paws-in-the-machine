@@ -56,6 +56,15 @@ type Portable struct{}
 
 func (Portable) Handle(*World, *Entity, Command) (string, bool) { return "", false }
 
+// Notable marks a non-portable entity as obvious enough to list in the
+// YOU SEE panel (an NPC, a glowing thing). Everything neither Portable
+// nor Notable is scenery: present, examinable, targetable — but
+// discovered by reading the prose, og-adventure style. See
+// docs/systems/visibility.md.
+type Notable struct{}
+
+func (Notable) Handle(*World, *Entity, Command) (string, bool) { return "", false }
+
 // On adapts a closure to a Component for a single verb — the escape
 // hatch for bespoke puzzle logic. Every use of On is an inventory item
 // for a future declarative effect vocabulary, so prefer reusable

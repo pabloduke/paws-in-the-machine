@@ -151,6 +151,29 @@ func TestVisibilityScope(t *testing.T) {
 	}
 }
 
+// TestObvious: the YOU SEE tier — Portable and Notable entities are
+// listed; scenery stays visible/targetable but unlisted.
+func TestObvious(t *testing.T) {
+	w := engine.NewWorld()
+	room := engine.NewEntity("room", "Room").With(engine.Exits{})
+	coin := engine.NewEntity("coin", "a coin").With(engine.Portable{})
+	npc := engine.NewEntity("npc", "a hound").With(engine.Notable{})
+	scenery := engine.NewEntity("door", "a door").With(
+		engine.Description{Text: "Pretty boring."},
+	)
+	w.Root.Add(room)
+	room.Add(coin, npc, scenery, w.Player)
+
+	obvious := w.Obvious()
+	if len(obvious) != 2 || obvious[0].ID != "coin" || obvious[1].ID != "npc" {
+		t.Fatalf("expected coin and npc listed, got %v", obvious)
+	}
+	// Scenery is unlisted but fully interactive.
+	if out := engine.New(w).Execute("x door"); out != "Pretty boring." {
+		t.Fatalf("scenery must stay examinable: %q", out)
+	}
+}
+
 // TestXPAndTraining covers the growth loop: escalating level costs,
 // stat points per level, and spending them.
 func TestXPAndTraining(t *testing.T) {

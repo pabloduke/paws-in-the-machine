@@ -289,14 +289,23 @@ func (m Model) cityPanel() string {
 	return style.Width(leftPanelWidth - 2).Height(m.mainRowHeight() - 2).Render(b.String())
 }
 
-// rightPanel is the YOU SEE list: visible entities (labels reflect
-// true state) and exits — see docs/systems/visibility.md.
+// rightPanel: INVENTORY (Buddy always knows what he carries), YOU SEE
+// (only obvious entities — scenery is discovered through prose), and
+// EXITS. See docs/systems/visibility.md.
 func (m Model) rightPanel() string {
 	w := m.eng.World
 
 	var b strings.Builder
-	b.WriteString(panelTitleStyle.Render("YOU SEE"))
-	for _, e := range w.Visible() {
+	b.WriteString(panelTitleStyle.Render("INVENTORY"))
+	if len(w.Player.Contents) == 0 {
+		b.WriteString("\n" + dimStyle.Render("  nothing"))
+	}
+	for _, e := range w.Player.Contents {
+		b.WriteString("\n  " + engine.DisplayName(w, e))
+	}
+
+	b.WriteString("\n\n" + panelTitleStyle.Render("YOU SEE"))
+	for _, e := range w.Obvious() {
 		b.WriteString("\n  " + engine.DisplayName(w, e))
 	}
 	if x, ok := engine.Part[engine.Exits](w.Room()); ok && len(x.Dirs) > 0 {

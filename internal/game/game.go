@@ -68,6 +68,13 @@ func NewWorld() *engine.World {
 		engine.Description{Text: "(Placeholder) A high shelf. Your kind of territory."},
 	)
 
+	window := engine.NewEntity("window", "the window").With(
+		engine.Description{Text: "(Placeholder) Rain streaks the glass. Four " +
+			"stories down, the noodle bar's sign flickers. A normal " +
+			"window, pretty boring — unless you like watching rain. " +
+			"You do."},
+	)
+
 	mug := engine.NewEntity("mug", "a chipped mug", "mug", "cup").With(
 		engine.Description{Text: "(Placeholder) A mug, near the edge of the " +
 			"shelf. Very near the edge."},
@@ -110,6 +117,11 @@ func NewWorld() *engine.World {
 			"thousand times."},
 	)
 
+	door := engine.NewEntity("door", "the door").With(
+		engine.Description{Text: "(Placeholder) A normal door that never quite " +
+			"shuts. Pretty boring, unless you like drafts."},
+	)
+
 	machine := engine.NewEntity("machine", "the espresso machine", "espresso", "espresso machine").With(
 		engine.Description{Text: "(Placeholder) A chrome espresso machine, " +
 			"hissing like something alive."},
@@ -128,6 +140,7 @@ func NewWorld() *engine.World {
 	)
 
 	hound := engine.NewEntity("hound", "a corpo hound", "hound", "dog", "guard").With(
+		engine.Notable{},
 		engine.Description{Text: "(Placeholder) A corpo security hound parked in " +
 			"front of the back room door. Ears up. Dogs take this job " +
 			"personally."},
@@ -196,7 +209,19 @@ func NewWorld() *engine.World {
 		}},
 	)
 
-	drawer := engine.NewEntity("drawer", "a desk drawer", "drawer", "desk").With(
+	rack := engine.NewEntity("rack", "the server rack", "rack", "server", "servers").With(
+		engine.Description{Text: "(Placeholder) Enterprise hardware, humming " +
+			"and warm, in the back of a noodle-adjacent coffee shop. I " +
+			"wonder who it really belongs to."},
+	)
+
+	desk := engine.NewEntity("writing_desk", "the writing desk").With(
+		engine.Description{Text: "(Placeholder) An old writing desk, older " +
+			"than everything else in the room combined. The candlestick " +
+			"bolted to its top gleams from handling."},
+	)
+
+	drawer := engine.NewEntity("drawer", "a desk drawer", "drawer").With(
 		engine.Aspect{Fn: func(w *engine.World) string {
 			if w.Flags["drawer_open"] {
 				return "an open desk drawer"
@@ -241,6 +266,18 @@ func NewWorld() *engine.World {
 		},
 	)
 
+	drones := engine.NewEntity("drones", "the ad-drones", "drone", "drones", "ad-drones").With(
+		engine.Description{Text: "(Placeholder) They wheel and flash overhead, " +
+			"selling things to people who aren't looking up. They never " +
+			"look down, either. Worth remembering."},
+	)
+
+	cabinets := engine.NewEntity("cabinets", "the cabinets", "cabinet", "dust sheets", "sheets").With(
+		engine.Description{Text: "(Placeholder) Arcade cabinets under dust " +
+			"sheets, dead a decade. Pretty boring — except the dust on " +
+			"the nearest sheet is disturbed."},
+	)
+
 	hum := engine.NewEntity("hum", "the humming wall", "wall", "hum").With(
 		engine.On{Verb: "examine", Do: func(w *engine.World) string {
 			return "(Placeholder) You press an ear to the wall. Something " +
@@ -260,13 +297,14 @@ func NewWorld() *engine.World {
 
 	w.Root.Add(neighborhood, plaza)
 	neighborhood.Add(lair, coffeeshop, backroom)
-	backroom.Add(candlestick, drawer)
+	backroom.Add(candlestick, drawer, rack, desk)
 	drawer.Add(ruby)
 	plaza.Add(plazaSquare, arcade)
-	arcade.Add(hum)
-	lair.Add(deck, shelf, shard, w.Player)
+	plazaSquare.Add(drones)
+	arcade.Add(hum, cabinets)
+	lair.Add(deck, shelf, shard, window, w.Player)
 	shelf.Add(mug)
-	coffeeshop.Add(counter, machine, laptop, hound)
+	coffeeshop.Add(counter, machine, laptop, hound, door)
 
 	// Starting numbers. With the pinned seed below, the hound demos the
 	// full loop: sneak fails at Stealth 10 (and would pass at 12 —

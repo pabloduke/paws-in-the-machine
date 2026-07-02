@@ -35,10 +35,30 @@ can see and reach is a pure function of world state:
 
 ## UI contract
 
-- Right panel = YOU SEE: visible entities (current labels) + exits.
+- Right panel, top: INVENTORY — always fully listed; Buddy knows what
+  he carries.
+- Right panel, middle: YOU SEE — **two-tier, og-adventure style**.
+  Portable entities are listed by default; the Notable marker promotes
+  plainly-visible non-portables (an NPC). Everything else is scenery:
+  present, examinable, targetable, but discovered by *reading the
+  prose* — noticing "bolted to the desk" is the gameplay. Exits are
+  always listed (navigation is not a puzzle).
 - Center panel = the room's description only — the story text, which
   grows richer through state-dependent Description.Fn as the player
   acts on the world.
+
+## Prose-noun coverage (content authoring invariant)
+
+Both directions must hold:
+
+- Every entity is either listed (Portable/Notable) or mentioned in the
+  room's prose — nothing undiscoverable.
+- Every noun the prose mentions is examinable. "You don't see any
+  door" after the narrator described a door is a content bug.
+
+Scenery descriptions are signals: "a normal door, pretty boring"
+politely closes a thread; "I wonder who it really belongs to" opens
+one.
 
 ## Engine surface
 
