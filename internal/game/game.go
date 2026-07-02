@@ -14,40 +14,100 @@ const Intro = `PAWS IN THE MACHINE
 
 (Intro text goes here. Type "help" for commands.)`
 
-// NewWorld constructs the world. Milestone one: a single stub room
-// proving the core loop; real content replaces this.
+// NewWorld constructs the world: Buddy's lair and the coffee shop,
+// connected north/south. All prose is placeholder.
 func NewWorld() *engine.World {
 	w := engine.NewWorld()
 
-	den := engine.NewEntity("den", "The Den").With(
-		engine.Description{Text: "Buddy's squat. Placeholder walls, placeholder rain."},
+	// --- Buddy's Lair -------------------------------------------------
+
+	lair := engine.NewEntity("lair", "Buddy's Lair").With(
+		engine.Description{Text: "(Placeholder) The lair. Rain on the window, " +
+			"neon through the blinds."},
 		engine.Exits{
-			Dirs:    map[string]string{},
-			Blocked: "Nowhere to go yet. The world ends at these walls.",
+			Dirs:    map[string]string{"north": "coffeeshop"},
+			Blocked: "(Placeholder) The only way out is north, past the noodle bar.",
 		},
 	)
 
+	deck := engine.NewEntity("deck", "the deck", "rig", "computer", "terminal").With(
+		engine.Description{Fn: func(w *engine.World) string {
+			if w.Flags["heard_whisper"] {
+				return "(Placeholder) The deck. The cursor blinks, patient. " +
+					"You can still feel the warmth in the dead code."
+			}
+			return "(Placeholder) The deck. Scavenged, soldered, faithful."
+		}},
+		engine.On{Verb: "use", Do: func(w *engine.World) string {
+			if !w.Flags["heard_whisper"] {
+				w.Flags["heard_whisper"] = true
+				return "(Placeholder) You jack in. Down in the dead code, " +
+					"something whispers: ...they buried the sun..."
+			}
+			return "(Placeholder) You jack in again. The whisper is still " +
+				"down there, circling."
+		}},
+	)
+
+	shelf := engine.NewEntity("shelf", "a high shelf", "shelf").With(
+		engine.Description{Text: "(Placeholder) A high shelf. Your kind of territory."},
+	)
+
+	mug := engine.NewEntity("mug", "a chipped mug", "mug", "cup").With(
+		engine.Description{Text: "(Placeholder) A mug, near the edge of the " +
+			"shelf. Very near the edge."},
+		engine.Portable{},
+		engine.On{Verb: "knock", Do: func(w *engine.World) string {
+			if w.Flags["mug_down"] {
+				return "(Placeholder) The mug is already on the floor."
+			}
+			w.Flags["mug_down"] = true
+			return "(Placeholder) One deliberate paw. The mug tips, hangs, " +
+				"shatters. Focus restored."
+		}},
+	)
+
 	shard := engine.NewEntity("shard", "a data-shard", "shard", "chip").With(
-		engine.Description{Text: "Matte black, cold to the touch. Placeholder secrets."},
+		engine.Description{Text: "(Placeholder) Matte black, colder than it " +
+			"should be."},
 		engine.Portable{},
 	)
 
-	// Example of bespoke behavior via the closure escape hatch:
-	// (when a second entity needs the same behavior, promote it to a
-	// reusable component type)
-	//
-	//	deck := engine.NewEntity("deck", "the deck", "rig").With(
-	//	    engine.Description{Text: "..."},
-	//	    engine.On{Verb: "use", Do: func(w *engine.World) string {
-	//	        if !w.Flags["heard_whisper"] {
-	//	            w.Flags["heard_whisper"] = true
-	//	            return "...they buried the sun..."
-	//	        }
-	//	        return "The whisper is still down there."
-	//	    }},
-	//	)
+	// --- The Coffee Shop ----------------------------------------------
 
-	w.Root.Add(den)
-	den.Add(shard, w.Player)
+	coffeeshop := engine.NewEntity("coffeeshop", "The Coffee Shop").With(
+		engine.Description{Text: "(Placeholder) The coffee shop down the block. " +
+			"Steam, low talk, a door that never quite shuts."},
+		engine.Exits{
+			Dirs:    map[string]string{"south": "lair"},
+			Blocked: "(Placeholder) Nothing that way but rain. The lair is south.",
+		},
+	)
+
+	counter := engine.NewEntity("counter", "the counter").With(
+		engine.Description{Text: "(Placeholder) A long counter, wiped clean a " +
+			"thousand times."},
+	)
+
+	machine := engine.NewEntity("machine", "the espresso machine", "espresso", "espresso machine").With(
+		engine.Description{Text: "(Placeholder) A chrome espresso machine, " +
+			"hissing like something alive."},
+		engine.On{Verb: "knock", Do: func(w *engine.World) string {
+			return "(Placeholder) You put a paw on the chrome. It is heavy, " +
+				"hot, and unimpressed."
+		}},
+	)
+
+	laptop := engine.NewEntity("laptop", "a regular's laptop", "laptop").With(
+		engine.Description{Text: "(Placeholder) A laptop left open at a corner " +
+			"table. Its owner is in the restroom. Interesting."},
+	)
+
+	// --- Assemble the tree ---------------------------------------------
+
+	w.Root.Add(lair, coffeeshop)
+	lair.Add(deck, shelf, shard, w.Player)
+	shelf.Add(mug)
+	coffeeshop.Add(counter, machine, laptop)
 	return w
 }
