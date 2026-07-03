@@ -3,6 +3,7 @@ package engine
 import (
 	"fmt"
 	"math/rand/v2"
+	"strings"
 )
 
 // Stats are Buddy's capabilities. Each stat is a verb against an
@@ -12,6 +13,27 @@ type Stats struct {
 	Stealth int
 	Agility int
 	Charm   int
+}
+
+// ByName returns a pointer to the named stat, or nil if the name isn't
+// a stat. The single stat-name mapping — Train, dialogue gates, and any
+// future consumer resolve names through it.
+func (s *Stats) ByName(name string) *int {
+	switch strings.ToLower(name) {
+	case "stealth":
+		return &s.Stealth
+	case "agility":
+		return &s.Agility
+	case "charm":
+		return &s.Charm
+	}
+	return nil
+}
+
+// IsStat reports whether name names one of Buddy's stats.
+func IsStat(name string) bool {
+	var s Stats
+	return s.ByName(name) != nil
 }
 
 // World is the complete game state: one entity tree plus story flags.
@@ -54,6 +76,16 @@ func NewWorld() *World {
 		Seed:     rand.Int64(),
 		Level:    1,
 	}
+}
+
+// Rewrite applies any whole-phrase idiom rewrite to input. Execute
+// calls it on every command; UI layers that pre-parse input (like the
+// talk intercept) must apply it too, so idioms reach every path.
+func (w *World) Rewrite(input string) string {
+	if r, ok := w.Rewrites[strings.ToLower(strings.TrimSpace(input))]; ok {
+		return r
+	}
+	return input
 }
 
 // Room returns the entity the player is directly inside.

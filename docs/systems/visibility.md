@@ -35,8 +35,12 @@ can see and reach is a pure function of world state:
 
 ## UI contract
 
-- Right panel, top: INVENTORY — always fully listed; Buddy knows what
-  he carries.
+- Right panel, top: BUDDY — level and XP at a glance, plus a pending
+  stat-point marker. The full stat sheet and the inventory live in
+  centered modals (`stats`, `inventory`/`i`); Buddy still knows what he
+  carries — it's one keypress away, and the modal scrolls when the
+  haul outgrows the screen. Leveling up opens a must-spend stat picker
+  automatically (deferred to conversation end if it lands mid-dialogue).
 - Right panel, middle: YOU SEE — **two-tier, og-adventure style**.
   Portable entities are listed by default; the Notable marker promotes
   plainly-visible non-portables (an NPC). Everything else is scenery:

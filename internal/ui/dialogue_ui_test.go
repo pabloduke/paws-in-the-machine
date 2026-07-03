@@ -57,3 +57,23 @@ func TestDialogueMenuFlow(t *testing.T) {
 		t.Fatalf("Leave should end dialogue")
 	}
 }
+
+func TestRewriteReachesTalkIntercept(t *testing.T) {
+	lipgloss.SetColorProfile(termenv.ANSI)
+	w := game.NewWorld()
+	w.Rewrites["greet barista"] = "talk barista"
+	m := New(engine.New(w), "intro")
+	var mod tea.Model = m
+	mod, _ = mod.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	for _, r := range "north" {
+		mod, _ = mod.Update(kr(r))
+	}
+	mod, _ = mod.Update(spec(tea.KeyEnter))
+	for _, r := range "greet barista" {
+		mod, _ = mod.Update(kr(r))
+	}
+	mod, _ = mod.Update(spec(tea.KeyEnter))
+	if mm := mod.(Model); mm.dialogue == nil {
+		t.Fatalf("rewrite expanding to a talk command should open the dialogue modal")
+	}
+}

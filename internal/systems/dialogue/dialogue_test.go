@@ -179,6 +179,38 @@ func TestStatGateLocksAndUnlocks(t *testing.T) {
 	}
 }
 
+func TestUnknownStatRendersBugTag(t *testing.T) {
+	w := engine.NewWorld()
+	room := engine.NewEntity("room", "Room").With(engine.Exits{})
+	npc := engine.NewEntity("npc", "an npc").With(
+		dialogue.Talkable{
+			Nodes: map[string]dialogue.Node{
+				"start": {
+					Text: "Hm?",
+					Choices: []dialogue.Choice{
+						{
+							Text:    "Flex the typo stat.",
+							Require: []dialogue.Requirement{dialogue.StatAtLeast("charmm", 8)},
+							End:     true,
+						},
+						{Text: "Leave.", End: true},
+					},
+				},
+			},
+		},
+	)
+	w.Root.Add(room)
+	room.Add(npc, w.Player)
+
+	session, err := dialogue.Start(w, npc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rendered := session.Render(); !strings.Contains(rendered, `[bug: unknown stat "charmm"]`) {
+		t.Fatalf("typo'd stat name should render loudly as a bug tag: %q", rendered)
+	}
+}
+
 func TestStartRequiresTalkable(t *testing.T) {
 	w := engine.NewWorld()
 	rock := engine.NewEntity("rock", "a rock")

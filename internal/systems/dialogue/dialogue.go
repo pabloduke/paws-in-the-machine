@@ -9,20 +9,18 @@ import (
 )
 
 // Talkable marks an entity as an NPC or terminal with a dialogue graph.
+// It is a marker + data component: conversations are interactive, so
+// they are driven through Start and the Session (the UI's talk
+// intercept, or a headless caller using Start/Choose directly) — never
+// through engine command dispatch, which is one-shot by design.
 type Talkable struct {
 	Start string
 	Nodes map[string]Node
 }
 
-func (t Talkable) Handle(w *engine.World, self *engine.Entity, cmd engine.Command) (string, bool) {
-	if cmd.Verb != "talk" {
-		return "", false
-	}
-	s, err := Start(w, self)
-	if err != nil {
-		return err.Error(), true
-	}
-	return s.Render(), true
+// Handle declines every command; see the type comment.
+func (Talkable) Handle(*engine.World, *engine.Entity, engine.Command) (string, bool) {
+	return "", false
 }
 
 // Node is one line of NPC text plus the player choices available from it.
@@ -61,9 +59,14 @@ func (c StatCheck) Allowed(w *engine.World) bool {
 	return statValue(w, c.Stat) >= c.Min
 }
 
-// Tag renders the FNV-style bracket tag, e.g. "[Charm 8]".
+// Tag renders the FNV-style bracket tag, e.g. "[Charm 8]". A stat name
+// the engine doesn't know renders loudly as a bug tag instead of
+// silently locking the choice forever.
 func (c StatCheck) Tag() string {
-	return fmt.Sprintf("[%s %d]", capitalizeStat(c.Stat), c.Min)
+	if !engine.IsStat(c.Stat) {
+		return fmt.Sprintf("[bug: unknown stat %q]", c.Stat)
+	}
+	return fmt.Sprintf("[%s %d]", engine.Capitalize(c.Stat), c.Min)
 }
 
 // Option is one rendered choice: the underlying Choice plus its derived
@@ -265,15 +268,6 @@ func (s *Session) Choose(n int) string {
 	return out
 }
 
-func requirementsAllow(w *engine.World, reqs []Requirement) bool {
-	for _, r := range reqs {
-		if !r.Allowed(w) {
-			return false
-		}
-	}
-	return true
-}
-
 // Flag requires a story flag to be set.
 func Flag(name string) Requirement {
 	return RequirementFunc(func(w *engine.World) bool { return w.Flags[name] })
@@ -284,11 +278,20 @@ func MissingFlag(name string) Requirement {
 	return RequirementFunc(func(w *engine.World) bool { return !w.Flags[name] })
 }
 
-// HasItem requires Buddy to carry an entity by ID.
+// HasItem requires Buddy to carry an entity by ID. It scans only the
+// inventory subtree — carried is a fact about the player's contents,
+// so the rest of the world never needs walking.
 func HasItem(id string) Requirement {
 	return RequirementFunc(func(w *engine.World) bool {
-		e := w.FindID(id)
-		return e != nil && w.Carried(e)
+		found := false
+		w.Player.Walk(func(e *engine.Entity) bool {
+			if e != w.Player && e.ID == id {
+				found = true
+				return false
+			}
+			return true
+		})
+		return found
 	})
 }
 
@@ -299,24 +302,13 @@ func StatAtLeast(name string, value int) Requirement {
 	return StatCheck{Stat: strings.ToLower(name), Min: value}
 }
 
+// statValue reads a stat through the engine's single name mapping;
+// unknown names read as -1, which Tag surfaces as a bug tag.
 func statValue(w *engine.World, name string) int {
-	switch strings.ToLower(name) {
-	case "stealth":
-		return w.Stats.Stealth
-	case "agility":
-		return w.Stats.Agility
-	case "charm":
-		return w.Stats.Charm
-	default:
-		return -1
+	if p := w.Stats.ByName(name); p != nil {
+		return *p
 	}
-}
-
-func capitalizeStat(name string) string {
-	if name == "" {
-		return name
-	}
-	return strings.ToUpper(name[:1]) + strings.ToLower(name[1:])
+	return -1
 }
 
 // lockedMessage explains a refused locked choice, e.g.
@@ -327,7 +319,7 @@ func lockedMessage(w *engine.World, c Choice) string {
 		if !ok || check.Allowed(w) {
 			continue
 		}
-		name := capitalizeStat(check.Stat)
+		name := engine.Capitalize(check.Stat)
 		return fmt.Sprintf("Your %s isn't up to that yet. (%s %d/%d)",
 			name, name, statValue(w, check.Stat), check.Min)
 	}
@@ -338,14 +330,6 @@ func lockedMessage(w *engine.World, c Choice) string {
 func SetFlag(name string) Effect {
 	return EffectFunc(func(w *engine.World) string {
 		w.Flags[name] = true
-		return ""
-	})
-}
-
-// ClearFlag clears a story flag.
-func ClearFlag(name string) Effect {
-	return EffectFunc(func(w *engine.World) string {
-		delete(w.Flags, name)
 		return ""
 	})
 }

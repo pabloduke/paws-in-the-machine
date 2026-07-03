@@ -19,7 +19,7 @@ and testable.
 Each node contains NPC text and zero or more choices. A choice may:
 
 - require flags, missing flags, carried items, or stat thresholds;
-- apply effects such as setting/clearing flags, emitting prose, or
+- apply effects such as setting flags, emitting prose, or
   awarding XP once;
 - move to another node;
 - end the conversation.
@@ -65,7 +65,10 @@ the conversation ends.
 
 ## Engine Surface
 
-- `dialogue.Talkable` — component attached to an NPC or terminal.
+- `dialogue.Talkable` — component attached to an NPC or terminal. It is
+  data only: conversations are interactive, so they run through
+  `Start`/`Session` (the UI intercepts `talk` after applying
+  `World.Rewrite`), never through engine command dispatch.
 - `dialogue.Node` and `dialogue.Choice` — declarative graph data.
 - `dialogue.Start` — opens a `Session` for UI/headless callers.
 - `Session.Render`, `Session.Options`, `Session.Choose`, `Session.Done`
@@ -73,7 +76,8 @@ the conversation ends.
   its lock state and derived tag.
 - Requirement helpers: `Flag`, `MissingFlag`, `HasItem`, `StatAtLeast`
   (`StatAtLeast` gates visibly; the others hide).
-- Effect helpers: `SetFlag`, `ClearFlag`, `Say`, `AwardOnce`.
+- Effect helpers: `SetFlag`, `Say`, `AwardOnce`. (`ClearFlag` will
+  return when a node actually needs to unset state.)
 
 ## Later
 
