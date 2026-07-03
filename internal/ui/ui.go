@@ -16,6 +16,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/pabloduke/paws-in-the-machine/internal/engine"
 	"github.com/pabloduke/paws-in-the-machine/internal/systems/dialogue"
@@ -342,23 +343,61 @@ func (m Model) View() string {
 	}
 	mainRow := lipgloss.JoinHorizontal(lipgloss.Top,
 		m.cityPanel(), m.roomPanel(), m.rightPanel())
+	if m.dialogue != nil {
+		mainRow = m.overlayDialogue(mainRow)
+	}
 	return mainRow + "\n" + m.logPanel() + "\n" + m.input.View()
 }
 
+// overlayDialogue composites the conversation modal centered over the
+// main row, leaving the panels visible around it. The modal closes
+// when the conversation ends.
+func (m Model) overlayDialogue(bg string) string {
+	modalW := 60
+	if max := m.width - 8; modalW > max {
+		modalW = max
+	}
+	box := panelFocusStyle.Width(modalW).
+		Render(bodyStyle.Width(modalW - 4).Render(m.dialogueView()))
+	x := (m.width - lipgloss.Width(box)) / 2
+	y := (m.mainRowHeight() - lipgloss.Height(box)) / 2
+	if x < 0 {
+		x = 0
+	}
+	if y < 0 {
+		y = 0
+	}
+	return overlay(bg, box, x, y)
+}
+
+// overlay splices fg over bg at column x, row y, ANSI-aware.
+func overlay(bg, fg string, x, y int) string {
+	bgLines := strings.Split(bg, "\n")
+	fgLines := strings.Split(fg, "\n")
+	for i, fl := range fgLines {
+		j := y + i
+		if j < 0 || j >= len(bgLines) {
+			continue
+		}
+		bl := bgLines[j]
+		left := ansi.Truncate(bl, x, "")
+		if pad := x - ansi.StringWidth(left); pad > 0 {
+			left += strings.Repeat(" ", pad)
+		}
+		right := ansi.TruncateLeft(bl, x+ansi.StringWidth(fl), "")
+		bgLines[j] = left + fl + right
+	}
+	return strings.Join(bgLines, "\n")
+}
+
 // roomPanel is the live room view: title from the room name, body from
-// world state — always current, never a transcript. While a
-// conversation is active it becomes the dialogue menu instead.
+// world state — always current, never a transcript.
 func (m Model) roomPanel() string {
 	width := m.width - leftPanelWidth - rightPanelWidth
-	var content string
-	if m.dialogue != nil {
-		content = m.dialogueView()
-	} else {
-		name, body, _ := strings.Cut(engine.Look(m.eng.World), "\n\n")
-		content = roomTitleStyle.Render(strings.ToUpper(name))
-		if body != "" {
-			content += "\n\n" + body
-		}
+	name, body, _ := strings.Cut(engine.Look(m.eng.World), "\n\n")
+	content := roomTitleStyle.Render(strings.ToUpper(name))
+	if body != "" {
+		content += "\n\n" + body
 	}
 	return panelStyle.Width(width - 2).Height(m.mainRowHeight() - 2).
 		Render(bodyStyle.Width(width - 4).Render(content))
