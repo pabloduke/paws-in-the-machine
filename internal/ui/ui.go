@@ -231,10 +231,14 @@ func (m Model) updateDialogue(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case tea.KeyEnter:
 		return m.pickDialogue(m.dlgSel + 1)
 	case tea.KeyRunes:
+		// Numbers move the highlight; only enter commits.
 		if len(msg.Runes) != 1 || msg.Runes[0] < '1' || msg.Runes[0] > '9' {
 			return m, nil
 		}
-		return m.pickDialogue(int(msg.Runes[0] - '0'))
+		if n := int(msg.Runes[0] - '0'); n <= len(options) {
+			m.dlgSel = n - 1
+		}
+		return m, nil
 	}
 	return m, nil
 }
@@ -389,7 +393,7 @@ func (m Model) dialogueView() string {
 		}
 		b.WriteString("\n" + row)
 	}
-	b.WriteString("\n\n" + dimStyle.Render("up/down enter · 1-9 · esc to walk away"))
+	b.WriteString("\n\n" + dimStyle.Render("up/down or 1-9 to highlight · enter to say it · esc to walk away"))
 	return b.String()
 }
 

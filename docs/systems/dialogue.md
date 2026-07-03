@@ -56,8 +56,8 @@ flag; a once-only response can be guarded by `Choice.OnceFlag`.
 
 Typing `talk <npc>` enters dialogue mode: the room panel becomes the
 live conversation view (NPC line on top, choice menu below). Up/Down
-move the highlighted choice, `Enter` selects it, number keys `1`-`9`
-select directly, and `Esc` walks away. Locked stat-gated choices render
+and number keys `1`-`9` move the highlighted choice, `Enter` commits
+to it, and `Esc` walks away. Locked stat-gated choices render
 dimmed with their tag and a ✗. The LOG keeps the transcript of the
 exchange. Normal prompt input and hub-panel focus are suspended until
 the conversation ends.
