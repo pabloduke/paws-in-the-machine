@@ -21,9 +21,7 @@ func New(w *World) *Engine {
 // default for the verb runs.
 func (e *Engine) Execute(input string) string {
 	w := e.World
-	if rewrite, ok := w.Rewrites[strings.ToLower(strings.TrimSpace(input))]; ok {
-		input = rewrite
-	}
+	input = w.Rewrite(input)
 	cmd, ok := Parse(input)
 	if !ok {
 		if cmd.Verb == "" {
@@ -56,7 +54,7 @@ func (e *Engine) Execute(input string) string {
 
 	// Everything else targets a named entity.
 	if cmd.Object == "" {
-		return fmt.Sprintf("%s what?", capitalize(cmd.Verb))
+		return fmt.Sprintf("%s what?", Capitalize(cmd.Verb))
 	}
 	target := w.InScope(cmd.Object)
 	if target == nil {
@@ -97,7 +95,7 @@ func defaultFor(w *World, target *Entity, cmd Command) string {
 	case "charm":
 		return fmt.Sprintf("You aim the adopt-me eyes at %s. Nothing to gain here.", target.Name)
 	case "talk":
-		return fmt.Sprintf("%s has nothing to say.", capitalize(target.Name))
+		return fmt.Sprintf("%s has nothing to say.", Capitalize(target.Name))
 	}
 	return "Nothing happens."
 }
@@ -116,15 +114,8 @@ func StatSheet(w *World) string {
 
 // Train spends one stat point to raise a stat by one.
 func Train(w *World, stat string) string {
-	var target *int
-	switch stat {
-	case "stealth":
-		target = &w.Stats.Stealth
-	case "agility":
-		target = &w.Stats.Agility
-	case "charm":
-		target = &w.Stats.Charm
-	default:
+	target := w.Stats.ByName(stat)
+	if target == nil {
 		return "Train what? (stealth, agility, charm)"
 	}
 	if w.StatPoints == 0 {
@@ -133,7 +124,7 @@ func Train(w *World, stat string) string {
 	w.StatPoints--
 	*target++
 	return fmt.Sprintf("%s %d → %d. Points left: %d",
-		capitalize(stat), *target-1, *target, w.StatPoints)
+		Capitalize(stat), *target-1, *target, w.StatPoints)
 }
 
 // --- Default verb implementations, exported so components can invoke
@@ -189,7 +180,7 @@ func Take(w *World, target *Entity) string {
 		return "You already have it."
 	}
 	if _, ok := Part[Portable](target); !ok {
-		return fmt.Sprintf("%s isn't going anywhere.", capitalize(target.Name))
+		return fmt.Sprintf("%s isn't going anywhere.", Capitalize(target.Name))
 	}
 	w.Player.Add(target)
 	return fmt.Sprintf("You take %s.", target.Name)
@@ -217,7 +208,9 @@ func Inventory(w *World) string {
 	return b.String()
 }
 
-func capitalize(s string) string {
+// Capitalize upper-cases the first letter — the shared prose helper
+// for building sentences from entity and stat names.
+func Capitalize(s string) string {
 	if s == "" {
 		return s
 	}

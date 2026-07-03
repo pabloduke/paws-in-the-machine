@@ -3,7 +3,6 @@ package checks
 import (
 	"fmt"
 	"hash/fnv"
-	"strings"
 
 	"github.com/pabloduke/paws-in-the-machine/internal/engine"
 )
@@ -75,7 +74,7 @@ func (g Guarded) Handle(w *engine.World, self *engine.Entity, cmd engine.Command
 	if w.Flags[self.ID+"_bypassed"] {
 		dest := w.FindID(g.Dest)
 		dest.Add(w.Player)
-		return fmt.Sprintf("%s already knows to ignore you.", capitalized(self.Name)), true
+		return fmt.Sprintf("%s already knows to ignore you.", engine.Capitalize(self.Name)), true
 	}
 
 	attempt, possible := g.Approaches[approach]
@@ -105,10 +104,3 @@ func (g Guarded) Handle(w *engine.World, self *engine.Entity, cmd engine.Command
 
 // approachStats exists to recognize approach verbs in Handle.
 var approachStats = map[Approach]bool{Sneak: true, Parkour: true, Charm: true}
-
-func capitalized(s string) string {
-	if s == "" {
-		return s
-	}
-	return strings.ToUpper(s[:1]) + s[1:]
-}

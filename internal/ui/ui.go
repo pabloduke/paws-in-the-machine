@@ -7,6 +7,7 @@
 package ui
 
 import (
+	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -46,6 +47,20 @@ var (
 	hubSelStyle     = lipgloss.NewStyle().Reverse(true)
 )
 
+// modalKind selects which centered modal owns the keyboard. Dialogue
+// keeps its own Session state; these are the lighter overlays.
+type modalKind int
+
+const (
+	modalNone modalKind = iota
+	modalLevelUp   // must-spend stat picker; opens itself on level-up
+	modalInventory // scrollable list of what Buddy carries
+	modalStats     // read-only character sheet
+)
+
+// trainOrder fixes the row order of the level-up picker.
+var trainOrder = []string{"stealth", "agility", "charm"}
+
 // Model is the Bubble Tea model for a session. The room view renders
 // the current room fresh from world state; the LOG keeps the
 // persistent transcript.
@@ -61,6 +76,10 @@ type Model struct {
 	selected     int
 	dialogue     *dialogue.Session
 	dlgSel       int // highlighted choice in the dialogue menu
+
+	modal  modalKind
+	lvlSel int // highlighted stat in the level-up modal
+	invOff int // scroll offset into the inventory modal
 
 	entries  []string // transcript lines shown in the LOG
 	commands []string // executed commands, oldest first
@@ -113,6 +132,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		if m.modal != modalNone {
+			return m.updateModal(msg)
+		}
 		if m.dialogue != nil {
 			return m.updateDialogue(msg)
 		}
@@ -172,10 +194,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-// executeLine runs one prompt command, intercepting "talk <npc>" to
-// enter dialogue mode before falling back to the engine.
+// executeLine runs one prompt command, intercepting the interactive
+// verbs — "talk" enters dialogue mode, "inventory" and "stats" open
+// modals — before falling back to the engine. Rewrites apply first so
+// idioms that expand to intercepted verbs still hit the intercepts.
 func (m *Model) executeLine(line string) {
+	line = m.eng.World.Rewrite(line)
 	cmd, ok := engine.Parse(line)
+	if ok && cmd.Verb == "inventory" {
+		m.modal = modalInventory
+		m.invOff = 0
+		m.input.Blur()
+		return
+	}
+	if ok && cmd.Verb == "stats" {
+		m.modal = modalStats
+		m.input.Blur()
+		return
+	}
 	if ok && cmd.Verb == "talk" {
 		if cmd.Object == "" {
 			m.entries = append(m.entries, "Talk to whom?")
@@ -200,6 +236,18 @@ func (m *Model) executeLine(line string) {
 	if out := m.eng.Execute(line); out != "" {
 		m.entries = append(m.entries, out)
 	}
+	m.maybeLevelUp()
+}
+
+// maybeLevelUp opens the must-spend stat picker whenever Buddy has
+// points. Called after every path that can award XP; while a
+// conversation is open it waits, and the dialogue close paths re-check.
+func (m *Model) maybeLevelUp() {
+	if m.modal == modalNone && m.dialogue == nil && m.eng.World.StatPoints > 0 {
+		m.modal = modalLevelUp
+		m.lvlSel = 0
+		m.input.Blur()
+	}
 }
 
 // updateDialogue drives the conversation menu in the room panel:
@@ -218,6 +266,7 @@ func (m Model) updateDialogue(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.input.Focus()
 		m.entries = append(m.entries, dimStyle.Render("[conversation ended]"))
 		m.refreshLog()
+		m.maybeLevelUp()
 		return m, nil
 	case tea.KeyUp:
 		if len(options) > 0 {
@@ -259,11 +308,85 @@ func (m Model) pickDialogue(n int) (tea.Model, tea.Cmd) {
 	if m.dialogue.Done() {
 		m.dialogue = nil
 		m.input.Focus()
+		m.maybeLevelUp()
 	} else if !locked {
 		m.dlgSel = 0
 		m.entries = append(m.entries, m.dialogue.Speaker()+": "+m.dialogue.Text())
 	}
 	m.refreshLog()
+	return m, nil
+}
+
+// updateModal routes keys to whichever centered modal is open.
+func (m Model) updateModal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if msg.Type == tea.KeyCtrlC {
+		return m, tea.Quit
+	}
+	switch m.modal {
+	case modalLevelUp:
+		return m.updateLevelUp(msg)
+	case modalInventory:
+		return m.updateInventory(msg)
+	case modalStats:
+		if msg.Type == tea.KeyEsc || msg.Type == tea.KeyEnter {
+			m.closeModal()
+		}
+	}
+	return m, nil
+}
+
+// closeModal dismisses the open modal and returns focus to the prompt.
+func (m *Model) closeModal() {
+	m.modal = modalNone
+	m.input.Focus()
+}
+
+// updateLevelUp drives the must-spend stat picker: up/down highlight,
+// enter trains. There is no escape — points are spent on the spot, so
+// they never linger and the modal never needs a reopen path.
+func (m Model) updateLevelUp(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.Type {
+	case tea.KeyUp:
+		m.lvlSel = (m.lvlSel - 1 + len(trainOrder)) % len(trainOrder)
+	case tea.KeyDown:
+		m.lvlSel = (m.lvlSel + 1) % len(trainOrder)
+	case tea.KeyEnter:
+		if out := engine.Train(m.eng.World, trainOrder[m.lvlSel]); out != "" {
+			m.entries = append(m.entries, out)
+		}
+		m.refreshLog()
+		if m.eng.World.StatPoints == 0 {
+			m.closeModal()
+		}
+	}
+	return m, nil
+}
+
+// updateInventory scrolls the carried-items modal; esc or enter closes.
+func (m Model) updateInventory(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	rows := m.modalListHeight()
+	max := len(m.inventoryLines()) - rows
+	if max < 0 {
+		max = 0
+	}
+	switch msg.Type {
+	case tea.KeyEsc, tea.KeyEnter:
+		m.closeModal()
+	case tea.KeyUp:
+		m.invOff--
+	case tea.KeyDown:
+		m.invOff++
+	case tea.KeyPgUp:
+		m.invOff -= rows
+	case tea.KeyPgDown:
+		m.invOff += rows
+	}
+	if m.invOff > max {
+		m.invOff = max
+	}
+	if m.invOff < 0 {
+		m.invOff = 0
+	}
 	return m, nil
 }
 
@@ -344,21 +467,30 @@ func (m Model) View() string {
 	mainRow := lipgloss.JoinHorizontal(lipgloss.Top,
 		m.cityPanel(), m.roomPanel(), m.rightPanel())
 	if m.dialogue != nil {
-		mainRow = m.overlayDialogue(mainRow)
+		mainRow = m.centerModal(mainRow, m.dialogueView(), 60)
+	}
+	switch m.modal {
+	case modalLevelUp:
+		mainRow = m.centerModal(mainRow, m.levelUpView(), 40)
+	case modalInventory:
+		mainRow = m.centerModal(mainRow, m.inventoryView(), 40)
+	case modalStats:
+		mainRow = m.centerModal(mainRow, m.statsView(), 40)
 	}
 	return mainRow + "\n" + m.logPanel() + "\n" + m.input.View()
 }
 
-// overlayDialogue composites the conversation modal centered over the
-// main row, leaving the panels visible around it. The modal closes
-// when the conversation ends.
-func (m Model) overlayDialogue(bg string) string {
-	modalW := 60
+// centerModal composites content in a focused box centered over the
+// main row, leaving the panels visible around it.
+func (m Model) centerModal(bg, content string, modalW int) string {
 	if max := m.width - 8; modalW > max {
 		modalW = max
 	}
+	if modalW < 20 {
+		modalW = 20 // absurdly narrow terminals get a clipped box, not negative widths
+	}
 	box := panelFocusStyle.Width(modalW).
-		Render(bodyStyle.Width(modalW - 4).Render(m.dialogueView()))
+		Render(bodyStyle.Width(modalW - 4).Render(content))
 	x := (m.width - lipgloss.Width(box)) / 2
 	y := (m.mainRowHeight() - lipgloss.Height(box)) / 2
 	if x < 0 {
@@ -436,6 +568,84 @@ func (m Model) dialogueView() string {
 	return b.String()
 }
 
+// levelUpView is the must-spend stat picker: each row shows the stat
+// and what training it would make it.
+func (m Model) levelUpView() string {
+	w := m.eng.World
+	var b strings.Builder
+	b.WriteString(roomTitleStyle.Render("LEVEL UP!"))
+	plural := "point"
+	if w.StatPoints != 1 {
+		plural = "points"
+	}
+	b.WriteString(fmt.Sprintf("\n\nLevel %d. %d stat %s to spend.\n", w.Level, w.StatPoints, plural))
+	for i, name := range trainOrder {
+		v := *w.Stats.ByName(name)
+		row := fmt.Sprintf("%-8s %d → %d", engine.Capitalize(name), v, v+1)
+		if i == m.lvlSel {
+			row = hubSelStyle.Render(row)
+		}
+		b.WriteString("\n" + row)
+	}
+	b.WriteString("\n\n" + dimStyle.Render("up/down to highlight · enter to train"))
+	return b.String()
+}
+
+// modalListHeight is how many list rows a scrollable modal shows.
+func (m Model) modalListHeight() int {
+	h := m.mainRowHeight() - 8 // borders, title, hint, scroll markers
+	if h < 3 {
+		h = 3
+	}
+	return h
+}
+
+// inventoryLines is the inventory modal's full list, pre-scroll.
+func (m Model) inventoryLines() []string {
+	w := m.eng.World
+	if len(w.Player.Contents) == 0 {
+		return []string{dimStyle.Render("nothing — traveling light")}
+	}
+	var lines []string
+	for _, e := range w.Player.Contents {
+		lines = append(lines, engine.DisplayName(w, e))
+	}
+	return lines
+}
+
+// inventoryView renders the scrollable carried-items modal.
+func (m Model) inventoryView() string {
+	lines := m.inventoryLines()
+	rows := m.modalListHeight()
+
+	var b strings.Builder
+	b.WriteString(roomTitleStyle.Render("INVENTORY") + "\n")
+	if m.invOff > 0 {
+		b.WriteString("\n" + dimStyle.Render("▲ more"))
+	}
+	end := m.invOff + rows
+	if end > len(lines) {
+		end = len(lines)
+	}
+	for _, line := range lines[m.invOff:end] {
+		b.WriteString("\n" + line)
+	}
+	if end < len(lines) {
+		b.WriteString("\n" + dimStyle.Render("▼ more"))
+	}
+	b.WriteString("\n\n" + dimStyle.Render("up/down to scroll · esc to close"))
+	return b.String()
+}
+
+// statsView is the read-only character sheet modal.
+func (m Model) statsView() string {
+	var b strings.Builder
+	b.WriteString(roomTitleStyle.Render("BUDDY") + "\n\n")
+	b.WriteString(engine.StatSheet(m.eng.World))
+	b.WriteString("\n\n" + dimStyle.Render("esc to close"))
+	return b.String()
+}
+
 // cityPanel renders the hub list (docs/systems/hubs.md).
 func (m Model) cityPanel() string {
 	list := hubs.List(m.eng.World)
@@ -469,19 +679,17 @@ func (m Model) cityPanel() string {
 	return style.Width(leftPanelWidth - 2).Height(m.mainRowHeight() - 2).Render(b.String())
 }
 
-// rightPanel: INVENTORY (Buddy always knows what he carries), YOU SEE
-// (only obvious entities — scenery is discovered through prose), and
-// EXITS. See docs/systems/visibility.md.
+// rightPanel: BUDDY (level and XP — the full sheet and inventory live
+// in their modals), YOU SEE (only obvious entities — scenery is
+// discovered through prose), and EXITS. See docs/systems/visibility.md.
 func (m Model) rightPanel() string {
 	w := m.eng.World
 
 	var b strings.Builder
-	b.WriteString(panelTitleStyle.Render("INVENTORY"))
-	if len(w.Player.Contents) == 0 {
-		b.WriteString("\n" + dimStyle.Render("  nothing"))
-	}
-	for _, e := range w.Player.Contents {
-		b.WriteString("\n  " + engine.DisplayName(w, e))
+	b.WriteString(panelTitleStyle.Render("BUDDY"))
+	b.WriteString(fmt.Sprintf("\n  Lv %d · XP %d/%d", w.Level, w.XP, w.NextLevelCost()))
+	if w.StatPoints > 0 {
+		b.WriteString("\n  " + dimStyle.Render(fmt.Sprintf("● %d to spend", w.StatPoints)))
 	}
 
 	b.WriteString("\n\n" + panelTitleStyle.Render("YOU SEE"))
