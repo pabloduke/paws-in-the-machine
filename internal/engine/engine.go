@@ -96,6 +96,8 @@ func defaultFor(w *World, target *Entity, cmd Command) string {
 		return fmt.Sprintf("You size up %s for a route. There's nothing to parkour around.", target.Name)
 	case "charm":
 		return fmt.Sprintf("You aim the adopt-me eyes at %s. Nothing to gain here.", target.Name)
+	case "talk":
+		return fmt.Sprintf("%s has nothing to say.", capitalize(target.Name))
 	}
 	return "Nothing happens."
 }
@@ -233,6 +235,7 @@ const helpText = `Commands:
   sneak past <thing>    stealth your way through
   parkour <thing>       the acrobatic route (also: leap, vault)
   charm <thing>         weaponized cuteness (also: purr)
+  talk <person>         start a conversation
   stats                 your numbers
   train <stat>          spend a stat point (earned by leveling up)
   inventory (i)         what you're carrying

@@ -23,6 +23,7 @@ var verbAliases = map[string]string{
 	"sneak":   "sneak",
 	"parkour": "parkour", "leap": "parkour", "vault": "parkour",
 	"charm": "charm", "purr": "charm",
+	"talk": "talk", "speak": "talk",
 	"train": "train",
 	"stats": "stats",
 	"help":  "help", "?": "help",

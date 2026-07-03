@@ -8,6 +8,7 @@ package ui
 
 import (
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -17,6 +18,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/pabloduke/paws-in-the-machine/internal/engine"
+	"github.com/pabloduke/paws-in-the-machine/internal/systems/dialogue"
 	"github.com/pabloduke/paws-in-the-machine/internal/systems/hubs"
 )
 
@@ -56,6 +58,7 @@ type Model struct {
 
 	panelFocused bool
 	selected     int
+	dialogue     *dialogue.Session
 
 	entries  []string // transcript lines shown in the LOG
 	commands []string // executed commands, oldest first
@@ -108,6 +111,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		if m.dialogue != nil {
+			return m.updateDialogue(msg)
+		}
 		if m.panelFocused {
 			return m.updatePanel(msg)
 		}
@@ -142,9 +148,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.commands = append(m.commands, line)
 			m.entries = append(m.entries, echoStyle.Render("> "+line))
-			if out := m.eng.Execute(line); out != "" {
-				m.entries = append(m.entries, out)
-			}
+			m.executeLine(line)
 			m.refreshLog()
 			if m.eng.World.Quitting() {
 				return m, tea.Quit
@@ -164,6 +168,65 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.log, cmd = m.log.Update(msg)
 	cmds = append(cmds, cmd)
 	return m, tea.Batch(cmds...)
+}
+
+// executeLine runs one prompt command, intercepting "talk <npc>" to
+// enter dialogue mode before falling back to the engine.
+func (m *Model) executeLine(line string) {
+	cmd, ok := engine.Parse(line)
+	if ok && cmd.Verb == "talk" {
+		if cmd.Object == "" {
+			m.entries = append(m.entries, "Talk to whom?")
+			return
+		}
+		target := m.eng.World.InScope(cmd.Object)
+		if target == nil {
+			m.entries = append(m.entries, "You don't see any "+strconv.Quote(cmd.Object)+" here.")
+			return
+		}
+		session, err := dialogue.Start(m.eng.World, target)
+		if err != nil {
+			m.entries = append(m.entries, err.Error())
+			return
+		}
+		m.dialogue = session
+		m.input.Blur()
+		m.entries = append(m.entries, session.Render())
+		return
+	}
+	if out := m.eng.Execute(line); out != "" {
+		m.entries = append(m.entries, out)
+	}
+}
+
+// updateDialogue handles numbered Fallout-style conversation choices.
+func (m Model) updateDialogue(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.Type {
+	case tea.KeyCtrlC:
+		return m, tea.Quit
+	case tea.KeyEsc:
+		m.dialogue = nil
+		m.input.Focus()
+		m.entries = append(m.entries, dimStyle.Render("[conversation ended]"))
+		m.refreshLog()
+		return m, nil
+	case tea.KeyRunes:
+		if len(msg.Runes) != 1 || msg.Runes[0] < '1' || msg.Runes[0] > '9' {
+			return m, nil
+		}
+		choice := int(msg.Runes[0] - '0')
+		m.entries = append(m.entries, echoStyle.Render("> "+strconv.Itoa(choice)))
+		if out := m.dialogue.Choose(choice); out != "" {
+			m.entries = append(m.entries, out)
+		}
+		if m.dialogue.Done() {
+			m.dialogue = nil
+			m.input.Focus()
+		}
+		m.refreshLog()
+		return m, nil
+	}
+	return m, nil
 }
 
 // recall moves through executed commands: dir=1 older, dir=-1 newer.
@@ -279,6 +342,8 @@ func (m Model) cityPanel() string {
 	hint := "tab: focus"
 	if m.panelFocused {
 		hint = "up/down enter, esc"
+	} else if m.dialogue != nil {
+		hint = "dialogue active"
 	}
 	b.WriteString("\n\n" + dimStyle.Render(hint))
 
