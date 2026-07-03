@@ -59,6 +59,7 @@ type Model struct {
 	panelFocused bool
 	selected     int
 	dialogue     *dialogue.Session
+	dlgSel       int // highlighted choice in the dialogue menu
 
 	entries  []string // transcript lines shown in the LOG
 	commands []string // executed commands, oldest first
@@ -190,8 +191,9 @@ func (m *Model) executeLine(line string) {
 			return
 		}
 		m.dialogue = session
+		m.dlgSel = 0
 		m.input.Blur()
-		m.entries = append(m.entries, session.Render())
+		m.entries = append(m.entries, session.Speaker()+": "+session.Text())
 		return
 	}
 	if out := m.eng.Execute(line); out != "" {
@@ -199,8 +201,14 @@ func (m *Model) executeLine(line string) {
 	}
 }
 
-// updateDialogue handles numbered Fallout-style conversation choices.
+// updateDialogue drives the conversation menu in the room panel:
+// up/down move the highlight, enter picks, 1-9 pick directly, esc
+// leaves. The LOG keeps the transcript; the panel is the live view.
 func (m Model) updateDialogue(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	options := m.dialogue.Options()
+	if m.dlgSel >= len(options) {
+		m.dlgSel = 0
+	}
 	switch msg.Type {
 	case tea.KeyCtrlC:
 		return m, tea.Quit
@@ -210,22 +218,47 @@ func (m Model) updateDialogue(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.entries = append(m.entries, dimStyle.Render("[conversation ended]"))
 		m.refreshLog()
 		return m, nil
+	case tea.KeyUp:
+		if len(options) > 0 {
+			m.dlgSel = (m.dlgSel - 1 + len(options)) % len(options)
+		}
+		return m, nil
+	case tea.KeyDown:
+		if len(options) > 0 {
+			m.dlgSel = (m.dlgSel + 1) % len(options)
+		}
+		return m, nil
+	case tea.KeyEnter:
+		return m.pickDialogue(m.dlgSel + 1)
 	case tea.KeyRunes:
 		if len(msg.Runes) != 1 || msg.Runes[0] < '1' || msg.Runes[0] > '9' {
 			return m, nil
 		}
-		choice := int(msg.Runes[0] - '0')
-		m.entries = append(m.entries, echoStyle.Render("> "+strconv.Itoa(choice)))
-		if out := m.dialogue.Choose(choice); out != "" {
-			m.entries = append(m.entries, out)
-		}
-		if m.dialogue.Done() {
-			m.dialogue = nil
-			m.input.Focus()
-		}
-		m.refreshLog()
+		return m.pickDialogue(int(msg.Runes[0] - '0'))
+	}
+	return m, nil
+}
+
+// pickDialogue applies a 1-based choice and records the exchange in
+// the LOG. Locked picks log the refusal and stay on the node.
+func (m Model) pickDialogue(n int) (tea.Model, tea.Cmd) {
+	options := m.dialogue.Options()
+	if n < 1 || n > len(options) {
 		return m, nil
 	}
+	locked := options[n-1].Locked
+	m.entries = append(m.entries, echoStyle.Render("> "+options[n-1].Choice.Text))
+	if out := m.dialogue.Pick(n); out != "" {
+		m.entries = append(m.entries, out)
+	}
+	if m.dialogue.Done() {
+		m.dialogue = nil
+		m.input.Focus()
+	} else if !locked {
+		m.dlgSel = 0
+		m.entries = append(m.entries, m.dialogue.Speaker()+": "+m.dialogue.Text())
+	}
+	m.refreshLog()
 	return m, nil
 }
 
@@ -309,16 +342,55 @@ func (m Model) View() string {
 }
 
 // roomPanel is the live room view: title from the room name, body from
-// world state — always current, never a transcript.
+// world state — always current, never a transcript. While a
+// conversation is active it becomes the dialogue menu instead.
 func (m Model) roomPanel() string {
-	name, body, _ := strings.Cut(engine.Look(m.eng.World), "\n\n")
-	content := roomTitleStyle.Render(strings.ToUpper(name))
-	if body != "" {
-		content += "\n\n" + body
-	}
 	width := m.width - leftPanelWidth - rightPanelWidth
+	var content string
+	if m.dialogue != nil {
+		content = m.dialogueView()
+	} else {
+		name, body, _ := strings.Cut(engine.Look(m.eng.World), "\n\n")
+		content = roomTitleStyle.Render(strings.ToUpper(name))
+		if body != "" {
+			content += "\n\n" + body
+		}
+	}
 	return panelStyle.Width(width - 2).Height(m.mainRowHeight() - 2).
 		Render(bodyStyle.Width(width - 4).Render(content))
+}
+
+// dialogueView renders the active conversation: the NPC line on top,
+// then the choice menu. The highlighted row is selected with enter;
+// locked stat-gated rows render dim with their tag and a ✗.
+func (m Model) dialogueView() string {
+	var b strings.Builder
+	b.WriteString(roomTitleStyle.Render(strings.ToUpper(m.dialogue.Speaker())))
+	b.WriteString("\n\n" + m.dialogue.Text() + "\n")
+	options := m.dialogue.Options()
+	sel := m.dlgSel
+	if sel >= len(options) {
+		sel = 0
+	}
+	for i, o := range options {
+		row := strconv.Itoa(i+1) + ". "
+		if o.Tag != "" {
+			row += o.Tag + " "
+		}
+		row += o.Choice.Text
+		if o.Locked {
+			row += " ✗"
+		}
+		switch {
+		case i == sel:
+			row = hubSelStyle.Render(row)
+		case o.Locked:
+			row = dimStyle.Render(row)
+		}
+		b.WriteString("\n" + row)
+	}
+	b.WriteString("\n\n" + dimStyle.Render("up/down enter · 1-9 · esc to walk away"))
+	return b.String()
 }
 
 // cityPanel renders the hub list (docs/systems/hubs.md).
