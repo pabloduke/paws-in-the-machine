@@ -106,7 +106,8 @@ func NewWorld() *engine.World {
 
 	coffeeshop := engine.NewEntity("coffeeshop", "The Coffee Shop").With(
 		engine.Description{Text: "(Placeholder) The coffee shop down the block. " +
-			"Steam, low talk, a door that never quite shuts."},
+			"Steam, low talk, a door that never quite shuts. The barista " +
+			"works the counter like it owes them money."},
 		engine.Exits{
 			Dirs:    map[string]string{"south": "lair"},
 			Blocked: "(Placeholder) Nothing that way but rain. The lair is south.",
@@ -130,7 +131,7 @@ func NewWorld() *engine.World {
 					Text: "(Placeholder) \"That cat again. You lost, orange?\"",
 					Choices: []dialogue.Choice{
 						{
-							Text: "Purr and make the counter your kingdom. [Charm 8]",
+							Text: "Purr and make the counter your kingdom.",
 							Require: []dialogue.Requirement{
 								dialogue.StatAtLeast("charm", 8),
 								dialogue.MissingFlag("barista_softened"),

@@ -16,6 +16,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/pabloduke/paws-in-the-machine/internal/engine"
 	"github.com/pabloduke/paws-in-the-machine/internal/systems/dialogue"
@@ -59,6 +60,7 @@ type Model struct {
 	panelFocused bool
 	selected     int
 	dialogue     *dialogue.Session
+	dlgSel       int // highlighted choice in the dialogue menu
 
 	entries  []string // transcript lines shown in the LOG
 	commands []string // executed commands, oldest first
@@ -190,8 +192,9 @@ func (m *Model) executeLine(line string) {
 			return
 		}
 		m.dialogue = session
+		m.dlgSel = 0
 		m.input.Blur()
-		m.entries = append(m.entries, session.Render())
+		m.entries = append(m.entries, session.Speaker()+": "+session.Text())
 		return
 	}
 	if out := m.eng.Execute(line); out != "" {
@@ -199,8 +202,14 @@ func (m *Model) executeLine(line string) {
 	}
 }
 
-// updateDialogue handles numbered Fallout-style conversation choices.
+// updateDialogue drives the conversation menu in the room panel:
+// up/down move the highlight, enter picks, 1-9 pick directly, esc
+// leaves. The LOG keeps the transcript; the panel is the live view.
 func (m Model) updateDialogue(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	options := m.dialogue.Options()
+	if m.dlgSel >= len(options) {
+		m.dlgSel = 0
+	}
 	switch msg.Type {
 	case tea.KeyCtrlC:
 		return m, tea.Quit
@@ -210,22 +219,51 @@ func (m Model) updateDialogue(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.entries = append(m.entries, dimStyle.Render("[conversation ended]"))
 		m.refreshLog()
 		return m, nil
+	case tea.KeyUp:
+		if len(options) > 0 {
+			m.dlgSel = (m.dlgSel - 1 + len(options)) % len(options)
+		}
+		return m, nil
+	case tea.KeyDown:
+		if len(options) > 0 {
+			m.dlgSel = (m.dlgSel + 1) % len(options)
+		}
+		return m, nil
+	case tea.KeyEnter:
+		return m.pickDialogue(m.dlgSel + 1)
 	case tea.KeyRunes:
+		// Numbers move the highlight; only enter commits.
 		if len(msg.Runes) != 1 || msg.Runes[0] < '1' || msg.Runes[0] > '9' {
 			return m, nil
 		}
-		choice := int(msg.Runes[0] - '0')
-		m.entries = append(m.entries, echoStyle.Render("> "+strconv.Itoa(choice)))
-		if out := m.dialogue.Choose(choice); out != "" {
-			m.entries = append(m.entries, out)
+		if n := int(msg.Runes[0] - '0'); n <= len(options) {
+			m.dlgSel = n - 1
 		}
-		if m.dialogue.Done() {
-			m.dialogue = nil
-			m.input.Focus()
-		}
-		m.refreshLog()
 		return m, nil
 	}
+	return m, nil
+}
+
+// pickDialogue applies a 1-based choice and records the exchange in
+// the LOG. Locked picks log the refusal and stay on the node.
+func (m Model) pickDialogue(n int) (tea.Model, tea.Cmd) {
+	options := m.dialogue.Options()
+	if n < 1 || n > len(options) {
+		return m, nil
+	}
+	locked := options[n-1].Locked
+	m.entries = append(m.entries, echoStyle.Render("> "+options[n-1].Choice.Text))
+	if out := m.dialogue.Pick(n); out != "" {
+		m.entries = append(m.entries, out)
+	}
+	if m.dialogue.Done() {
+		m.dialogue = nil
+		m.input.Focus()
+	} else if !locked {
+		m.dlgSel = 0
+		m.entries = append(m.entries, m.dialogue.Speaker()+": "+m.dialogue.Text())
+	}
+	m.refreshLog()
 	return m, nil
 }
 
@@ -305,20 +343,97 @@ func (m Model) View() string {
 	}
 	mainRow := lipgloss.JoinHorizontal(lipgloss.Top,
 		m.cityPanel(), m.roomPanel(), m.rightPanel())
+	if m.dialogue != nil {
+		mainRow = m.overlayDialogue(mainRow)
+	}
 	return mainRow + "\n" + m.logPanel() + "\n" + m.input.View()
+}
+
+// overlayDialogue composites the conversation modal centered over the
+// main row, leaving the panels visible around it. The modal closes
+// when the conversation ends.
+func (m Model) overlayDialogue(bg string) string {
+	modalW := 60
+	if max := m.width - 8; modalW > max {
+		modalW = max
+	}
+	box := panelFocusStyle.Width(modalW).
+		Render(bodyStyle.Width(modalW - 4).Render(m.dialogueView()))
+	x := (m.width - lipgloss.Width(box)) / 2
+	y := (m.mainRowHeight() - lipgloss.Height(box)) / 2
+	if x < 0 {
+		x = 0
+	}
+	if y < 0 {
+		y = 0
+	}
+	return overlay(bg, box, x, y)
+}
+
+// overlay splices fg over bg at column x, row y, ANSI-aware.
+func overlay(bg, fg string, x, y int) string {
+	bgLines := strings.Split(bg, "\n")
+	fgLines := strings.Split(fg, "\n")
+	for i, fl := range fgLines {
+		j := y + i
+		if j < 0 || j >= len(bgLines) {
+			continue
+		}
+		bl := bgLines[j]
+		left := ansi.Truncate(bl, x, "")
+		if pad := x - ansi.StringWidth(left); pad > 0 {
+			left += strings.Repeat(" ", pad)
+		}
+		right := ansi.TruncateLeft(bl, x+ansi.StringWidth(fl), "")
+		bgLines[j] = left + fl + right
+	}
+	return strings.Join(bgLines, "\n")
 }
 
 // roomPanel is the live room view: title from the room name, body from
 // world state — always current, never a transcript.
 func (m Model) roomPanel() string {
+	width := m.width - leftPanelWidth - rightPanelWidth
 	name, body, _ := strings.Cut(engine.Look(m.eng.World), "\n\n")
 	content := roomTitleStyle.Render(strings.ToUpper(name))
 	if body != "" {
 		content += "\n\n" + body
 	}
-	width := m.width - leftPanelWidth - rightPanelWidth
 	return panelStyle.Width(width - 2).Height(m.mainRowHeight() - 2).
 		Render(bodyStyle.Width(width - 4).Render(content))
+}
+
+// dialogueView renders the active conversation: the NPC line on top,
+// then the choice menu. The highlighted row is selected with enter;
+// locked stat-gated rows render dim with their tag and a ✗.
+func (m Model) dialogueView() string {
+	var b strings.Builder
+	b.WriteString(roomTitleStyle.Render(strings.ToUpper(m.dialogue.Speaker())))
+	b.WriteString("\n\n" + m.dialogue.Text() + "\n")
+	options := m.dialogue.Options()
+	sel := m.dlgSel
+	if sel >= len(options) {
+		sel = 0
+	}
+	for i, o := range options {
+		row := strconv.Itoa(i+1) + ". "
+		if o.Tag != "" {
+			row += o.Tag + " "
+		}
+		row += o.Choice.Text
+		if o.Locked {
+			row += " ✗"
+		}
+		switch {
+		case i == sel:
+			row = hubSelStyle.Render(row)
+		case o.Locked:
+			row = dimStyle.Render(row)
+		}
+		b.WriteString("\n" + row)
+	}
+	b.WriteString("\n\n" + dimStyle.Render("up/down or 1-9 to highlight · enter to say it · esc to walk away"))
+	return b.String()
 }
 
 // cityPanel renders the hub list (docs/systems/hubs.md).

@@ -63,8 +63,11 @@ func TestDialogueChoicesAndEffects(t *testing.T) {
 	}
 
 	rendered := session.Render()
-	if !strings.Contains(rendered, "Purr like you own") {
-		t.Fatalf("charm choice should be visible: %q", rendered)
+	if !strings.Contains(rendered, "[Charm 8] Purr like you own") {
+		t.Fatalf("charm choice should be visible with derived tag: %q", rendered)
+	}
+	if strings.Contains(rendered, "✗") {
+		t.Fatalf("qualifying charm choice should not be locked: %q", rendered)
 	}
 	if strings.Contains(rendered, "Show the data-shard") {
 		t.Fatalf("item-gated choice should be hidden before taking shard: %q", rendered)
@@ -129,8 +132,8 @@ func TestOnceFlagHidesUsedChoice(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(session.Choices()) != 2 {
-		t.Fatalf("expected two initial choices, got %d", len(session.Choices()))
+	if len(session.Options()) != 2 {
+		t.Fatalf("expected two initial choices, got %d", len(session.Options()))
 	}
 
 	out := session.Choose(1)
@@ -140,8 +143,39 @@ func TestOnceFlagHidesUsedChoice(t *testing.T) {
 	if strings.Contains(out, "Ask the useful question") {
 		t.Fatalf("once-only choice should be hidden after use: %q", out)
 	}
-	if len(session.Choices()) != 1 || session.Choices()[0].Text != "Leave." {
-		t.Fatalf("expected only Leave after once choice, got %#v", session.Choices())
+	if opts := session.Options(); len(opts) != 1 || opts[0].Choice.Text != "Leave." {
+		t.Fatalf("expected only Leave after once choice, got %#v", opts)
+	}
+}
+
+func TestStatGateLocksAndUnlocks(t *testing.T) {
+	w, barista := dialogueWorld()
+	w.Stats.Charm = 5
+
+	session, err := dialogue.Start(w, barista)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rendered := session.Render()
+	if !strings.Contains(rendered, "[Charm 8] Purr like you own the place. ✗") {
+		t.Fatalf("under-stat choice should be visible, tagged, and locked: %q", rendered)
+	}
+
+	out := session.Choose(1)
+	if !strings.Contains(out, "Your Charm isn't up to that yet. (Charm 5/8)") {
+		t.Fatalf("locked choice should refuse with stat gap: %q", out)
+	}
+	if w.Flags["barista_softened"] || session.Done() {
+		t.Fatalf("locked choice must apply nothing; flags=%v done=%v", w.Flags, session.Done())
+	}
+
+	w.Stats.Charm = 8
+	if strings.Contains(session.Render(), "✗") {
+		t.Fatalf("lock should re-evaluate once trained: %q", session.Render())
+	}
+	out = session.Choose(1)
+	if !w.Flags["barista_softened"] || !strings.Contains(out, "One saucer") {
+		t.Fatalf("trained stat should unlock the choice: %q flags=%v", out, w.Flags)
 	}
 }
 
