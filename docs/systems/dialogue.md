@@ -24,8 +24,23 @@ Each node contains NPC text and zero or more choices. A choice may:
 - move to another node;
 - end the conversation.
 
-Unavailable choices are hidden, not greyed out. If Buddy cannot ask about
-the data-shard because he is not carrying it, the option is absent.
+Availability follows a Mass Effect / New Vegas hybrid (ruled July 2026):
+
+- **Stat-gated choices are visible but locked.** A choice requiring
+  `StatAtLeast("charm", 8)` always renders, prefixed with a derived
+  `[Charm 8]` tag (FNV-style; the tag comes from the requirement, never
+  hand-written into choice text). While Buddy's stat is below the bar the
+  choice is locked — picking it prints a refusal and applies nothing.
+  Locks are re-evaluated every render, so training Charm to 8 unlocks
+  the option on the next visit (ME-style retroactive unlock). No
+  attempt-and-fail, no lockout flags.
+- **Knowledge-gated choices stay hidden.** Flag, missing-flag, item, and
+  once-only requirements hide the choice entirely, as before. If Buddy
+  cannot ask about the data-shard because he is not carrying it, the
+  option is absent.
+- **One-chance moments are authored, not systemic.** Scarcity comes from
+  flags moving the conversation past a beat, the same way Mass Effect's
+  story moments pass — the system itself never consumes a check.
 
 ## State And Memory
 
@@ -39,19 +54,24 @@ flag; a once-only response can be guarded by `Choice.OnceFlag`.
 
 ## UI Contract
 
-Typing `talk <npc>` enters dialogue mode. While dialogue is active, number
-keys select visible responses and `Esc` exits the conversation. Normal
-prompt input and hub-panel focus are suspended until the conversation
-ends.
+Typing `talk <npc>` enters dialogue mode: the room panel becomes the
+live conversation view (NPC line on top, choice menu below). Up/Down
+move the highlighted choice, `Enter` selects it, number keys `1`-`9`
+select directly, and `Esc` walks away. Locked stat-gated choices render
+dimmed with their tag and a ✗. The LOG keeps the transcript of the
+exchange. Normal prompt input and hub-panel focus are suspended until
+the conversation ends.
 
 ## Engine Surface
 
 - `dialogue.Talkable` — component attached to an NPC or terminal.
 - `dialogue.Node` and `dialogue.Choice` — declarative graph data.
 - `dialogue.Start` — opens a `Session` for UI/headless callers.
-- `Session.Render`, `Session.Choices`, `Session.Choose`, `Session.Done`
-  — active conversation API.
-- Requirement helpers: `Flag`, `MissingFlag`, `HasItem`, `StatAtLeast`.
+- `Session.Render`, `Session.Options`, `Session.Choose`, `Session.Done`
+  — active conversation API. `Options` pairs each visible choice with
+  its lock state and derived tag.
+- Requirement helpers: `Flag`, `MissingFlag`, `HasItem`, `StatAtLeast`
+  (`StatAtLeast` gates visibly; the others hide).
 - Effect helpers: `SetFlag`, `ClearFlag`, `Say`, `AwardOnce`.
 
 ## Later

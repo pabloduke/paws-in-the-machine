@@ -42,9 +42,36 @@ type Choice struct {
 	OnceFlag string
 }
 
-// Requirement controls whether a choice is visible.
+// Requirement controls whether a choice is visible. Stat requirements
+// (StatCheck) are the exception: they never hide a choice — they render
+// it with a derived tag and lock it until the stat qualifies.
 type Requirement interface {
 	Allowed(*engine.World) bool
+}
+
+// StatCheck is a visible, lockable stat gate: the choice renders with a
+// "[Charm 8]"-style tag and stays locked until the stat meets Min.
+// Locks re-evaluate every render, so training retroactively unlocks.
+type StatCheck struct {
+	Stat string
+	Min  int
+}
+
+func (c StatCheck) Allowed(w *engine.World) bool {
+	return statValue(w, c.Stat) >= c.Min
+}
+
+// Tag renders the FNV-style bracket tag, e.g. "[Charm 8]".
+func (c StatCheck) Tag() string {
+	return fmt.Sprintf("[%s %d]", capitalizeStat(c.Stat), c.Min)
+}
+
+// Option is one rendered choice: the underlying Choice plus its derived
+// stat tag and current lock state.
+type Option struct {
+	Choice Choice
+	Tag    string // "[Charm 8]" etc.; empty when the choice has no stat gate
+	Locked bool
 }
 
 // RequirementFunc adapts a function to Requirement.
@@ -91,8 +118,30 @@ func Start(w *engine.World, npc *engine.Entity) (*Session, error) {
 // Done reports whether the conversation has ended.
 func (s *Session) Done() bool { return s == nil || s.done }
 
-// Choices returns the currently visible choices.
-func (s *Session) Choices() []Choice {
+// Speaker returns the NPC's display name for the active conversation.
+func (s *Session) Speaker() string {
+	if s.Done() {
+		return ""
+	}
+	return engine.DisplayName(s.w, s.npc)
+}
+
+// Text returns the current node's NPC line, without choices.
+func (s *Session) Text() string {
+	if s.Done() {
+		return ""
+	}
+	node, ok := s.graph.Nodes[s.nodeID]
+	if !ok {
+		return ""
+	}
+	return node.Text
+}
+
+// Options returns the currently visible choices with their lock state.
+// Knowledge gates (flags, items, once-flags) hide a choice; stat gates
+// keep it visible, tagged, and locked until the stat qualifies.
+func (s *Session) Options() []Option {
 	if s.Done() {
 		return nil
 	}
@@ -100,14 +149,32 @@ func (s *Session) Choices() []Choice {
 	if !ok {
 		return nil
 	}
-	var out []Choice
+	var out []Option
 	for _, c := range node.Choices {
 		if c.OnceFlag != "" && s.w.Flags[c.OnceFlag] {
 			continue
 		}
-		if requirementsAllow(s.w, c.Require) {
-			out = append(out, c)
+		opt := Option{Choice: c}
+		hidden := false
+		var tags []string
+		for _, r := range c.Require {
+			if check, ok := r.(StatCheck); ok {
+				tags = append(tags, check.Tag())
+				if !check.Allowed(s.w) {
+					opt.Locked = true
+				}
+				continue
+			}
+			if !r.Allowed(s.w) {
+				hidden = true
+				break
+			}
 		}
+		if hidden {
+			continue
+		}
+		opt.Tag = strings.Join(tags, " ")
+		out = append(out, opt)
 	}
 	return out
 }
@@ -125,28 +192,40 @@ func (s *Session) Render() string {
 	var b strings.Builder
 	b.WriteString(engine.DisplayName(s.w, s.npc) + ":\n")
 	b.WriteString(node.Text)
-	choices := s.Choices()
-	if len(choices) == 0 {
+	options := s.Options()
+	if len(options) == 0 {
 		b.WriteString("\n\n[No responses available.]")
 		return b.String()
 	}
-	for i, c := range choices {
-		b.WriteString(fmt.Sprintf("\n%d. %s", i+1, c.Text))
+	for i, o := range options {
+		b.WriteString(fmt.Sprintf("\n%d. ", i+1))
+		if o.Tag != "" {
+			b.WriteString(o.Tag + " ")
+		}
+		b.WriteString(o.Choice.Text)
+		if o.Locked {
+			b.WriteString(" ✗")
+		}
 	}
 	return b.String()
 }
 
-// Choose selects a visible choice by 1-based index and returns the text
-// produced by effects plus the next rendered node, if any.
-func (s *Session) Choose(n int) string {
+// Pick selects a visible choice by 1-based index, applies its effects,
+// and advances or ends the conversation. It returns only the effect
+// prose (or a refusal for locked choices) — callers that render the
+// next node live, like the UI panel, read Speaker/Text/Options after.
+func (s *Session) Pick(n int) string {
 	if s.Done() {
 		return ""
 	}
-	choices := s.Choices()
-	if n < 1 || n > len(choices) {
+	options := s.Options()
+	if n < 1 || n > len(options) {
 		return "Choose one of the numbered responses."
 	}
-	choice := choices[n-1]
+	if options[n-1].Locked {
+		return lockedMessage(s.w, options[n-1].Choice)
+	}
+	choice := options[n-1].Choice
 	if choice.OnceFlag != "" {
 		s.w.Flags[choice.OnceFlag] = true
 	}
@@ -157,11 +236,7 @@ func (s *Session) Choose(n int) string {
 			lines = append(lines, out)
 		}
 	}
-	if choice.End {
-		s.done = true
-		return strings.Join(lines, "\n\n")
-	}
-	if choice.Next == "" {
+	if choice.End || choice.Next == "" {
 		s.done = true
 		return strings.Join(lines, "\n\n")
 	}
@@ -171,10 +246,23 @@ func (s *Session) Choose(n int) string {
 		return strings.Join(lines, "\n\n")
 	}
 	s.nodeID = choice.Next
-	if rendered := s.Render(); rendered != "" {
-		lines = append(lines, rendered)
-	}
 	return strings.Join(lines, "\n\n")
+}
+
+// Choose is Pick plus a render of the next node — the one-call flow for
+// headless callers and tests.
+func (s *Session) Choose(n int) string {
+	out := s.Pick(n)
+	if s.Done() {
+		return out
+	}
+	if rendered := s.Render(); rendered != "" {
+		if out != "" {
+			return out + "\n\n" + rendered
+		}
+		return rendered
+	}
+	return out
 }
 
 func requirementsAllow(w *engine.World, reqs []Requirement) bool {
@@ -204,20 +292,46 @@ func HasItem(id string) Requirement {
 	})
 }
 
-// StatAtLeast requires one of Buddy's visible stats to meet a threshold.
+// StatAtLeast gates a choice on one of Buddy's visible stats. Unlike the
+// other requirements it does not hide the choice: it renders tagged
+// ("[Charm 8]") and locked until the stat meets the threshold.
 func StatAtLeast(name string, value int) Requirement {
-	return RequirementFunc(func(w *engine.World) bool {
-		switch strings.ToLower(name) {
-		case "stealth":
-			return w.Stats.Stealth >= value
-		case "agility":
-			return w.Stats.Agility >= value
-		case "charm":
-			return w.Stats.Charm >= value
-		default:
-			return false
+	return StatCheck{Stat: strings.ToLower(name), Min: value}
+}
+
+func statValue(w *engine.World, name string) int {
+	switch strings.ToLower(name) {
+	case "stealth":
+		return w.Stats.Stealth
+	case "agility":
+		return w.Stats.Agility
+	case "charm":
+		return w.Stats.Charm
+	default:
+		return -1
+	}
+}
+
+func capitalizeStat(name string) string {
+	if name == "" {
+		return name
+	}
+	return strings.ToUpper(name[:1]) + strings.ToLower(name[1:])
+}
+
+// lockedMessage explains a refused locked choice, e.g.
+// "Your Charm isn't up to that yet. (Charm 5/8)".
+func lockedMessage(w *engine.World, c Choice) string {
+	for _, r := range c.Require {
+		check, ok := r.(StatCheck)
+		if !ok || check.Allowed(w) {
+			continue
 		}
-	})
+		name := capitalizeStat(check.Stat)
+		return fmt.Sprintf("Your %s isn't up to that yet. (%s %d/%d)",
+			name, name, statValue(w, check.Stat), check.Min)
+	}
+	return "You can't do that yet."
 }
 
 // SetFlag sets a story flag.
