@@ -46,9 +46,12 @@ one package under `internal/systems/<name>/` — see Architecture in the readme.
    impossible). Hidden seeded rolls, XCOM rule (identical attempt,
    identical result), prose-telegraphed circumstances. The only dice in
    the game. See `systems/stealth.md`.
-7. ⬜ **NPCs** — presence, dialogue, memory. Positions are a function of
-   game state (flags), never simulated movement. A dog = NPC component +
-   observer configuration on one entity.
+7. 📝 **NPCs/dialogue** — first dialogue slice is built: `talk <npc>`
+   enters a numbered node graph with visible-choice requirements and
+   flag/XP effects. NPC presence and broader memory are still open.
+   Positions are a function of game state (flags), never simulated
+   movement. A dog = NPC component + observer configuration on one
+   entity. See `systems/dialogue.md`.
 8. ⬜ **Hacking/cyberspace** — jack in/out (plane switch), subnets as a
    second tree region, data as items. No Hacking stat, no rolls: the
    player performs the hack through play; ICE is puzzle, not check.

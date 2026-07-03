@@ -10,6 +10,7 @@ package game
 import (
 	"github.com/pabloduke/paws-in-the-machine/internal/engine"
 	"github.com/pabloduke/paws-in-the-machine/internal/systems/checks"
+	"github.com/pabloduke/paws-in-the-machine/internal/systems/dialogue"
 	"github.com/pabloduke/paws-in-the-machine/internal/systems/hubs"
 )
 
@@ -115,6 +116,66 @@ func NewWorld() *engine.World {
 	counter := engine.NewEntity("counter", "the counter").With(
 		engine.Description{Text: "(Placeholder) A long counter, wiped clean a " +
 			"thousand times."},
+	)
+
+	barista := engine.NewEntity("barista", "the barista", "barista", "human").With(
+		engine.Notable{},
+		engine.Description{Text: "(Placeholder) The barista has the hollow-eyed " +
+			"look of someone who has seen too many loyalty apps and not " +
+			"enough sunlight."},
+		dialogue.Talkable{
+			Start: "greeting",
+			Nodes: map[string]dialogue.Node{
+				"greeting": {
+					Text: "(Placeholder) \"That cat again. You lost, orange?\"",
+					Choices: []dialogue.Choice{
+						{
+							Text: "Purr and make the counter your kingdom. [Charm 8]",
+							Require: []dialogue.Requirement{
+								dialogue.StatAtLeast("charm", 8),
+								dialogue.MissingFlag("barista_softened"),
+							},
+							Effects: []dialogue.Effect{
+								dialogue.SetFlag("barista_softened"),
+								dialogue.AwardOnce("xp_barista_charm", 3),
+							},
+							Next: "softened",
+						},
+						{
+							Text: "Nudge the data-shard into view.",
+							Require: []dialogue.Requirement{
+								dialogue.HasItem("shard"),
+								dialogue.MissingFlag("barista_saw_shard"),
+							},
+							Effects: []dialogue.Effect{
+								dialogue.SetFlag("barista_saw_shard"),
+								dialogue.Say("(Placeholder) The barista's eyes flick " +
+									"to the shard, then away from the cameras. " +
+									"\"Not here. Back room's safer, if you can " +
+									"get past the dog.\""),
+								dialogue.AwardOnce("xp_barista_shard", 2),
+							},
+							End: true,
+						},
+						{Text: "Mrow.", Next: "mrow"},
+						{Text: "Leave.", End: true},
+					},
+				},
+				"softened": {
+					Text: "(Placeholder) \"Fine. One saucer. Don't make it weird.\" " +
+						"The barista slides a cap of cream under the counter lip.",
+					Choices: []dialogue.Choice{
+						{Text: "Accept this tribute.", End: true},
+					},
+				},
+				"mrow": {
+					Text: "(Placeholder) \"Yeah, same.\"",
+					Choices: []dialogue.Choice{
+						{Text: "Leave.", End: true},
+					},
+				},
+			},
+		},
 	)
 
 	door := engine.NewEntity("door", "the door").With(
@@ -304,7 +365,7 @@ func NewWorld() *engine.World {
 	arcade.Add(hum, cabinets)
 	lair.Add(deck, shelf, shard, window, w.Player)
 	shelf.Add(mug)
-	coffeeshop.Add(counter, machine, laptop, hound, door)
+	coffeeshop.Add(counter, barista, machine, laptop, hound, door)
 
 	// Starting numbers. With the pinned seed below, the hound demos the
 	// full loop: sneak fails at Stealth 10 (and would pass at 12 —
