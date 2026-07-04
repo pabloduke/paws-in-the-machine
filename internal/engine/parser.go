@@ -17,7 +17,7 @@ var verbAliases = map[string]string{
 	"take": "take", "get": "take", "grab": "take", "pick": "take",
 	"drop":      "drop",
 	"inventory": "inventory", "i": "inventory", "inv": "inventory",
-	"use": "use", "jack": "use", "activate": "use",
+	"use": "use", "activate": "use",
 	"knock": "knock", "push": "knock", "bat": "knock", "swat": "knock", "paw": "knock",
 	"turn": "turn", "rotate": "turn", "twist": "turn",
 	"sneak":   "sneak",

@@ -52,9 +52,13 @@ one package under `internal/systems/<name>/` — see Architecture in the readme.
    Positions are a function of game state (flags), never simulated
    movement. A dog = NPC component + observer configuration on one
    entity. See `systems/dialogue.md`.
-8. ⬜ **Hacking/cyberspace** — jack in/out (plane switch), subnets as a
-   second tree region, data as items. No Hacking stat, no rolls: the
-   player performs the hack through play; ICE is puzzle, not check.
+8. 📝 **Hacking** — first slice built: logging into the deck opens a full-screen
+   terminal (shell over in-memory hosts/files/processes: ls, cd, cat,
+   grep, cp, ssh, curl, ps, kill, run) with a quest panel. Buddy stays
+   at the deck the whole time — it's a terminal session. Hooks set flags.
+   No Hacking stat, no rolls: the player performs the hack through
+   play; ICE is puzzle, not check — ICE, credential gates, and XP
+   payouts still open. See `systems/hacking.md`.
 9. ✅ **Hubs & travel** — city topology: hubs (districts) containing
    explorable rooms, all known/travelable from the start (Buddy's lived
    here all his life); game state gates relevance, not access. Travel

@@ -21,6 +21,7 @@ import (
 
 	"github.com/pabloduke/paws-in-the-machine/internal/engine"
 	"github.com/pabloduke/paws-in-the-machine/internal/systems/dialogue"
+	"github.com/pabloduke/paws-in-the-machine/internal/systems/hacking"
 	"github.com/pabloduke/paws-in-the-machine/internal/systems/hubs"
 )
 
@@ -45,17 +46,37 @@ var (
 	panelTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("5"))
 	roomTitleStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("3"))
 	hubSelStyle     = lipgloss.NewStyle().Reverse(true)
+	// Deck rows in the city panel get terminal-green, set apart from
+	// the hubs — a log-in target, not a place you walk to.
+	deckTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("2"))
+	deckRowStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
 )
+
+// panelKind tags a focusable row in the left panel.
+type panelKind int
+
+const (
+	panelHub  panelKind = iota // a city district — Enter travels
+	panelDeck                  // a terminal in reach — Enter logs in
+)
+
+// panelItem is one selectable row in the left panel: the hubs Buddy
+// can travel to, then any decks in scope he can log into.
+type panelItem struct {
+	kind   panelKind
+	entity *engine.Entity
+	name   string
+}
 
 // modalKind selects which centered modal owns the keyboard. Dialogue
 // keeps its own Session state; these are the lighter overlays.
 type modalKind int
 
 const (
-	modalNone modalKind = iota
-	modalLevelUp   // must-spend stat picker; opens itself on level-up
-	modalInventory // scrollable list of what Buddy carries
-	modalStats     // read-only character sheet
+	modalNone      modalKind = iota
+	modalLevelUp             // must-spend stat picker; opens itself on level-up
+	modalInventory           // scrollable list of what Buddy carries
+	modalStats               // read-only character sheet
 )
 
 // trainOrder fixes the row order of the level-up picker.
@@ -80,6 +101,15 @@ type Model struct {
 	modal  modalKind
 	lvlSel int // highlighted stat in the level-up modal
 	invOff int // scroll offset into the inventory modal
+
+	// Hacking terminal (docs/systems/hacking.md). While shell is
+	// non-nil the whole screen swaps to the terminal layout; the
+	// normal panels and LOG are untouched underneath.
+	shell        *hacking.Session
+	deckCfg      hacking.Deck
+	shellEntries []string // terminal scrollback, separate from the LOG
+	shellVP      viewport.Model
+	shellInput   textinput.Model
 
 	entries  []string // transcript lines shown in the LOG
 	commands []string // executed commands, oldest first
@@ -129,9 +159,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.log.Height = logH
 		}
 		m.refreshLog()
+		if m.shell != nil {
+			m.resizeShell()
+			m.refreshShell()
+		}
 		return m, nil
 
 	case tea.KeyMsg:
+		if m.shell != nil {
+			return m.updateShell(msg)
+		}
 		if m.modal != modalNone {
 			return m.updateModal(msg)
 		}
@@ -148,9 +185,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlC:
 			return m, tea.Quit
 		case tea.KeyTab:
-			if list := hubs.List(m.eng.World); len(list) > 0 {
+			if len(m.panelItems()) > 0 {
 				m.panelFocused = true
-				m.selected = currentHubIndex(m.eng.World, list)
+				m.selected = currentHubIndex(m.eng.World, hubs.List(m.eng.World))
 			}
 			return m, nil
 		case tea.KeyPgUp, tea.KeyPgDown:
@@ -201,6 +238,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *Model) executeLine(line string) {
 	line = m.eng.World.Rewrite(line)
 	cmd, ok := engine.Parse(line)
+	if ok && cmd.Verb == "use" && cmd.Object != "" {
+		if target := m.eng.World.InScope(cmd.Object); target != nil {
+			if d, isDeck := engine.Part[hacking.Deck](target); isDeck {
+				m.openShell(d)
+				return
+			}
+		}
+	}
 	if ok && cmd.Verb == "inventory" {
 		m.modal = modalInventory
 		m.invOff = 0
@@ -390,6 +435,175 @@ func (m Model) updateInventory(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// --- Hacking terminal (docs/systems/hacking.md) -----------------------
+// The screen swaps wholesale while a session is live; the room UI
+// underneath is untouched and restored when the terminal closes.
+
+// shellDims returns terminal width, quest-panel width, and panel
+// height. The terminal is preserved first; the quest panel shrinks.
+func (m Model) shellDims() (termW, questW, panelH int) {
+	questW = 26
+	if m.width-questW < 46 {
+		questW = m.width - 46
+	}
+	if questW < 12 {
+		questW = 12
+	}
+	termW = m.width - questW
+	if termW < 20 {
+		termW = 20
+	}
+	panelH = m.height - promptHeight
+	if panelH < 5 {
+		panelH = 5
+	}
+	return termW, questW, panelH
+}
+
+// openShell logs into the deck and swaps the screen to the terminal.
+func (m *Model) openShell(d hacking.Deck) {
+	s, err := hacking.NewSession(m.eng.World, d.Net, d.Host)
+	if err != nil {
+		m.entries = append(m.entries, err.Error())
+		return
+	}
+	m.shell = s
+	m.deckCfg = d
+	m.shellEntries = []string{dimStyle.Render(
+		"PAWS/OS — 'help' lists commands · 'exit' (or esc) leaves the terminal")}
+
+	ti := textinput.New()
+	ti.Prompt = promptStyle.Render(s.Prompt())
+	ti.Focus()
+	m.shellInput = ti
+	m.input.Blur()
+
+	m.resizeShell()
+	m.refreshShell()
+}
+
+// resizeShell fits the scrollback viewport to the current window.
+func (m *Model) resizeShell() {
+	termW, _, panelH := m.shellDims()
+	w, h := termW-4, panelH-3 // borders + title row
+	if w < 1 {
+		w = 1
+	}
+	if h < 1 {
+		h = 1
+	}
+	if m.shellVP.Width == 0 {
+		m.shellVP = viewport.New(w, h)
+		m.shellVP.KeyMap = viewport.KeyMap{
+			PageUp:   key.NewBinding(key.WithKeys("pgup")),
+			PageDown: key.NewBinding(key.WithKeys("pgdown")),
+		}
+	} else {
+		m.shellVP.Width = w
+		m.shellVP.Height = h
+	}
+}
+
+// refreshShell re-renders the terminal scrollback, pinned to newest.
+func (m *Model) refreshShell() {
+	wrapped := lipgloss.NewStyle().Width(m.shellVP.Width).
+		Render(strings.Join(m.shellEntries, "\n"))
+	m.shellVP.SetContent(wrapped)
+	m.shellVP.GotoBottom()
+}
+
+// closeShell tears the session down and restores the room UI.
+func (m *Model) closeShell() {
+	m.shell = nil
+	m.input.Focus()
+	m.entries = append(m.entries, dimStyle.Render("[left the terminal]"))
+	m.refreshLog()
+	m.maybeLevelUp()
+}
+
+// updateShell drives the terminal: enter executes a command, esc closes
+// the terminal outright, PgUp/PgDn scroll, everything else types.
+func (m Model) updateShell(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.Type {
+	case tea.KeyCtrlC:
+		return m, tea.Quit
+	case tea.KeyEsc:
+		// Close the whole terminal from any depth — like shutting the
+		// window; the shell narrates the disconnect first.
+		m.shellEntries = append(m.shellEntries, m.shell.End())
+		m.closeShell()
+		return m, nil
+	case tea.KeyPgUp, tea.KeyPgDown:
+		var cmd tea.Cmd
+		m.shellVP, cmd = m.shellVP.Update(msg)
+		return m, cmd
+	case tea.KeyEnter:
+		line := strings.TrimSpace(m.shellInput.Value())
+		m.shellInput.Reset()
+		if line == "" {
+			return m, nil
+		}
+		m.shellEntries = append(m.shellEntries,
+			echoStyle.Render(m.shell.Prompt()+line))
+		out, done := m.shell.Exec(line)
+		if out != "" {
+			m.shellEntries = append(m.shellEntries, out)
+		}
+		if done {
+			m.closeShell()
+			return m, nil
+		}
+		m.shellInput.Prompt = promptStyle.Render(m.shell.Prompt())
+		m.refreshShell()
+		return m, nil
+	}
+	var cmd tea.Cmd
+	m.shellInput, cmd = m.shellInput.Update(msg)
+	return m, cmd
+}
+
+// shellScreen is the full-screen terminal layout: dominant terminal
+// with the prompt attached beneath it, read-only quest panel right.
+func (m Model) shellScreen() string {
+	termW, questW, panelH := m.shellDims()
+
+	title := roomTitleStyle.Render("SESSION // " + m.shell.HostName())
+	term := panelFocusStyle.Width(termW - 2).Height(panelH - 2).
+		Render(title + "\n" + m.shellVP.View())
+	quest := panelStyle.Width(questW - 2).Height(panelH - 2).
+		Render(m.questPanel())
+	row := lipgloss.JoinHorizontal(lipgloss.Top, term, quest)
+
+	prompt := lipgloss.NewStyle().MaxWidth(termW).Render(m.shellInput.View())
+	return row + "\n" + prompt
+}
+
+// questPanel is the read-only orientation panel beside the terminal.
+func (m Model) questPanel() string {
+	w := m.eng.World
+	var b strings.Builder
+	b.WriteString(panelTitleStyle.Render("OBJECTIVE"))
+	b.WriteString("\n" + m.deckCfg.CurrentObjective(w))
+
+	b.WriteString("\n\n" + panelTitleStyle.Render("LOCATION"))
+	b.WriteString("\n" + m.shell.HostName() + ":" + m.shell.Path())
+
+	b.WriteString("\n\n" + panelTitleStyle.Render("DISCOVERIES"))
+	if found := m.shell.Discoveries(); len(found) == 0 {
+		b.WriteString("\n" + dimStyle.Render("none yet"))
+	} else {
+		for _, name := range found {
+			b.WriteString("\n" + name)
+		}
+	}
+
+	b.WriteString("\n\n" + panelTitleStyle.Render("STATUS"))
+	b.WriteString("\nlink: stable")
+	b.WriteString("\nICE: " + dimStyle.Render("none detected"))
+	b.WriteString("\ntrace: " + dimStyle.Render("cold"))
+	return b.String()
+}
+
 // recall moves through executed commands: dir=1 older, dir=-1 newer.
 // Position 0 restores whatever was being typed.
 func (m *Model) recall(dir int) {
@@ -409,12 +623,29 @@ func (m *Model) recall(dir int) {
 	m.input.CursorEnd()
 }
 
-// updatePanel handles keys while the city panel has focus.
+// panelItems is the left panel's focusable list: hubs to travel to,
+// then decks in scope to log into.
+func (m Model) panelItems() []panelItem {
+	var items []panelItem
+	for _, h := range hubs.List(m.eng.World) {
+		items = append(items, panelItem{panelHub, h, h.Name})
+	}
+	for _, d := range hacking.DecksInScope(m.eng.World) {
+		items = append(items, panelItem{panelDeck, d, engine.DisplayName(m.eng.World, d)})
+	}
+	return items
+}
+
+// updatePanel handles keys while the city panel has focus. Enter
+// travels to a hub or logs into a deck, depending on the row.
 func (m Model) updatePanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	list := hubs.List(m.eng.World)
-	if len(list) == 0 {
+	items := m.panelItems()
+	if len(items) == 0 {
 		m.panelFocused = false
 		return m, nil
+	}
+	if m.selected >= len(items) {
+		m.selected = 0
 	}
 	switch msg.Type {
 	case tea.KeyCtrlC:
@@ -422,17 +653,24 @@ func (m Model) updatePanel(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case tea.KeyTab, tea.KeyEsc:
 		m.panelFocused = false
 	case tea.KeyUp:
-		m.selected = (m.selected - 1 + len(list)) % len(list)
+		m.selected = (m.selected - 1 + len(items)) % len(items)
 	case tea.KeyDown:
-		m.selected = (m.selected + 1) % len(list)
+		m.selected = (m.selected + 1) % len(items)
 	case tea.KeyEnter:
-		hub := list[m.selected]
-		m.entries = append(m.entries, echoStyle.Render("> [travel] "+hub.Name))
-		if out := hubs.Travel(m.eng.World, hub.ID); out != "" {
-			m.entries = append(m.entries, out)
-		}
-		m.refreshLog()
+		item := items[m.selected]
 		m.panelFocused = false
+		switch item.kind {
+		case panelHub:
+			m.entries = append(m.entries, echoStyle.Render("> [travel] "+item.name))
+			if out := hubs.Travel(m.eng.World, item.entity.ID); out != "" {
+				m.entries = append(m.entries, out)
+			}
+			m.refreshLog()
+		case panelDeck:
+			if d, ok := engine.Part[hacking.Deck](item.entity); ok {
+				m.openShell(d)
+			}
+		}
 	}
 	return m, nil
 }
@@ -463,6 +701,9 @@ func (m *Model) refreshLog() {
 func (m Model) View() string {
 	if !m.ready {
 		return "booting the deck..."
+	}
+	if m.shell != nil {
+		return m.shellScreen()
 	}
 	mainRow := lipgloss.JoinHorizontal(lipgloss.Top,
 		m.cityPanel(), m.roomPanel(), m.rightPanel())
@@ -648,19 +889,30 @@ func (m Model) statsView() string {
 
 // cityPanel renders the hub list (docs/systems/hubs.md).
 func (m Model) cityPanel() string {
-	list := hubs.List(m.eng.World)
+	items := m.panelItems()
 	cur := hubs.Current(m.eng.World)
 
 	var b strings.Builder
 	b.WriteString(panelTitleStyle.Render("THE CITY"))
-	for i, h := range list {
+	prevKind := panelHub
+	for i, it := range items {
+		// A blank line and a green subhead set the deck(s) apart from
+		// the hubs — logging in is not walking somewhere.
+		if it.kind == panelDeck && (i == 0 || prevKind == panelHub) {
+			b.WriteString("\n\n" + deckTitleStyle.Render("// UPLINK"))
+		}
+		prevKind = it.kind
+
 		marker := "  "
-		if h == cur {
+		if it.kind == panelHub && it.entity == cur {
 			marker = "* "
 		}
-		row := marker + h.Name
-		if m.panelFocused && i == m.selected {
+		row := marker + it.name
+		switch {
+		case m.panelFocused && i == m.selected:
 			row = hubSelStyle.Render(row)
+		case it.kind == panelDeck:
+			row = deckRowStyle.Render(row)
 		}
 		b.WriteString("\n" + row)
 	}

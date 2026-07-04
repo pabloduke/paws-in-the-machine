@@ -46,7 +46,7 @@ type World struct {
 	// Components read and write flags rather than holding state.
 	Flags map[string]bool
 	// Rewrites maps whole input phrases to replacement commands,
-	// letting content define idioms ("jack in" -> "use deck").
+	// letting content define idioms ("log in" -> "use deck").
 	Rewrites map[string]string
 
 	// Stats, XP, Level, and StatPoints are visible via the "stats"

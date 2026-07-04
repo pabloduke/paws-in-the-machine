@@ -19,8 +19,8 @@ Rejected by the rule:
   not a dice decision. Noticing things is deterministic (visibility
   system).
 - **Hacking** — deliberately statless. The player performs hacks through
-  play in cyberspace rooms; ICE is a puzzle you solve, not a check you
-  pass. Player skill, not character skill.
+  play at the deck's terminal; ICE is a puzzle you solve, not a check
+  you pass. Player skill, not character skill.
 
 ## XP, levels, and stat points
 
