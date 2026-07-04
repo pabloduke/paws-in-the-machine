@@ -222,7 +222,7 @@ const helpText = `Commands:
   examine <thing> (x)   look closely at something
   go <direction>        move (or just: north, n, in, out ...)
   take / drop <thing>   manage your possessions
-  use <thing>           operate something (also: jack)
+  use <thing>           operate something
   knock <thing>         you are a cat (also: bat, swat, paw)
   turn <thing>          rotate something (also: twist)
   sneak past <thing>    stealth your way through

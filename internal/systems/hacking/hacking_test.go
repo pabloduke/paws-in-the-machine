@@ -1,0 +1,215 @@
+package hacking_test
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/pabloduke/paws-in-the-machine/internal/engine"
+	"github.com/pabloduke/paws-in-the-machine/internal/systems/hacking"
+)
+
+func testNet() map[string]*hacking.Host {
+	return map[string]*hacking.Host{
+		"deck": {
+			Name: "deck",
+			Home: "/home/paws_in_the_machine",
+			Root: hacking.Dir("/",
+				hacking.Dir("home",
+					hacking.Dir("paws_in_the_machine",
+						hacking.File("notes.txt", "the relay still answers. curl relay.net"),
+					),
+				),
+			),
+		},
+		"relay.net": {
+			Name:   "relay.net",
+			Home:   "/",
+			Banner: "RELAY — abandoned but listening.",
+			Root: hacking.Dir("/",
+				hacking.Dir("var",
+					hacking.Dir("log",
+						&hacking.Node{Name: "net.log", Text: "ping ok\nsunfarm.arc keeps answering\nnoise", OnRead: "read_netlog"},
+					),
+				),
+				hacking.Dir("srv",
+					&hacking.Node{Name: "sun.frag", Text: "SUN//frag", OnCopy: "got_fragment"},
+					&hacking.Node{Name: "dig.bin", RunText: "unearthing... interrupted.", OnRun: "ran_dig"},
+				),
+			),
+			Procs: []*hacking.Process{
+				{PID: 27, Name: "whisperd", OnKill: "silenced_whisper"},
+			},
+			Served: map[string]string{"/": "relay index: sunfarm.arc [answers]"},
+		},
+	}
+}
+
+func newShell(t *testing.T) (*engine.World, *hacking.Session) {
+	t.Helper()
+	w := engine.NewWorld()
+	s, err := hacking.NewSession(w, testNet(), "deck")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return w, s
+}
+
+func exec(t *testing.T, s *hacking.Session, line string) string {
+	t.Helper()
+	out, done := s.Exec(line)
+	if done {
+		t.Fatalf("%q unexpectedly ended the session", line)
+	}
+	return out
+}
+
+func TestFilesystemNavigation(t *testing.T) {
+	_, s := newShell(t)
+	if got := s.Prompt(); got != "paws_in_the_machine@deck:~ $ " {
+		t.Fatalf("home prompt: %q", got)
+	}
+	if out := exec(t, s, "ls"); out != "notes.txt" {
+		t.Fatalf("ls home: %q", out)
+	}
+	if out := exec(t, s, "cat notes.txt"); !strings.Contains(out, "relay") {
+		t.Fatalf("cat: %q", out)
+	}
+	if out := exec(t, s, "cd /home"); out != "" {
+		t.Fatalf("cd: %q", out)
+	}
+	if out := exec(t, s, "pwd"); out != "/home" {
+		t.Fatalf("pwd: %q", out)
+	}
+	if out := exec(t, s, "cd .."); out != "" || s.Path() != "/" {
+		t.Fatalf("cd ..: %q path=%q", out, s.Path())
+	}
+	if out := exec(t, s, "cat nope"); out != "cat: nope: No such file or directory" {
+		t.Fatalf("cat missing: %q", out)
+	}
+	if out := exec(t, s, "frobnicate"); out != "frobnicate: command not found" {
+		t.Fatalf("unknown cmd: %q", out)
+	}
+}
+
+func TestSSHGrepAndHooks(t *testing.T) {
+	w, s := newShell(t)
+	if out := exec(t, s, "curl relay.net"); !strings.Contains(out, "sunfarm.arc") {
+		t.Fatalf("curl: %q", out)
+	}
+	if out := exec(t, s, "curl nowhere.net"); !strings.Contains(out, "(6)") {
+		t.Fatalf("curl unknown: %q", out)
+	}
+	if out := exec(t, s, "ssh relay.net"); !strings.Contains(out, "RELAY") {
+		t.Fatalf("ssh banner: %q", out)
+	}
+	if out := exec(t, s, "grep sunfarm /var/log/net.log"); !strings.Contains(out, "sunfarm.arc keeps answering") {
+		t.Fatalf("grep: %q", out)
+	}
+	if !w.Flags["read_netlog"] {
+		t.Fatalf("grep match should fire OnRead; flags=%v", w.Flags)
+	}
+	if out := exec(t, s, "grep zebra /var/log/net.log"); out != "" {
+		t.Fatalf("grep no-match should be silent: %q", out)
+	}
+	out, done := s.Exec("exit")
+	if done || !strings.Contains(out, "closed") {
+		t.Fatalf("exit should pop to deck: %q done=%v", out, done)
+	}
+	if s.HostName() != "deck" {
+		t.Fatalf("after exit host=%q", s.HostName())
+	}
+}
+
+func TestCopyToDeckFiresHookAndDiscovery(t *testing.T) {
+	w, s := newShell(t)
+	exec(t, s, "ssh relay.net")
+	if out := exec(t, s, "cp /srv/sun.frag ~/"); out != "" {
+		t.Fatalf("cp should be silent: %q", out)
+	}
+	if !w.Flags["got_fragment"] {
+		t.Fatalf("cp to deck should fire OnCopy; flags=%v", w.Flags)
+	}
+	if d := s.Discoveries(); len(d) != 1 || d[0] != "sun.frag" {
+		t.Fatalf("discoveries: %v", d)
+	}
+	// The copy landed on the deck's fake filesystem.
+	exec(t, s, "exit")
+	if out := exec(t, s, "cat ~/sun.frag"); out != "SUN//frag" {
+		t.Fatalf("downloaded copy: %q", out)
+	}
+}
+
+func TestProcessesAndRun(t *testing.T) {
+	w, s := newShell(t)
+	exec(t, s, "ssh relay.net")
+	if out := exec(t, s, "ps"); !strings.Contains(out, "whisperd") || !strings.Contains(out, "S") {
+		t.Fatalf("ps: %q", out)
+	}
+	if out := exec(t, s, "kill 27"); out != "" {
+		t.Fatalf("kill should be silent: %q", out)
+	}
+	if !w.Flags["silenced_whisper"] {
+		t.Fatalf("kill should fire OnKill; flags=%v", w.Flags)
+	}
+	if out := exec(t, s, "ps"); !strings.Contains(out, "Z") {
+		t.Fatalf("killed process should show as zombie: %q", out)
+	}
+	if out := exec(t, s, "kill 27"); !strings.Contains(out, "No such process") {
+		t.Fatalf("double kill: %q", out)
+	}
+	if out := exec(t, s, "run /srv/dig.bin"); !strings.Contains(out, "unearthing") {
+		t.Fatalf("run: %q", out)
+	}
+	if !w.Flags["ran_dig"] {
+		t.Fatalf("run should fire OnRun; flags=%v", w.Flags)
+	}
+	if out := exec(t, s, "run /srv/sun.frag"); !strings.Contains(out, "Permission denied") {
+		t.Fatalf("run non-executable: %q", out)
+	}
+}
+
+func TestExitPopsThenEndsAtDeck(t *testing.T) {
+	_, s := newShell(t)
+	exec(t, s, "ssh relay.net")
+
+	// exit from a remote host pops back to the deck without ending.
+	out, done := s.Exec("exit")
+	if done || !strings.Contains(out, "closed") {
+		t.Fatalf("exit from remote should pop, not end: %q done=%v", out, done)
+	}
+	if s.HostName() != "deck" {
+		t.Fatalf("after exit host=%q, want deck", s.HostName())
+	}
+
+	// exit at the deck (empty stack) closes the terminal.
+	out, done = s.Exec("exit")
+	if !done || out != "logout" {
+		t.Fatalf("exit at deck should end the session with logout: %q done=%v", out, done)
+	}
+
+	// End() narrates the Esc "close the window" affordance.
+	_, s2 := newShell(t)
+	exec(t, s2, "ssh relay.net")
+	if got := s2.End(); !strings.Contains(got, "closed by local host") {
+		t.Fatalf("End() from remote: %q", got)
+	}
+}
+
+func TestObjectiveProgression(t *testing.T) {
+	w := engine.NewWorld()
+	d := hacking.Deck{Objectives: []hacking.Objective{
+		{Flag: "a", Text: "first"},
+		{Flag: "b", Text: "second"},
+	}}
+	if got := d.CurrentObjective(w); got != "first" {
+		t.Fatalf("objective: %q", got)
+	}
+	w.Flags["a"] = true
+	if got := d.CurrentObjective(w); got != "second" {
+		t.Fatalf("objective: %q", got)
+	}
+	w.Flags["b"] = true
+	if got := d.CurrentObjective(w); got != "signal searching..." {
+		t.Fatalf("objective fallback: %q", got)
+	}
+}
