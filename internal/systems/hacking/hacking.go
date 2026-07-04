@@ -71,12 +71,14 @@ type Process struct {
 // Host is one fake system on the content-declared net. The deck
 // itself is a host; remote ones are reached with the ssh alias.
 type Host struct {
-	Name   string
-	Root   *Node             // fake filesystem root (a Dir)
-	Home   string            // path of the shell's home dir, e.g. "/home/paws_in_the_machine"
-	Banner string            // printed on connect
-	Procs  []*Process        // fake process table
-	Served map[string]string // fake curl resources: path -> body ("/" for the bare host)
+	Name     string
+	Root     *Node             // fake filesystem root (a Dir)
+	Home     string            // path of the shell's home dir, e.g. "/home/paws_in_the_machine"
+	Banner   string            // printed on connect
+	Password string            // fake password required before connecting; empty means open
+	Require  string            // fake network route flag required before connecting
+	Procs    []*Process        // fake process table
+	Served   map[string]string // fake curl resources: path -> body ("/" for the bare host)
 }
 
 // conn is one held connection on the ssh stack.
@@ -89,12 +91,13 @@ type conn struct {
 // the terminal shows, the working directory, and the connection stack.
 // Buddy never moves; the session is the thing that travels.
 type Session struct {
-	w     *engine.World
-	net   map[string]*Host
-	deck  *Host
-	host  *Host
-	cwd   []string
-	stack []conn
+	w       *engine.World
+	net     map[string]*Host
+	deck    *Host
+	host    *Host
+	cwd     []string
+	stack   []conn
+	pending *Host
 }
 
 // NewSession opens the shell on the deck's local host.
@@ -123,6 +126,9 @@ const login = "paws_in_the_machine"
 
 // Prompt renders the shell prompt, home shown as ~ on the deck.
 func (s *Session) Prompt() string {
+	if s.pending != nil {
+		return "password: "
+	}
 	path := s.Path()
 	if s.host == s.deck {
 		if rest, ok := strings.CutPrefix(path, s.deck.Home); ok {
@@ -152,6 +158,9 @@ func (s *Session) Discoveries() []string {
 // Exec runs one typed line against the session. done reports that the
 // session ended — `exit`/`logout` popped all the way back off the deck.
 func (s *Session) Exec(line string) (out string, done bool) {
+	if s.pending != nil {
+		return s.password(line), false
+	}
 	args := strings.Fields(line)
 	if len(args) == 0 {
 		return "", false
@@ -480,6 +489,26 @@ func (s *Session) ssh(args []string) string {
 	if host == s.host {
 		return "already connected to " + host.Name
 	}
+	if host.Require != "" && !s.w.Flags[host.Require] {
+		return "ssh: connect to host " + host.Name + ": Network is unreachable"
+	}
+	if host.Password != "" {
+		s.pending = host
+		return "password required for " + host.Name
+	}
+	return s.connect(host)
+}
+
+func (s *Session) password(input string) string {
+	host := s.pending
+	s.pending = nil
+	if strings.TrimSpace(input) != host.Password {
+		return "Permission denied, please try again."
+	}
+	return s.connect(host)
+}
+
+func (s *Session) connect(host *Host) string {
 	s.stack = append(s.stack, conn{host: s.host, cwd: s.cwd})
 	s.host = host
 	s.cwd = splitPath(host.Home)
@@ -490,6 +519,7 @@ func (s *Session) ssh(args []string) string {
 }
 
 func (s *Session) exit() (string, bool) {
+	s.pending = nil
 	if len(s.stack) == 0 {
 		return "logout", true // closing the deck session drops back to the room
 	}
@@ -614,13 +644,27 @@ type Objective struct {
 
 // DecksInScope returns entities the player can currently reach that
 // carry a Deck — the terminals Buddy can log into from where he is.
-// Mirrors hubs.List, but scope-based: you must be at the deck.
+// Mirrors hubs.List, but includes both visible decks and decks Buddy carries.
 func DecksInScope(w *engine.World) []*engine.Entity {
 	var out []*engine.Entity
-	for _, e := range w.Visible() {
+	seen := map[*engine.Entity]bool{}
+	add := func(e *engine.Entity) {
+		if seen[e] {
+			return
+		}
 		if _, ok := engine.Part[Deck](e); ok {
+			seen[e] = true
 			out = append(out, e)
 		}
+	}
+	for _, e := range w.Visible() {
+		add(e)
+	}
+	for _, e := range w.Player.Contents {
+		e.Walk(func(c *engine.Entity) bool {
+			add(c)
+			return true
+		})
 	}
 	return out
 }

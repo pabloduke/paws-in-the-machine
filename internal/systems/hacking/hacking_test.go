@@ -41,6 +41,33 @@ func testNet() map[string]*hacking.Host {
 			},
 			Served: map[string]string{"/": "relay index: sunfarm.arc [answers]"},
 		},
+		"microslop": {
+			Name:     "microslop",
+			Home:     "/",
+			Password: "apple",
+			Require:  "microslop_route_open",
+			Banner:   "MICROSLOP CORP intranet.",
+			Root: hacking.Dir("/",
+				hacking.Dir("home",
+					hacking.File("readme.txt", "search logs for sun"),
+				),
+				hacking.Dir("var",
+					hacking.Dir("log",
+						hacking.File("access.log", "sun notice moved to /srv/archive/sun_notice.txt"),
+					),
+				),
+				hacking.Dir("srv",
+					hacking.Dir("archive",
+						&hacking.Node{
+							Name:   "sun_notice.txt",
+							Text:   "sun liability memo",
+							OnRead: "read_notice",
+							OnCopy: "got_notice",
+						},
+					),
+				),
+			),
+		},
 	}
 }
 
@@ -195,6 +222,57 @@ func TestSSHGrepAndHooks(t *testing.T) {
 	}
 	if s.HostName() != "deck" {
 		t.Fatalf("after exit host=%q", s.HostName())
+	}
+}
+
+func TestPasswordGatedSSH(t *testing.T) {
+	w, s := newShell(t)
+
+	if out := exec(t, s, "ssh microslop"); !strings.Contains(out, "Network is unreachable") {
+		t.Fatalf("ssh without local route: %q", out)
+	}
+	if got := s.Prompt(); got != "paws_in_the_machine@deck:~ $ " {
+		t.Fatalf("unreachable host should keep shell prompt, got %q", got)
+	}
+
+	w.Flags["microslop_route_open"] = true
+	if out := exec(t, s, "ssh microslop"); !strings.Contains(out, "password required") {
+		t.Fatalf("ssh password prompt: %q", out)
+	}
+	if got := s.Prompt(); got != "password: " {
+		t.Fatalf("password prompt: %q", got)
+	}
+	if out := exec(t, s, "wrong"); out != "Permission denied, please try again." {
+		t.Fatalf("wrong password: %q", out)
+	}
+	if s.HostName() != "deck" {
+		t.Fatalf("wrong password should stay on deck, host=%q", s.HostName())
+	}
+
+	exec(t, s, "ssh microslop")
+	if out := exec(t, s, "apple"); !strings.Contains(out, "MICROSLOP") {
+		t.Fatalf("correct password banner: %q", out)
+	}
+	if s.HostName() != "microslop" || s.Prompt() != "paws_in_the_machine@microslop:/ $ " {
+		t.Fatalf("connected host=%q prompt=%q", s.HostName(), s.Prompt())
+	}
+	if out := exec(t, s, "grep sun /var/log/access.log"); !strings.Contains(out, "/srv/archive/sun_notice.txt") {
+		t.Fatalf("grep microslop logs: %q", out)
+	}
+	if out := exec(t, s, "cat /srv/archive/sun_notice.txt"); out != "sun liability memo" {
+		t.Fatalf("cat notice: %q", out)
+	}
+	if !w.Flags["read_notice"] {
+		t.Fatalf("reading notice should set flag; flags=%v", w.Flags)
+	}
+	if out := exec(t, s, "cp /srv/archive/sun_notice.txt ~/"); out != "" {
+		t.Fatalf("copy notice: %q", out)
+	}
+	if !w.Flags["got_notice"] {
+		t.Fatalf("copying notice should set flag; flags=%v", w.Flags)
+	}
+	if d := s.Discoveries(); len(d) != 1 || d[0] != "sun_notice.txt" {
+		t.Fatalf("discoveries: %v", d)
 	}
 }
 

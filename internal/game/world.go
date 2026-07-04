@@ -12,7 +12,7 @@ import (
 func NewWorld() *engine.World {
 	w := engine.NewWorld()
 
-	lair := buildLair()
+	lair, deck := buildLair()
 	coffeeshop := buildCoffeeshop()
 	backroom := buildBackroom()
 	plazaSquare, arcade := buildPlaza()
@@ -28,6 +28,7 @@ func NewWorld() *engine.World {
 	neighborhood.Add(lair, coffeeshop, backroom)
 	plaza.Add(plazaSquare, arcade)
 	lair.Add(w.Player)
+	w.Player.Add(deck)
 
 	// Starting numbers. With the pinned seed below, the hound demos the
 	// full loop: sneak fails at Stealth 10 (and would pass at 12 —

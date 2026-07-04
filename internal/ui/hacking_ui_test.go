@@ -76,8 +76,8 @@ func TestDeckLoginFromPanel(t *testing.T) {
 	w := game.NewWorld()
 	mod := newSized(w)
 
-	// The deck sits in the lair, in a green UPLINK section of the left
-	// panel — separated from the hubs.
+	// The deck is carried, in a green UPLINK section of the left panel,
+	// separated from the hubs.
 	if view := mod.View(); !strings.Contains(view, "UPLINK") || !strings.Contains(view, "the deck") {
 		t.Fatalf("deck should be listed in the left panel while in the lair:\n%s", view)
 	}
@@ -97,19 +97,26 @@ func TestDeckLoginFromPanel(t *testing.T) {
 	}
 }
 
-func TestDeckHiddenWhenNotInScope(t *testing.T) {
+func TestDeckCarriedAndAvailableOutsideLair(t *testing.T) {
 	w := game.NewWorld()
 	mod := newSized(w)
 	mod = typeLine(mod, "north") // leave the lair for the coffee shop
-	if view := mod.View(); strings.Contains(view, "UPLINK") {
-		t.Fatalf("deck should not be reachable from another room:\n%s", view)
+	if view := mod.View(); !strings.Contains(view, "UPLINK") || !strings.Contains(view, "the deck") {
+		t.Fatalf("carried deck should stay reachable from another room:\n%s", view)
 	}
-	if items := mod.(Model).panelItems(); len(items) > 0 {
-		for _, it := range items {
-			if it.kind == panelDeck {
-				t.Fatalf("no deck should be in scope from the coffee shop")
-			}
+	found := false
+	for _, it := range mod.(Model).panelItems() {
+		if it.kind == panelDeck {
+			found = true
 		}
+	}
+	if !found {
+		t.Fatalf("carried deck should have a panel item outside the lair")
+	}
+
+	mod = typeLine(mod, "use deck")
+	if mod.(Model).shell == nil {
+		t.Fatalf("carried deck should open the terminal outside the lair")
 	}
 }
 
@@ -129,6 +136,101 @@ func TestHackingBeatSetsFlags(t *testing.T) {
 	if view := mod.View(); !strings.Contains(view, "sun.frag") {
 		t.Fatalf("DISCOVERIES should list the download")
 	}
+}
+
+func TestMicroslopPasswordPuzzle(t *testing.T) {
+	w := game.NewWorld()
+	mod := newSized(w)
+	mod = typeLine(mod, "use deck")
+	mod = typeLine(mod, "ssh microslop")
+	if joined := strings.Join(mod.(Model).shellEntries, "\n"); !strings.Contains(joined, "Network is unreachable") {
+		t.Fatalf("ssh microslop should require a local route first: %q", joined)
+	}
+	if mod.(Model).shell.HostName() != "deck" {
+		t.Fatalf("missing route should not connect")
+	}
+	mod = typeLine(mod, "exit")
+
+	mod = typeLine(mod, "north")
+	mod = typeLine(mod, "talk barista")
+	mod, _ = mod.Update(spec(tea.KeyEnter)) // purr
+	mod, _ = mod.Update(spec(tea.KeyEnter)) // accept tribute
+	mod = typeLine(mod, "talk barista")
+	mod = chooseDialogueContaining(t, mod, "Microslop")
+	if !w.Flags["knows_microslop_password"] {
+		t.Fatalf("barista should reveal Microslop password; flags=%v", w.Flags)
+	}
+
+	mod = typeLine(mod, "parkour hound")
+	mod = spendPendingLevelUp(mod)
+	mod = typeLine(mod, "use rack")
+	if !w.Flags["microslop_route_open"] {
+		t.Fatalf("using the backroom rack should open the Microslop route; flags=%v", w.Flags)
+	}
+
+	mod = typeLine(mod, "use deck")
+	mod = typeLine(mod, "ssh microslop")
+	if view := mod.View(); !strings.Contains(view, "password:") {
+		t.Fatalf("ssh microslop should show password prompt after route opens: %q", view)
+	}
+	mod = typeLine(mod, "wrong")
+	if mod.(Model).shell.HostName() != "deck" {
+		t.Fatalf("wrong password should stay on deck")
+	}
+	if joined := strings.Join(mod.(Model).shellEntries, "\n"); !strings.Contains(joined, "Permission denied") {
+		t.Fatalf("wrong password should log refusal: %q", joined)
+	}
+
+	mod = typeLine(mod, "ssh microslop")
+	mod = typeLine(mod, "apple")
+	if mod.(Model).shell.HostName() != "microslop" {
+		t.Fatalf("correct password should connect to microslop")
+	}
+	if view := mod.View(); !strings.Contains(view, "SESSION // microslop") {
+		t.Fatalf("microslop title missing: %q", view)
+	}
+	mod = typeLine(mod, "grep sun /var/log/access.log")
+	mod = typeLine(mod, "cat /srv/archive/sun_notice.txt")
+	if !w.Flags["read_microslop_sun_notice"] {
+		t.Fatalf("reading Microslop notice should set flag; flags=%v", w.Flags)
+	}
+	mod = typeLine(mod, "cp /srv/archive/sun_notice.txt ~/")
+	if !w.Flags["got_microslop_notice"] {
+		t.Fatalf("copying Microslop notice should set flag; flags=%v", w.Flags)
+	}
+	if view := mod.View(); !strings.Contains(view, "sun_notice.txt") {
+		t.Fatalf("DISCOVERIES should list Microslop notice: %q", view)
+	}
+}
+
+func chooseDialogueContaining(t *testing.T, mod tea.Model, text string) tea.Model {
+	t.Helper()
+	mm := mod.(Model)
+	if mm.dialogue == nil {
+		t.Fatalf("expected active dialogue")
+	}
+	idx := -1
+	for i, opt := range mm.dialogue.Options() {
+		if strings.Contains(opt.Choice.Text, text) {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 {
+		t.Fatalf("dialogue option containing %q not found", text)
+	}
+	for mod.(Model).dlgSel != idx {
+		mod, _ = mod.Update(spec(tea.KeyDown))
+	}
+	mod, _ = mod.Update(spec(tea.KeyEnter))
+	return mod
+}
+
+func spendPendingLevelUp(mod tea.Model) tea.Model {
+	if mod.(Model).modal == modalLevelUp {
+		mod, _ = mod.Update(spec(tea.KeyEnter))
+	}
+	return mod
 }
 
 func TestHackingScreenNarrowTerminal(t *testing.T) {

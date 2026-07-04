@@ -39,8 +39,43 @@ func starterNet() map[string]*hacking.Host {
 			Served: map[string]string{
 				"/": "(Placeholder) mirror index — dead links mostly\n" +
 					"  sunfarm.arc   [still answers]\n" +
+					"  microslop     [corp intranet mirror]\n" +
 					"  okuda.grid    [410 gone]",
 			},
+		},
+		"microslop": {
+			Name:     "microslop",
+			Home:     "/",
+			Password: "apple",
+			Require:  flagMicroslopRouteOpen,
+			Banner:   "(Placeholder) MICROSLOP CORP intranet. everything asks permission except the dust.",
+			Root: hacking.Dir("/",
+				hacking.Dir("home",
+					hacking.File("readme.txt",
+						"(Placeholder) corp mirror residue:\n"+
+							"search the logs for sun. nobody deletes anything here, they just rename it."),
+				),
+				hacking.Dir("var",
+					hacking.Dir("log",
+						hacking.File("access.log",
+							"(Placeholder) 01:02 cafeteria bot accepted badge\n"+
+								"03:17 sun notice moved to /srv/archive/sun_notice.txt\n"+
+								"03:18 legal requested wording review"),
+					),
+				),
+				hacking.Dir("srv",
+					hacking.Dir("archive",
+						&hacking.Node{
+							Name:   "sun_notice.txt",
+							OnRead: flagReadSunNotice,
+							OnCopy: flagGotSunNotice,
+							Text: "(Placeholder) MICROSLOP INTERNAL NOTICE\n" +
+								"Subject: sunlight liability exposure\n" +
+								"The old sun project remains buried under grid asset SUNFARM-ARC.",
+						},
+					),
+				),
+			),
 		},
 		"sunfarm.arc": {
 			Name:   "sunfarm.arc",

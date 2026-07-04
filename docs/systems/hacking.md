@@ -24,9 +24,10 @@ on that data and nothing else.
   or a file (text). Files may carry hooks (below) and a `RunText` if
   they're executable.
 - **Host** — a named system: a filesystem root, a process table,
-  `curl`-served resources, and a connect banner. The deck itself is a
-  host (the local one). The set of hosts is a **net**, declared by
-  game content the same way rooms are.
+  `curl`-served resources, an optional fake password, an optional route
+  flag, and a connect banner. The deck itself is a host (the local one).
+  The set of hosts is a **net**, declared by game content the same way
+  rooms are.
 - **Process** — `{PID, name, state}` plus an optional `OnKill` hook.
 - **Session** — `{current host, cwd, ssh stack}` — the state behind
   the screen. Created on login, discarded when the terminal closes; the
@@ -71,6 +72,28 @@ file modes, recursive `mkdir -p`, text redirection, or real filesystem
 access. `mkdir` and `touch` mutate only the content-declared in-memory
 host trees.
 
+Some hosts can require a story route before they answer. If the route
+flag is missing, `ssh microslop` prints a fake network-unreachable error
+and leaves Buddy on the deck. This models the non-terminal part of a
+hack: social engineering, stealth, and physically plugging the carried
+deck into a local jack.
+
+Some hosts can also ask for a fake password. `ssh microslop` prints a
+password-required line and changes the prompt to `password: `. The next
+line is compared to the host's content-declared password. A correct
+password connects; a wrong one prints `Permission denied, please try
+again.` and leaves Buddy on the current host. Passwords are intentionally
+simple puzzle words, not real authentication.
+
+For the first Microslop beat, the intended setup is:
+
+- The barista was fired from Microslop and can reveal the simple password
+  after Buddy earns enough trust.
+- Buddy always carries the deck.
+- Buddy must get past the corpo hound into the back room and use the
+  server rack to patch the deck into the local network before `ssh
+  microslop` can reach the host.
+
 ## Hooks — the progression surface
 
 Content attaches flag names to files and processes:
@@ -91,8 +114,9 @@ A deck in scope appears in the left panel (the hub-travel panel) under
 a green `// UPLINK` subhead, set apart from the city districts to read
 as a log-in target rather than a place you walk to. Tab focuses the
 panel, arrows move, Enter on the deck row opens the terminal — the same
-navigation as hub travel. `DecksInScope` is scope-based, so the deck
-only shows while Buddy is actually at it. (Typing `log in` / `use deck`
+navigation as hub travel. `DecksInScope` includes visible decks and the
+deck Buddy carries, so the terminal is available outside the lair when
+the story wants physical plug-in beats. (Typing `log in` / `use deck`
 still works as an alias path.)
 
 ## Screen layout

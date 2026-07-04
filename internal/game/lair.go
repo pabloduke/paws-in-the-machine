@@ -5,10 +5,10 @@ import (
 	"github.com/pabloduke/paws-in-the-machine/internal/systems/hacking"
 )
 
-// buildLair is Buddy's Lair: the deck, the high shelf, the mug, the
-// shard, the window. Returns the room with its contents attached;
-// world.go places it in the neighborhood and adds the player.
-func buildLair() *engine.Entity {
+// buildLair is Buddy's Lair: the high shelf, the mug, the shard, and
+// the window. It returns Buddy's carried deck separately so world.go
+// can attach it to the player after the player is placed in the room.
+func buildLair() (*engine.Entity, *engine.Entity) {
 	lair := engine.NewEntity("lair", "Buddy's Lair").With(
 		engine.Description{Text: "(Placeholder) The lair. Rain on the window, " +
 			"neon through the blinds."},
@@ -30,6 +30,9 @@ func buildLair() *engine.Entity {
 			Net:  starterNet(),
 			Host: "deck",
 			Objectives: []hacking.Objective{
+				{Flag: flagKnowsMicroslopPassword, Text: "work the barista. They know Microslop, and Microslop hurt them."},
+				{Flag: flagMicroslopRouteOpen, Text: "password: apple. Sneak past the corpo hound and plug the deck into the backroom rack."},
+				{Flag: flagGotSunNotice, Text: "ssh microslop and search their files for sun traces."},
 				{Flag: flagHeardWhisper, Text: "trace the whisper in the dead code"},
 				{Flag: flagGotSunFragment, Text: "pull whatever 'sun' data is still out there"},
 			},
@@ -73,9 +76,9 @@ func buildLair() *engine.Entity {
 		engine.Portable{},
 	)
 
-	lair.Add(deck, shelf, shard, window)
+	lair.Add(shelf, shard, window)
 	shelf.Add(mug)
-	return lair
+	return lair, deck
 }
 
 // lairEvents are the lair's event rules (docs/systems/events.md).

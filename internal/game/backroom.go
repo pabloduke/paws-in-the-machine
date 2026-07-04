@@ -43,6 +43,15 @@ func buildBackroom() *engine.Entity {
 		engine.Description{Text: "(Placeholder) Enterprise hardware, humming " +
 			"and warm, in the back of a noodle-adjacent coffee shop. I " +
 			"wonder who it really belongs to."},
+		engine.On{Verb: "use", Do: func(w *engine.World) string {
+			if w.Flags[flagMicroslopRouteOpen] {
+				return "(Placeholder) The deck is already patched into the rack's forgotten maintenance jack."
+			}
+			w.Flags[flagMicroslopRouteOpen] = true
+			return "(Placeholder) You nose a loose cable down, hook the deck " +
+				"into the rack's forgotten maintenance jack, and the Microslop " +
+				"intranet ghost-lights on your screen."
+		}},
 	)
 
 	desk := engine.NewEntity("writing_desk", "the writing desk").With(

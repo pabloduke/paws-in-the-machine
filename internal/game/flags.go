@@ -11,12 +11,16 @@ const (
 	flagGotSunFragment  = "got_sun_fragment"
 	flagRanDig          = "ran_dig"
 	flagWhisperSilenced = "whisper_silenced"
+	flagReadSunNotice   = "read_microslop_sun_notice"
+	flagGotSunNotice    = "got_microslop_notice"
 
 	// Set by verb hooks and dialogue effects.
-	flagMugDown         = "mug_down"
-	flagDrawerOpen      = "drawer_open"
-	flagBaristaSoftened = "barista_softened"
-	flagBaristaSawShard = "barista_saw_shard"
+	flagMugDown                = "mug_down"
+	flagDrawerOpen             = "drawer_open"
+	flagBaristaSoftened        = "barista_softened"
+	flagBaristaSawShard        = "barista_saw_shard"
+	flagKnowsMicroslopPassword = "knows_microslop_password"
+	flagMicroslopRouteOpen     = "microslop_route_open"
 
 	// Once-markers for event rules (docs/systems/events.md).
 	flagSeenWhisperReaction = "seen_whisper_reaction"
