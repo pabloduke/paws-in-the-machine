@@ -218,6 +218,14 @@ func (s *Session) Render() string {
 // prose (or a refusal for locked choices) — callers that render the
 // next node live, like the UI panel, read Speaker/Text/Options after.
 func (s *Session) Pick(n int) string {
+	out := s.pick(n)
+	// A pick completes a player action (docs/systems/events.md); its
+	// effects may have set flags the event rules react to.
+	s.w.CheckEvents()
+	return out
+}
+
+func (s *Session) pick(n int) string {
 	if s.Done() {
 		return ""
 	}
