@@ -174,11 +174,14 @@ func (m *Model) refreshShell() {
 	m.shellVP.GotoBottom()
 }
 
-// closeShell tears the session down and restores the room UI.
+// closeShell tears the session down and restores the room UI. Rules
+// don't evaluate while the terminal is open (docs/systems/events.md),
+// so logging out is when the world reacts to flags set in-session.
 func (m *Model) closeShell() {
 	m.shell = nil
 	m.input.Focus()
 	m.entries = append(m.entries, dimStyle.Render("[left the terminal]"))
+	m.eng.World.CheckEvents()
 	m.refreshLog()
 	m.maybeLevelUp()
 }

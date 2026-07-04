@@ -81,7 +81,8 @@ func (modalSurface) Overlay(m *Model, bg string) string {
 // points. Called after every path that can award XP; while a
 // conversation is open it waits, and the dialogue close paths re-check.
 func (m *Model) maybeLevelUp() {
-	if m.modal == modalNone && m.dialogue == nil && m.eng.World.StatPoints > 0 {
+	if m.modal == modalNone && m.dialogue == nil &&
+		len(m.eng.World.Pending) == 0 && m.eng.World.StatPoints > 0 {
 		m.modal = modalLevelUp
 		m.lvlSel = 0
 		m.input.Blur()

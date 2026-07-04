@@ -77,3 +77,29 @@ func buildLair() *engine.Entity {
 	shelf.Add(mug)
 	return lair
 }
+
+// lairEvents are the lair's event rules (docs/systems/events.md).
+func lairEvents() []engine.When {
+	return []engine.When{
+		{
+			Flags: []string{flagHeardWhisper},
+			Once:  flagSeenWhisperReaction,
+			Do: func(w *engine.World) string {
+				return "(Placeholder) The deck's fans spin down. In the " +
+					"quiet after, the lair feels different — like the " +
+					"room heard it too."
+			},
+		},
+	}
+}
+
+// lairJournal is the journal content for the whisper thread; entries
+// surface as their flags come true.
+func lairJournal() []engine.Entry {
+	return []engine.Entry{
+		{Flag: flagHeardWhisper, Text: "(Placeholder) Traced the whisper " +
+			"to sunfarm.arc. Someone buried something they call \"the sun\"."},
+		{Flag: flagGotSunFragment, Text: "(Placeholder) Pulled a fragment " +
+			"of the sun off the archive. The coordinates are smeared by time."},
+	}
+}
