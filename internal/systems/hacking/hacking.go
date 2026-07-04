@@ -171,6 +171,10 @@ func (s *Session) Exec(line string) (out string, done bool) {
 		return s.grep(args), false
 	case "cp":
 		return s.cp(args), false
+	case "mkdir":
+		return s.mkdir(args), false
+	case "touch":
+		return s.touch(args), false
 	case "ssh":
 		return s.ssh(args), false
 	case "exit", "logout":
@@ -400,6 +404,58 @@ func (s *Session) cp(args []string) string {
 	return "" // like the real thing: silent on success
 }
 
+func (s *Session) mkdir(args []string) string {
+	if len(args) == 0 {
+		return "usage: mkdir <dir...>"
+	}
+	var out []string
+	for _, arg := range args {
+		host, segs := s.locate(arg)
+		if len(segs) == 0 {
+			out = append(out, "mkdir: cannot create directory '"+arg+"': File exists")
+			continue
+		}
+		if find(host.Root, segs) != nil {
+			out = append(out, "mkdir: cannot create directory '"+arg+"': File exists")
+			continue
+		}
+		parent := find(host.Root, segs[:len(segs)-1])
+		if parent == nil || !parent.Dir {
+			out = append(out, "mkdir: cannot create directory '"+arg+"': No such file or directory")
+			continue
+		}
+		replaceChild(parent, Dir(segs[len(segs)-1]))
+	}
+	return strings.Join(out, "\n")
+}
+
+func (s *Session) touch(args []string) string {
+	if len(args) == 0 {
+		return "usage: touch <file...>"
+	}
+	var out []string
+	for _, arg := range args {
+		host, segs := s.locate(arg)
+		if len(segs) == 0 {
+			out = append(out, "touch: cannot touch '"+arg+"': Is a directory")
+			continue
+		}
+		if existing := find(host.Root, segs); existing != nil {
+			if existing.Dir {
+				out = append(out, "touch: cannot touch '"+arg+"': Is a directory")
+			}
+			continue
+		}
+		parent := find(host.Root, segs[:len(segs)-1])
+		if parent == nil || !parent.Dir {
+			out = append(out, "touch: cannot touch '"+arg+"': No such file or directory")
+			continue
+		}
+		replaceChild(parent, File(segs[len(segs)-1], ""))
+	}
+	return strings.Join(out, "\n")
+}
+
 // replaceChild inserts c into dir, overwriting a same-named entry.
 func replaceChild(dir *Node, c *Node) {
 	for i, existing := range dir.Children {
@@ -527,6 +583,8 @@ const helpText = `deck shell:
   cat <file>          read a file
   grep <pat> <files>  search file lines
   cp <src> <dst>      copy (~ is always the deck's home)
+  mkdir <dir>         create fake directories
+  touch <file>        create empty fake files
   ssh <host>          connect to a host
   curl <host>[/path]  poke a host without logging in
   ps / kill <pid>     list / stop processes

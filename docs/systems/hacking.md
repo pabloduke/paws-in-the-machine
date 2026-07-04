@@ -47,6 +47,8 @@ on that data and nothing else.
 | `cat <file>` | print file text; fires `OnRead` |
 | `grep <pat> <file...>` | substring match over file lines; a match fires `OnRead` |
 | `cp <src> <dst>` | copy a file; copying to the deck fires `OnCopy`. `~` always resolves to the deck's home from any host — no scp needed |
+| `mkdir <dir...>` | create fake directories; parent directories must already exist |
+| `touch <file...>` | create empty fake files; existing files are unchanged |
 | `ssh <host>` | connect to a host on the net (pushes the current one) |
 | `exit` / `logout` | pop back one connection; at the deck, closes the terminal and returns to the room |
 | `curl <host>[/path]` | print a served resource — the recon tool |
@@ -62,6 +64,12 @@ Output stays realistic: `cp` and `kill` are silent on success, errors
 read like the real strings (`cat: x: No such file or directory`,
 `curl: (6) Could not resolve host: ...`), `grep` with no match prints
 nothing.
+
+Creation commands are intentionally simple: Buddy is effectively root
+inside this fake shell. There is no `sudo`, permissions, timestamps,
+file modes, recursive `mkdir -p`, text redirection, or real filesystem
+access. `mkdir` and `touch` mutate only the content-declared in-memory
+host trees.
 
 ## Hooks — the progression surface
 

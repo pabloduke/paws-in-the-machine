@@ -91,6 +91,84 @@ func TestFilesystemNavigation(t *testing.T) {
 	}
 }
 
+func TestCreateDirectoriesAndFiles(t *testing.T) {
+	_, s := newShell(t)
+
+	if out := exec(t, s, "mkdir scratch logs"); out != "" {
+		t.Fatalf("mkdir should be silent: %q", out)
+	}
+	listing := exec(t, s, "ls")
+	if !strings.Contains(listing, "scratch/") || !strings.Contains(listing, "logs/") {
+		t.Fatalf("created dirs missing from ls: %q", listing)
+	}
+	if out := exec(t, s, "cd scratch"); out != "" || s.Path() != "/home/paws_in_the_machine/scratch" {
+		t.Fatalf("cd created dir: out=%q path=%q", out, s.Path())
+	}
+	if out := exec(t, s, "touch note.txt empty.log"); out != "" {
+		t.Fatalf("touch should be silent: %q", out)
+	}
+	listing = exec(t, s, "ls")
+	if !strings.Contains(listing, "empty.log") || !strings.Contains(listing, "note.txt") {
+		t.Fatalf("created files missing from ls: %q", listing)
+	}
+	if out := exec(t, s, "cat note.txt"); out != "" {
+		t.Fatalf("empty touched file should cat silently: %q", out)
+	}
+	if out := exec(t, s, "touch note.txt"); out != "" {
+		t.Fatalf("touch existing file should be silent: %q", out)
+	}
+}
+
+func TestCreateCommandErrors(t *testing.T) {
+	_, s := newShell(t)
+
+	if out := exec(t, s, "mkdir"); out != "usage: mkdir <dir...>" {
+		t.Fatalf("mkdir usage: %q", out)
+	}
+	if out := exec(t, s, "touch"); out != "usage: touch <file...>" {
+		t.Fatalf("touch usage: %q", out)
+	}
+	if out := exec(t, s, "mkdir notes.txt"); out != "mkdir: cannot create directory 'notes.txt': File exists" {
+		t.Fatalf("mkdir existing file: %q", out)
+	}
+	if out := exec(t, s, "mkdir missing/child"); out != "mkdir: cannot create directory 'missing/child': No such file or directory" {
+		t.Fatalf("mkdir missing parent: %q", out)
+	}
+	if out := exec(t, s, "mkdir scratch"); out != "" {
+		t.Fatalf("mkdir scratch: %q", out)
+	}
+	if out := exec(t, s, "mkdir scratch"); out != "mkdir: cannot create directory 'scratch': File exists" {
+		t.Fatalf("mkdir existing dir: %q", out)
+	}
+	if out := exec(t, s, "touch scratch"); out != "touch: cannot touch 'scratch': Is a directory" {
+		t.Fatalf("touch existing dir: %q", out)
+	}
+	if out := exec(t, s, "touch missing/file.txt"); out != "touch: cannot touch 'missing/file.txt': No such file or directory" {
+		t.Fatalf("touch missing parent: %q", out)
+	}
+}
+
+func TestCreateCommandsOnRemoteAndDeckHome(t *testing.T) {
+	_, s := newShell(t)
+	exec(t, s, "ssh relay.net")
+
+	if out := exec(t, s, "mkdir /tmp"); out != "" {
+		t.Fatalf("remote mkdir: %q", out)
+	}
+	if out := exec(t, s, "touch /tmp/remote.txt"); out != "" {
+		t.Fatalf("remote touch: %q", out)
+	}
+	if out := exec(t, s, "cat /tmp/remote.txt"); out != "" {
+		t.Fatalf("remote touched file should be empty: %q", out)
+	}
+	if out := exec(t, s, "touch ~/deck-note.txt"); out != "" {
+		t.Fatalf("touch deck home from remote: %q", out)
+	}
+	if out := exec(t, s, "cat ~/deck-note.txt"); out != "" {
+		t.Fatalf("deck-home touched file should be empty: %q", out)
+	}
+}
+
 func TestSSHGrepAndHooks(t *testing.T) {
 	w, s := newShell(t)
 	if out := exec(t, s, "curl relay.net"); !strings.Contains(out, "sunfarm.arc") {
