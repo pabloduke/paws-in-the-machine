@@ -17,6 +17,9 @@ const (
 	flagDrawerOpen      = "drawer_open"
 	flagBaristaSoftened = "barista_softened"
 	flagBaristaSawShard = "barista_saw_shard"
+
+	// Once-markers for event rules (docs/systems/events.md).
+	flagSeenWhisperReaction = "seen_whisper_reaction"
 )
 
 // One-shot XP award markers (awardOnce / dialogue.AwardOnce).

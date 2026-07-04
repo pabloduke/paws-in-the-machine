@@ -49,6 +49,18 @@ type World struct {
 	// letting content define idioms ("log in" -> "use deck").
 	Rewrites map[string]string
 
+	// Rules are the event rules (docs/systems/events.md), polled by
+	// CheckEvents at the end of every player action. Content fills it.
+	Rules []When
+	// Journal is declared journal content; an entry shows once its
+	// flag is true (derived, never stored — see JournalEntries).
+	Journal []Entry
+	// Pending queues fired event output until the UI presents it
+	// (one modal per beat) and drains it into the transcript.
+	Pending []string
+	// prevRoom lets CheckEvents detect arrival (Enter conditions).
+	prevRoom *Entity
+
 	// Stats, XP, Level, and StatPoints are visible via the "stats"
 	// command. XP is earned by actions and fills a level track with
 	// escalating costs; each level grants a stat point; "train <stat>"

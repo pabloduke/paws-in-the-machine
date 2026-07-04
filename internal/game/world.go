@@ -37,6 +37,10 @@ func NewWorld() *engine.World {
 	// Pinned while tuning the feel; remove to randomize per new game.
 	w.Seed = 3
 
+	// Event rules and journal content, per area (docs/systems/events.md).
+	w.Rules = append(w.Rules, lairEvents()...)
+	w.Journal = append(w.Journal, lairJournal()...)
+
 	// Idioms a player will reach for that the generic parser can't guess.
 	w.Rewrites["log in"] = "use deck"
 

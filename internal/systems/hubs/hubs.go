@@ -51,6 +51,8 @@ func Travel(w *engine.World, hubID string) string {
 			return "(bug) hub " + hubID + " has no entry room " + cfg.Entry
 		}
 		dest.Add(w.Player)
+		// Travel completes a player action (docs/systems/events.md).
+		w.CheckEvents()
 		return ""
 	}
 	return "(bug) unknown hub " + hubID

@@ -16,10 +16,18 @@ func New(w *World) *Engine {
 	return &Engine{World: w}
 }
 
-// Execute runs one turn. The command is offered to the target entity's
-// components in attachment order; if none handles it, the engine
-// default for the verb runs.
+// Execute runs one turn: the command executes, then the event rules
+// are polled (docs/systems/events.md) — the end-of-turn checkpoint.
 func (e *Engine) Execute(input string) string {
+	out := e.execute(input)
+	e.World.CheckEvents()
+	return out
+}
+
+// execute runs one command. The command is offered to the target
+// entity's components in attachment order; if none handles it, the
+// engine default for the verb runs.
+func (e *Engine) execute(input string) string {
 	w := e.World
 	input = w.Rewrite(input)
 	cmd, ok := Parse(input)
@@ -43,6 +51,8 @@ func (e *Engine) Execute(input string) string {
 		return Inventory(w)
 	case "stats":
 		return StatSheet(w)
+	case "journal":
+		return JournalText(w)
 	case "train":
 		return Train(w, cmd.Object)
 	case "help":
@@ -232,4 +242,5 @@ const helpText = `Commands:
   stats                 your numbers
   train <stat>          spend a stat point (earned by leveling up)
   inventory (i)         what you're carrying
+  journal (j)           what you've learned
   quit (q)              end the session`

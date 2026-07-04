@@ -63,8 +63,10 @@ type interceptorSurface interface {
 // one line here (docs/BOUNDARIES.md).
 var surfaces = []surface{
 	shellSurface{},
+	eventsSurface{},
 	modalSurface{},
 	dialogueSurface{},
+	journalSurface{},
 	citySurface{},
 }
 
@@ -88,6 +90,8 @@ type Model struct {
 	modal  modalKind
 	lvlSel int // highlighted stat in the level-up modal
 	invOff int // scroll offset into the inventory modal
+
+	journalOpen bool // the journal modal (docs/systems/events.md)
 
 	// Hacking terminal (docs/systems/hacking.md). While shell is
 	// non-nil the whole screen swaps to the terminal layout; the

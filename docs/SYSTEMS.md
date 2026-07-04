@@ -31,9 +31,10 @@ one package under `internal/systems/<name>/` — see Architecture in the readme.
    scope stops at closed containers (Openable); labels always reflect
    true state (Aspect); observer verbs never mutate. YOU SEE panel +
    `World.Visible()`. See `systems/visibility.md`.
-5. ⬜ **Events/triggers** — conditional events ("when flag X and Buddy
-   enters Y"), all state-based per turns.md. Generalizes the `engine.On`
-   escape hatch.
+5. ✅ **Events/triggers** — conditional events ("when flag X and Buddy
+   enters Y"), all state-based per turns.md: `When` rules polled at
+   the end of every player action, presented as story-beat modals.
+   See `systems/events.md`.
 
 ### Headline systems
 
@@ -66,7 +67,9 @@ one package under `internal/systems/<name>/` — see Architecture in the readme.
 
 ### Supporting
 
-10. ⬜ **Quest/objective tracking** — journal built on flags.
+10. ✅ **Quest/objective tracking** — journal built on flags: derived,
+    never stored (`Entry{Flag, Text}` content + `journal` modal).
+    See `systems/events.md`.
 11. ⬜ **Save/load** — serialize entity positions + flags (components hold
     config only, so nothing else needs persisting).
 12. ⬜ **UI growth** — status bar, story/system text styling, command
