@@ -72,7 +72,9 @@ one package under `internal/systems/<name>/` — see Architecture in the readme.
 10. ✅ **Quest/objective tracking** — journal built on flags: derived,
     never stored (`Entry{Flag, Text}` content + `journal` modal).
     See `systems/events.md`.
-11. ⬜ **Save/load** — serialize entity positions + flags (components hold
-    config only, so nothing else needs persisting).
+11. ✅ **Save/load** — serialize entity positions + flags (components
+    hold config only; Placed entities re-derive). One slot,
+    `save`/`load` verbs, versioned JSON in the user config dir.
+    See `systems/saveload.md`.
 12. ⬜ **UI growth** — status bar, story/system text styling, command
     history.

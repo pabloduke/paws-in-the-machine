@@ -27,6 +27,7 @@ var verbAliases = map[string]string{
 	"train":   "train",
 	"stats":   "stats",
 	"journal": "journal", "j": "journal",
+	"save": "save", "load": "load",
 	"help": "help", "?": "help",
 	"quit": "quit", "q": "quit", "exit": "quit",
 }

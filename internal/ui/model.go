@@ -67,6 +67,7 @@ var surfaces = []surface{
 	modalSurface{},
 	dialogueSurface{},
 	journalSurface{},
+	saveSurface{},
 	citySurface{},
 }
 
@@ -93,6 +94,10 @@ type Model struct {
 
 	journalOpen bool // the journal modal (docs/systems/events.md)
 
+	// SavePath is the one save slot (docs/systems/saveload.md);
+	// defaults to the user config dir, overridable (tests, flags).
+	SavePath string
+
 	// Hacking terminal (docs/systems/hacking.md). While shell is
 	// non-nil the whole screen swaps to the terminal layout; the
 	// normal panels and LOG are untouched underneath.
@@ -117,9 +122,10 @@ func New(eng *engine.Engine, intro string) Model {
 	ti.Focus()
 
 	return Model{
-		eng:     eng,
-		input:   ti,
-		entries: []string{intro},
+		eng:      eng,
+		input:    ti,
+		entries:  []string{intro},
+		SavePath: defaultSavePath(),
 	}
 }
 
