@@ -243,4 +243,5 @@ const helpText = `Commands:
   train <stat>          spend a stat point (earned by leveling up)
   inventory (i)         what you're carrying
   journal (j)           what you've learned
+  save / load           keep your place / pick it back up
   quit (q)              end the session`
