@@ -25,6 +25,11 @@ func testNet() map[string]*hacking.Host {
 			Name:   "relay.net",
 			Home:   "/",
 			Banner: "RELAY — abandoned but listening.",
+			Services: []*hacking.Service{
+				{Port: 21, Protocol: hacking.ProtocolFTP, State: hacking.StateOpen},
+				{Port: 22, Protocol: hacking.ProtocolSSH, State: hacking.StateOpen},
+				{Port: 23, Protocol: hacking.ProtocolTelnet, State: hacking.StateClosed},
+			},
 			Root: hacking.Dir("/",
 				hacking.Dir("var",
 					hacking.Dir("log",
@@ -207,16 +212,29 @@ func TestSSHGrepAndHooks(t *testing.T) {
 	if out := exec(t, s, "ssh relay.net"); !strings.Contains(out, "RELAY") {
 		t.Fatalf("ssh banner: %q", out)
 	}
+	out, done := s.Exec("exit")
+	if done || !strings.Contains(out, "closed") {
+		t.Fatalf("exit should pop to deck: %q done=%v", out, done)
+	}
+	if out := exec(t, s, "ssh relay.net -p 21"); !strings.Contains(out, "running ftp, not ssh") {
+		t.Fatalf("ssh wrong service: %q", out)
+	}
+	if out := exec(t, s, "ssh relay.net -p 22"); !strings.Contains(out, "RELAY") {
+		t.Fatalf("ssh explicit port: %q", out)
+	}
 	if out := exec(t, s, "grep sunfarm /var/log/net.log"); !strings.Contains(out, "sunfarm.arc keeps answering") {
 		t.Fatalf("grep: %q", out)
 	}
 	if !w.Flags["read_netlog"] {
 		t.Fatalf("grep match should fire OnRead; flags=%v", w.Flags)
 	}
+	if out := exec(t, s, "grep -ir SUN /var"); !strings.Contains(out, "/var/log/net.log:sunfarm.arc keeps answering") {
+		t.Fatalf("grep recursive case-insensitive: %q", out)
+	}
 	if out := exec(t, s, "grep zebra /var/log/net.log"); out != "" {
 		t.Fatalf("grep no-match should be silent: %q", out)
 	}
-	out, done := s.Exec("exit")
+	out, done = s.Exec("exit")
 	if done || !strings.Contains(out, "closed") {
 		t.Fatalf("exit should pop to deck: %q done=%v", out, done)
 	}
@@ -231,11 +249,17 @@ func TestPasswordGatedSSH(t *testing.T) {
 	if out := exec(t, s, "ssh microslop"); !strings.Contains(out, "Network is unreachable") {
 		t.Fatalf("ssh without local route: %q", out)
 	}
+	if out := exec(t, s, "scan microslop"); !strings.Contains(out, "all scanned ports filtered") {
+		t.Fatalf("scan route-gated host: %q", out)
+	}
 	if got := s.Prompt(); got != "paws_in_the_machine@deck:~ $ " {
 		t.Fatalf("unreachable host should keep shell prompt, got %q", got)
 	}
 
 	w.Flags["microslop_route_open"] = true
+	if out := exec(t, s, "scan microslop"); !strings.Contains(out, "22  ssh") || !strings.Contains(out, "open") {
+		t.Fatalf("scan open route: %q", out)
+	}
 	if out := exec(t, s, "ssh microslop"); !strings.Contains(out, "password required") {
 		t.Fatalf("ssh password prompt: %q", out)
 	}

@@ -13,10 +13,15 @@ beat is the first Microslop Corp terminal puzzle.
 - Dedicated hacking terminal mode exists and replaces the normal room UI while
   active.
 - The terminal has a fake shell with simplified commands including `ls`, `cd`,
-  `pwd`, `cat`, `grep`, `cp`, `mkdir`, `touch`, `ssh`, `curl`, `ps`, `kill`,
-  `run`, `exit`, and `help`.
+  `pwd`, `cat`, `grep`, `cp`, `mkdir`, `touch`, `scan`, `ssh`, `curl`, `ps`,
+  `kill`, `run`, `exit`, and `help`.
 - Buddy's deck is now carried, so `use deck` / `log in` works outside the lair.
 - SSH hosts can require a route flag and/or a fake password.
+- Hosts can declare fake services/ports, `scan <host>` lists configured port
+  states, and `ssh <host> -p <port>` targets SSH on a specific port.
+- `grep -ir` searches recursively and case-insensitively through fake host
+  filesystems.
+- The hacking terminal has a terminal-only green phosphor CRT look.
 - Microslop is currently gated by:
   - social intel from the barista, who was fired from Microslop and reveals the
     password `apple`;

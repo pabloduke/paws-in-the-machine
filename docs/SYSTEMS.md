@@ -55,7 +55,7 @@ one package under `internal/systems/<name>/` — see Architecture in the readme.
    entity. See `systems/dialogue.md`.
 8. 📝 **Hacking** — first slice built: logging into the deck opens a full-screen
    terminal (shell over in-memory hosts/files/processes: ls, cd, cat,
-   grep, cp, ssh, curl, ps, kill, run) with a quest panel. Buddy stays
+   grep, cp, scan, ssh, curl, ps, kill, run) with a quest panel. Buddy stays
    at the deck the whole time — it's a terminal session. Hooks set flags.
    No Hacking stat, no rolls: the player performs the hack through
    play; ICE is puzzle, not check — ICE, credential gates, and XP

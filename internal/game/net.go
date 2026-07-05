@@ -26,6 +26,10 @@ func starterNet() map[string]*hacking.Host {
 			Name:   "undernet.relay",
 			Home:   "/",
 			Banner: "(Placeholder) UNDERNET RELAY — abandoned, but listening.",
+			Services: []*hacking.Service{
+				{Port: 22, Protocol: hacking.ProtocolSSH, State: hacking.StateOpen},
+				{Port: 80, Protocol: hacking.ProtocolHTTP, State: hacking.StateOpen},
+			},
 			Root: hacking.Dir("/",
 				hacking.Dir("var",
 					hacking.Dir("log",
@@ -49,6 +53,11 @@ func starterNet() map[string]*hacking.Host {
 			Password: "apple",
 			Require:  flagMicroslopRouteOpen,
 			Banner:   "(Placeholder) MICROSLOP CORP intranet. everything asks permission except the dust.",
+			Services: []*hacking.Service{
+				{Port: 21, Protocol: hacking.ProtocolFTP, State: hacking.StateOpen},
+				{Port: 22, Protocol: hacking.ProtocolSSH, State: hacking.StateOpen, Password: "apple"},
+				{Port: 23, Protocol: hacking.ProtocolTelnet, State: hacking.StateClosed},
+			},
 			Root: hacking.Dir("/",
 				hacking.Dir("home",
 					hacking.File("readme.txt",
@@ -81,6 +90,9 @@ func starterNet() map[string]*hacking.Host {
 			Name:   "sunfarm.arc",
 			Home:   "/",
 			Banner: "(Placeholder) sunfarm archive node. dust on everything.",
+			Services: []*hacking.Service{
+				{Port: 22, Protocol: hacking.ProtocolSSH, State: hacking.StateOpen},
+			},
 			Root: hacking.Dir("/",
 				hacking.Dir("var",
 					hacking.Dir("log",

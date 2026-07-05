@@ -24,7 +24,7 @@ func TestHackingScreenSwapsAndRestores(t *testing.T) {
 		t.Fatalf("'log in' should open the hacking terminal")
 	}
 	view := mod.View()
-	if !strings.Contains(view, "SESSION // deck") {
+	if !strings.Contains(view, "CYBERDECK // DECK") {
 		t.Fatalf("terminal title missing: %q", view)
 	}
 	for _, section := range []string{"OBJECTIVE", "LOCATION", "DISCOVERIES", "STATUS"} {
@@ -186,7 +186,7 @@ func TestMicroslopPasswordPuzzle(t *testing.T) {
 	if mod.(Model).shell.HostName() != "microslop" {
 		t.Fatalf("correct password should connect to microslop")
 	}
-	if view := mod.View(); !strings.Contains(view, "SESSION // microslop") {
+	if view := mod.View(); !strings.Contains(view, "CYBERDECK // MICROSLOP") {
 		t.Fatalf("microslop title missing: %q", view)
 	}
 	mod = typeLine(mod, "grep sun /var/log/access.log")
@@ -239,7 +239,7 @@ func TestHackingScreenNarrowTerminal(t *testing.T) {
 	mod = typeLine(mod, "use deck")
 	mod, _ = mod.Update(tea.WindowSizeMsg{Width: 30, Height: 10})
 	// Must render without panicking and keep the terminal present.
-	if view := mod.View(); !strings.Contains(view, "SESSION // deck") {
+	if view := mod.View(); !strings.Contains(view, "CYBERDECK // DEC") {
 		t.Fatalf("narrow render lost the terminal: %q", view)
 	}
 }

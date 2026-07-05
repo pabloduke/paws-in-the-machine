@@ -1,7 +1,7 @@
 # Hacking
 
-Status: first playable slice built; ICE, credential gates, and XP payouts
-still open.
+Status: first playable slice built; ICE, richer credential gates, and XP
+payouts still open.
 
 Buddy is a cat sitting at a scavenged deck. He doesn't go anywhere: he
 logs into the deck — his powerful box — and works from a terminal,
@@ -24,10 +24,13 @@ on that data and nothing else.
   or a file (text). Files may carry hooks (below) and a `RunText` if
   they're executable.
 - **Host** — a named system: a filesystem root, a process table,
-  `curl`-served resources, an optional fake password, an optional route
-  flag, and a connect banner. The deck itself is a host (the local one).
-  The set of hosts is a **net**, declared by game content the same way
-  rooms are.
+  `curl`-served resources, configured services/ports, an optional fake
+  password, an optional route flag, and a connect banner. The deck itself
+  is a host (the local one). The set of hosts is a **net**, declared by
+  game content the same way rooms are.
+- **Service** — one fake port on a host: port number, protocol (`ssh`,
+  `ftp`, `telnet`, `http`), state (`open`, `closed`, `filtered`, `hidden`),
+  optional open-when flag, and optional password.
 - **Process** — `{PID, name, state}` plus an optional `OnKill` hook.
 - **Session** — `{current host, cwd, ssh stack}` — the state behind
   the screen. Created on login, discarded when the terminal closes; the
@@ -46,11 +49,12 @@ on that data and nothing else.
 | `cd <path>` | change directory (within the current host) |
 | `pwd` | print the working directory |
 | `cat <file>` | print file text; fires `OnRead` |
-| `grep <pat> <file...>` | substring match over file lines; a match fires `OnRead` |
+| `grep [-ir] <pat> [path...]` | case-insensitive recursive substring search; a match fires `OnRead` |
 | `cp <src> <dst>` | copy a file; copying to the deck fires `OnCopy`. `~` always resolves to the deck's home from any host — no scp needed |
 | `mkdir <dir...>` | create fake directories; parent directories must already exist |
 | `touch <file...>` | create empty fake files; existing files are unchanged |
-| `ssh <host>` | connect to a host on the net (pushes the current one) |
+| `scan <host>` | list configured ports and states for a host |
+| `ssh <host> [-p port]` | connect to SSH, defaulting to port 22 |
 | `exit` / `logout` | pop back one connection; at the deck, closes the terminal and returns to the room |
 | `curl <host>[/path]` | print a served resource — the recon tool |
 | `ps` | list the current host's processes |
@@ -66,6 +70,12 @@ read like the real strings (`cat: x: No such file or directory`,
 `curl: (6) Could not resolve host: ...`), `grep` with no match prints
 nothing.
 
+`grep` uses the useful puzzle shape: `grep -ir <pattern> <path...>`.
+Search is case-insensitive and recursive so players can quickly hunt clues
+across fake host trees without memorizing exact filenames first. Directories
+are searched recursively, files searched directly, and a matched hooked file
+still counts as read. With no path, `grep` searches the current directory.
+
 Creation commands are intentionally simple: Buddy is effectively root
 inside this fake shell. There is no `sudo`, permissions, timestamps,
 file modes, recursive `mkdir -p`, text redirection, or real filesystem
@@ -78,10 +88,19 @@ and leaves Buddy on the deck. This models the non-terminal part of a
 hack: social engineering, stealth, and physically plugging the carried
 deck into a local jack.
 
-Some hosts can also ask for a fake password. `ssh microslop` prints a
-password-required line and changes the prompt to `password: `. The next
-line is compared to the host's content-declared password. A correct
-password connects; a wrong one prints `Permission denied, please try
+For hardened corpo targets, it is valid for every externally visible port
+to be closed or filtered at first. Buddy does not run a magic "firewall
+breacher" program to force ports open. Instead, overworld actions create
+legitimate-looking holes: starting diagnostics, plugging into an internal
+maintenance VLAN, tricking someone into remote support, or physically
+bridging forgotten hardware. The terminal reports the wall; Buddy changes
+the world so a service becomes reachable.
+
+Some hosts can also ask for a fake password. `ssh microslop` and
+`ssh microslop -p 22` both target SSH on port 22 unless content config says
+otherwise. A password-required line changes the prompt to `password: `. The
+next line is compared to the service or host's content-declared password. A
+correct password connects; a wrong one prints `Permission denied, please try
 again.` and leaves Buddy on the current host. Passwords are intentionally
 simple puzzle words, not real authentication.
 
@@ -138,8 +157,8 @@ exactly):
 
 ## Later
 
-- Credential gates on `ssh` (a host requiring a key file present on
-  the deck).
+- Credential gates on `ssh` beyond simple passwords (a host requiring a key
+  file present on the deck).
 - ICE as processes that fight back; traces; disconnect pressure.
 - XP payouts for completed intrusion beats (content-assigned per
   `stealth.md` — hacks are played, not rolled).

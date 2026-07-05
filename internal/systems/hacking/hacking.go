@@ -3,7 +3,7 @@
 // cat at a terminal, connected to the deck (his powerful box) and
 // sshing outward from there, the way a person sits at a laptop logged
 // into a bigger machine. Hosts, filesystems, processes, and the
-// commands that poke them (ls, cd, cat, grep, cp, ssh, curl, ps, kill,
+// commands that poke them (ls, cd, cat, grep, cp, scan, ssh, curl, ps, kill,
 // run) are all game fiction over in-memory content declared by the
 // game package — the resemblance to real tools ends at the prompt.
 // Implementation note: the package imports only the engine and stdlib
@@ -68,6 +68,28 @@ type Process struct {
 	OnKill  string // flag set when killed
 }
 
+const (
+	ProtocolSSH    = "ssh"
+	ProtocolFTP    = "ftp"
+	ProtocolTelnet = "telnet"
+	ProtocolHTTP   = "http"
+
+	StateOpen     = "open"
+	StateClosed   = "closed"
+	StateFiltered = "filtered"
+	StateHidden   = "hidden"
+)
+
+// Service is one configured port on a fake host. OpenWhen is a story
+// flag that exposes an otherwise-filtered service.
+type Service struct {
+	Port     int
+	Protocol string
+	State    string
+	OpenWhen string
+	Password string
+}
+
 // Host is one fake system on the content-declared net. The deck
 // itself is a host; remote ones are reached with the ssh alias.
 type Host struct {
@@ -79,6 +101,7 @@ type Host struct {
 	Require  string            // fake network route flag required before connecting
 	Procs    []*Process        // fake process table
 	Served   map[string]string // fake curl resources: path -> body ("/" for the bare host)
+	Services []*Service        // fake ports exposed by the host
 }
 
 // conn is one held connection on the ssh stack.
@@ -91,13 +114,14 @@ type conn struct {
 // the terminal shows, the working directory, and the connection stack.
 // Buddy never moves; the session is the thing that travels.
 type Session struct {
-	w       *engine.World
-	net     map[string]*Host
-	deck    *Host
-	host    *Host
-	cwd     []string
-	stack   []conn
-	pending *Host
+	w              *engine.World
+	net            map[string]*Host
+	deck           *Host
+	host           *Host
+	cwd            []string
+	stack          []conn
+	pending        *Host
+	pendingService *Service
 }
 
 // NewSession opens the shell on the deck's local host.
@@ -184,6 +208,8 @@ func (s *Session) Exec(line string) (out string, done bool) {
 		return s.mkdir(args), false
 	case "touch":
 		return s.touch(args), false
+	case "scan":
+		return s.scan(args), false
 	case "ssh":
 		return s.ssh(args), false
 	case "exit", "logout":
@@ -348,34 +374,78 @@ func (s *Session) cat(args []string) string {
 }
 
 func (s *Session) grep(args []string) string {
-	if len(args) < 2 {
-		return "usage: grep <pattern> <file...>"
+	if len(args) == 0 {
+		return "usage: grep [-ir] <pattern> [path...]"
 	}
-	pat := args[0]
-	files := args[1:]
+	for len(args) > 0 && strings.HasPrefix(args[0], "-") {
+		if args[0] != "-i" && args[0] != "-r" && args[0] != "-ir" && args[0] != "-ri" {
+			return "grep: unsupported option " + args[0]
+		}
+		args = args[1:]
+	}
+	if len(args) == 0 {
+		return "usage: grep [-ir] <pattern> [path...]"
+	}
+	pat := strings.ToLower(args[0])
+	paths := args[1:]
+	if len(paths) == 0 {
+		paths = []string{"."}
+	}
 	var out []string
-	for _, arg := range files {
+	multiple := len(paths) > 1
+	for _, arg := range paths {
 		n := s.node(arg)
 		switch {
 		case n == nil:
 			out = append(out, "grep: "+arg+": No such file or directory")
 			continue
 		case n.Dir:
-			out = append(out, "grep: "+arg+": Is a directory")
+			hadFile := false
+			walkFiles(n, arg, func(path string, file *Node) {
+				hadFile = true
+				out = append(out, s.grepFile(pat, path, file, true)...)
+			})
+			if !hadFile && multiple {
+				continue
+			}
 			continue
 		}
-		for _, ln := range strings.Split(n.Text, "\n") {
-			if strings.Contains(strings.ToLower(ln), strings.ToLower(pat)) {
-				s.setFlag(n.OnRead) // a matched line counts as read
-				if len(files) > 1 {
-					out = append(out, arg+":"+ln)
-				} else {
-					out = append(out, ln)
-				}
+		out = append(out, s.grepFile(pat, arg, n, multiple)...)
+	}
+	return strings.Join(out, "\n") // like the real thing: silent when nothing matches
+}
+
+func walkFiles(n *Node, path string, visit func(string, *Node)) {
+	if !n.Dir {
+		visit(path, n)
+		return
+	}
+	for _, c := range n.Children {
+		childPath := path
+		if childPath == "." {
+			childPath = c.Name
+		} else if childPath == "/" {
+			childPath += c.Name
+		} else {
+			childPath += "/" + c.Name
+		}
+		walkFiles(c, childPath, visit)
+	}
+}
+
+func (s *Session) grepFile(pat, path string, n *Node, prefix bool) []string {
+	var out []string
+	for _, ln := range strings.Split(n.Text, "\n") {
+		if strings.Contains(strings.ToLower(ln), pat) {
+			s.setFlag(n.OnRead) // a matched line counts as read
+			if prefix {
+				out = append(out, path+":"+ln)
+			} else {
+				out = append(out, ln)
 			}
 		}
 	}
-	return strings.Join(out, "\n") // like the real thing: silent when nothing matches
+	return out
 }
 
 func (s *Session) cp(args []string) string {
@@ -478,31 +548,149 @@ func replaceChild(dir *Node, c *Node) {
 
 // --- fake net commands ------------------------------------------------
 
-func (s *Session) ssh(args []string) string {
-	if len(args) == 0 {
-		return "usage: ssh <host>"
+func (h *Host) configuredServices() []*Service {
+	if len(h.Services) > 0 {
+		return h.Services
+	}
+	return []*Service{{
+		Port:     22,
+		Protocol: ProtocolSSH,
+		State:    StateOpen,
+		Password: h.Password,
+	}}
+}
+
+func (s *Session) serviceState(host *Host, svc *Service) string {
+	state := svc.State
+	if state == "" {
+		state = StateOpen
+	}
+	if state == StateHidden {
+		return StateHidden
+	}
+	if host.Require != "" && !s.w.Flags[host.Require] {
+		return StateFiltered
+	}
+	if svc.OpenWhen != "" && !s.w.Flags[svc.OpenWhen] {
+		return StateFiltered
+	}
+	return state
+}
+
+func (s *Session) servicePassword(host *Host, svc *Service) string {
+	if svc == nil {
+		return host.Password
+	}
+	if svc.Password != "" {
+		return svc.Password
+	}
+	if svc.Protocol == ProtocolSSH {
+		return host.Password
+	}
+	return ""
+}
+
+func (s *Session) findService(host *Host, port int) *Service {
+	for _, svc := range host.configuredServices() {
+		if svc.Port == port {
+			return svc
+		}
+	}
+	return nil
+}
+
+func (s *Session) scan(args []string) string {
+	if len(args) != 1 {
+		return "usage: scan <host>"
 	}
 	host, ok := s.net[args[0]]
 	if !ok {
-		return "ssh: Could not resolve hostname " + args[0]
+		return "scan: Could not resolve hostname " + args[0]
+	}
+
+	services := host.configuredServices()
+	sort.Slice(services, func(i, j int) bool { return services[i].Port < services[j].Port })
+
+	var rows []string
+	allFiltered := len(services) > 0
+	for _, svc := range services {
+		state := s.serviceState(host, svc)
+		if state == StateHidden {
+			continue
+		}
+		if state != StateFiltered {
+			allFiltered = false
+		}
+		rows = append(rows, fmt.Sprintf("%-10s %5d  %-8s %s", host.Name, svc.Port, svc.Protocol, state))
+	}
+	if len(rows) == 0 {
+		return host.Name + ": no configured ports"
+	}
+	if allFiltered {
+		return host.Name + ": all scanned ports filtered"
+	}
+	return "HOST        PORT  SERVICE  STATE\n" + strings.Join(rows, "\n")
+}
+
+func (s *Session) ssh(args []string) string {
+	if len(args) == 0 {
+		return "usage: ssh <host> [-p port]"
+	}
+	hostName := args[0]
+	port := 22
+	args = args[1:]
+	for len(args) > 0 {
+		if len(args) != 2 || args[0] != "-p" {
+			return "usage: ssh <host> [-p port]"
+		}
+		parsed, err := strconv.Atoi(args[1])
+		if err != nil || parsed < 1 || parsed > 65535 {
+			return "ssh: Bad port '" + args[1] + "'"
+		}
+		port = parsed
+		args = nil
+	}
+
+	host, ok := s.net[hostName]
+	if !ok {
+		return "ssh: Could not resolve hostname " + hostName
 	}
 	if host == s.host {
 		return "already connected to " + host.Name
 	}
 	if host.Require != "" && !s.w.Flags[host.Require] {
-		return "ssh: connect to host " + host.Name + ": Network is unreachable"
+		return fmt.Sprintf("ssh: connect to host %s port %d: Network is unreachable", host.Name, port)
 	}
-	if host.Password != "" {
+	svc := s.findService(host, port)
+	if svc == nil {
+		return fmt.Sprintf("ssh: connect to host %s port %d: Connection refused", host.Name, port)
+	}
+	state := s.serviceState(host, svc)
+	switch state {
+	case StateClosed:
+		return fmt.Sprintf("ssh: connect to host %s port %d: Connection refused", host.Name, port)
+	case StateFiltered:
+		return fmt.Sprintf("ssh: connect to host %s port %d: Operation timed out", host.Name, port)
+	case StateHidden:
+		return fmt.Sprintf("ssh: connect to host %s port %d: Connection refused", host.Name, port)
+	}
+	if svc.Protocol != ProtocolSSH {
+		return fmt.Sprintf("ssh: port %d on %s is running %s, not ssh", port, host.Name, svc.Protocol)
+	}
+	if s.servicePassword(host, svc) != "" {
 		s.pending = host
-		return "password required for " + host.Name
+		s.pendingService = svc
+		return fmt.Sprintf("password required for %s:%d", host.Name, port)
 	}
 	return s.connect(host)
 }
 
 func (s *Session) password(input string) string {
 	host := s.pending
+	svc := s.pendingService
 	s.pending = nil
-	if strings.TrimSpace(input) != host.Password {
+	s.pendingService = nil
+	if strings.TrimSpace(input) != s.servicePassword(host, svc) {
 		return "Permission denied, please try again."
 	}
 	return s.connect(host)
@@ -520,6 +708,7 @@ func (s *Session) connect(host *Host) string {
 
 func (s *Session) exit() (string, bool) {
 	s.pending = nil
+	s.pendingService = nil
 	if len(s.stack) == 0 {
 		return "logout", true // closing the deck session drops back to the room
 	}
@@ -611,11 +800,12 @@ const helpText = `deck shell:
   ls [path]           list directory
   cd <path> / pwd     move around / where am I
   cat <file>          read a file
-  grep <pat> <files>  search file lines
+  grep -ir <pat> [path] recursively search file lines
   cp <src> <dst>      copy (~ is always the deck's home)
   mkdir <dir>         create fake directories
   touch <file>        create empty fake files
-  ssh <host>          connect to a host
+  scan <host>         list configured ports
+  ssh <host> [-p n]   connect to ssh, default port 22
   curl <host>[/path]  poke a host without logging in
   ps / kill <pid>     list / stop processes
   run <file>          execute something

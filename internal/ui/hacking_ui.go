@@ -61,16 +61,16 @@ func (shellSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 			return nil
 		}
 		m.shellEntries = append(m.shellEntries,
-			echoStyle.Render(m.shell.Prompt()+line))
+			crtEchoStyle.Render(m.shell.Prompt()+line))
 		out, done := m.shell.Exec(line)
 		if out != "" {
-			m.shellEntries = append(m.shellEntries, out)
+			m.shellEntries = append(m.shellEntries, crtOutputStyle.Render(out))
 		}
 		if done {
 			m.closeShell()
 			return nil
 		}
-		m.shellInput.Prompt = promptStyle.Render(m.shell.Prompt())
+		m.shellInput.Prompt = crtPromptStyle.Render(m.shell.Prompt())
 		m.refreshShell()
 		return nil
 	}
@@ -84,14 +84,14 @@ func (shellSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 func (shellSurface) Screen(m *Model) string {
 	termW, questW, panelH := m.shellDims()
 
-	title := roomTitleStyle.Render("SESSION // " + m.shell.HostName())
-	term := panelFocusStyle.Width(termW - 2).Height(panelH - 2).
+	title := crtTitleStyle.Render("CYBERDECK // " + strings.ToUpper(m.shell.HostName()))
+	term := crtPanelFocusStyle.Width(termW - 2).Height(panelH - 2).
 		Render(title + "\n" + m.shellVP.View())
-	quest := panelStyle.Width(questW - 2).Height(panelH - 2).
+	quest := crtPanelStyle.Width(questW - 2).Height(panelH - 2).
 		Render(m.questPanel())
 	row := lipgloss.JoinHorizontal(lipgloss.Top, term, quest)
 
-	prompt := lipgloss.NewStyle().MaxWidth(termW).Render(m.shellInput.View())
+	prompt := lipgloss.NewStyle().MaxWidth(termW).Background(crtDark).Render(m.shellInput.View())
 	return row + "\n" + prompt
 }
 
@@ -131,11 +131,11 @@ func (m *Model) openShell(d hacking.Deck) {
 	}
 	m.shell = s
 	m.deckCfg = d
-	m.shellEntries = []string{dimStyle.Render(
+	m.shellEntries = []string{crtDimStyle.Render(
 		"PAWS/OS — 'help' lists commands · 'exit' (or esc) leaves the terminal")}
 
 	ti := textinput.New()
-	ti.Prompt = promptStyle.Render(s.Prompt())
+	ti.Prompt = crtPromptStyle.Render(s.Prompt())
 	ti.Focus()
 	m.shellInput = ti
 	m.input.Blur()
@@ -168,7 +168,7 @@ func (m *Model) resizeShell() {
 
 // refreshShell re-renders the terminal scrollback, pinned to newest.
 func (m *Model) refreshShell() {
-	wrapped := lipgloss.NewStyle().Width(m.shellVP.Width).
+	wrapped := crtOutputStyle.Width(m.shellVP.Width).
 		Render(strings.Join(m.shellEntries, "\n"))
 	m.shellVP.SetContent(wrapped)
 	m.shellVP.GotoBottom()
@@ -190,24 +190,24 @@ func (m *Model) closeShell() {
 func (m Model) questPanel() string {
 	w := m.eng.World
 	var b strings.Builder
-	b.WriteString(panelTitleStyle.Render("OBJECTIVE"))
+	b.WriteString(crtPanelTitleStyle.Render("OBJECTIVE"))
 	b.WriteString("\n" + m.deckCfg.CurrentObjective(w))
 
-	b.WriteString("\n\n" + panelTitleStyle.Render("LOCATION"))
+	b.WriteString("\n\n" + crtPanelTitleStyle.Render("LOCATION"))
 	b.WriteString("\n" + m.shell.HostName() + ":" + m.shell.Path())
 
-	b.WriteString("\n\n" + panelTitleStyle.Render("DISCOVERIES"))
+	b.WriteString("\n\n" + crtPanelTitleStyle.Render("DISCOVERIES"))
 	if found := m.shell.Discoveries(); len(found) == 0 {
-		b.WriteString("\n" + dimStyle.Render("none yet"))
+		b.WriteString("\n" + crtDimStyle.Render("none yet"))
 	} else {
 		for _, name := range found {
 			b.WriteString("\n" + name)
 		}
 	}
 
-	b.WriteString("\n\n" + panelTitleStyle.Render("STATUS"))
+	b.WriteString("\n\n" + crtPanelTitleStyle.Render("STATUS"))
 	b.WriteString("\nlink: stable")
-	b.WriteString("\nICE: " + dimStyle.Render("none detected"))
-	b.WriteString("\ntrace: " + dimStyle.Render("cold"))
+	b.WriteString("\nICE: " + crtDimStyle.Render("none detected"))
+	b.WriteString("\ntrace: " + crtDimStyle.Render("cold"))
 	return b.String()
 }
