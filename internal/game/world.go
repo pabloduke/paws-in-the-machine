@@ -41,6 +41,7 @@ func NewWorld() *engine.World {
 	// Event rules and journal content, per area (docs/systems/events.md).
 	w.Rules = append(w.Rules, lairEvents()...)
 	w.Journal = append(w.Journal, lairJournal()...)
+	w.Journal = append(w.Journal, netJournal()...)
 
 	// Idioms a player will reach for that the generic parser can't guess.
 	w.Rewrites["log in"] = "use deck"

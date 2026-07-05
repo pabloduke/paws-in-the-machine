@@ -22,6 +22,9 @@ beat is the first Microslop Corp terminal puzzle.
 - `grep -ir` searches recursively and case-insensitively through fake host
   filesystems.
 - The hacking terminal has a terminal-only green phosphor CRT look.
+- The terminal right panel is intentionally reserved but blank for now.
+- Buddy's notes live at `~/notes/notes.md`, generated from discovered flags
+  and readable/searchable with shell commands instead of a journal menu.
 - Microslop is currently gated by:
   - social intel from the barista, who was fired from Microslop and reveals the
     password `apple`;
@@ -30,8 +33,8 @@ beat is the first Microslop Corp terminal puzzle.
   - using the backroom server rack to patch the deck into the local network.
 - Once connected, Microslop has a small fake filesystem with logs pointing to
   `/srv/archive/sun_notice.txt`.
-- Reading and copying the Microslop notice set flags that feed the hacking
-  discoveries/objective panel.
+- Reading and copying the Microslop notice set flags that feed Buddy's
+  generated notes.
 
 ## Recent Verification
 
@@ -45,5 +48,5 @@ beat is the first Microslop Corp terminal puzzle.
 - Give the backroom/rack interaction a stronger stealth consequence or tension.
 - Expand Microslop's filesystem into a real mini puzzle instead of one log and
   one archive file.
-- Decide whether terminal history/discoveries should persist across deck
-  sessions or reset per login.
+- Decide whether terminal history should persist across deck sessions or
+  reset per login.

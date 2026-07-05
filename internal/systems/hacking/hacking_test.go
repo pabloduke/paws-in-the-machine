@@ -1,12 +1,19 @@
 package hacking_test
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/pabloduke/paws-in-the-machine/internal/engine"
 	"github.com/pabloduke/paws-in-the-machine/internal/systems/hacking"
 )
+
+var ansiRE = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+func stripANSI(s string) string {
+	return ansiRE.ReplaceAllString(s, "")
+}
 
 func testNet() map[string]*hacking.Host {
 	return map[string]*hacking.Host{
@@ -16,7 +23,14 @@ func testNet() map[string]*hacking.Host {
 			Root: hacking.Dir("/",
 				hacking.Dir("home",
 					hacking.Dir("paws_in_the_machine",
-						hacking.File("notes.txt", "the relay still answers. curl relay.net"),
+						hacking.Dir("notes",
+							hacking.DynamicFile("notes.md", func(w *engine.World) string {
+								if w.Flags["found_password"] {
+									return "# Notes\n\n- password: apple"
+								}
+								return "# Notes\n\nNothing solid yet."
+							}),
+						),
 					),
 				),
 			),
@@ -96,15 +110,19 @@ func exec(t *testing.T, s *hacking.Session, line string) string {
 }
 
 func TestFilesystemNavigation(t *testing.T) {
-	_, s := newShell(t)
+	w, s := newShell(t)
 	if got := s.Prompt(); got != "paws_in_the_machine@deck:~ $ " {
 		t.Fatalf("home prompt: %q", got)
 	}
-	if out := exec(t, s, "ls"); out != "notes.txt" {
+	if out := exec(t, s, "ls"); out != "notes/" {
 		t.Fatalf("ls home: %q", out)
 	}
-	if out := exec(t, s, "cat notes.txt"); !strings.Contains(out, "relay") {
-		t.Fatalf("cat: %q", out)
+	if out := exec(t, s, "cat ~/notes/notes.md"); !strings.Contains(stripANSI(out), "Nothing solid yet") {
+		t.Fatalf("cat notes: %q", stripANSI(out))
+	}
+	w.Flags["found_password"] = true
+	if out := exec(t, s, "grep -ir apple ~/notes"); !strings.Contains(out, "~/notes/notes.md") {
+		t.Fatalf("grep generated notes: %q", out)
 	}
 	if out := exec(t, s, "cd /home"); out != "" {
 		t.Fatalf("cd: %q", out)
@@ -160,7 +178,7 @@ func TestCreateCommandErrors(t *testing.T) {
 	if out := exec(t, s, "touch"); out != "usage: touch <file...>" {
 		t.Fatalf("touch usage: %q", out)
 	}
-	if out := exec(t, s, "mkdir notes.txt"); out != "mkdir: cannot create directory 'notes.txt': File exists" {
+	if out := exec(t, s, "mkdir notes"); out != "mkdir: cannot create directory 'notes': File exists" {
 		t.Fatalf("mkdir existing file: %q", out)
 	}
 	if out := exec(t, s, "mkdir missing/child"); out != "mkdir: cannot create directory 'missing/child': No such file or directory" {
@@ -295,9 +313,6 @@ func TestPasswordGatedSSH(t *testing.T) {
 	if !w.Flags["got_notice"] {
 		t.Fatalf("copying notice should set flag; flags=%v", w.Flags)
 	}
-	if d := s.Discoveries(); len(d) != 1 || d[0] != "sun_notice.txt" {
-		t.Fatalf("discoveries: %v", d)
-	}
 }
 
 func TestCopyToDeckFiresHookAndDiscovery(t *testing.T) {
@@ -308,9 +323,6 @@ func TestCopyToDeckFiresHookAndDiscovery(t *testing.T) {
 	}
 	if !w.Flags["got_fragment"] {
 		t.Fatalf("cp to deck should fire OnCopy; flags=%v", w.Flags)
-	}
-	if d := s.Discoveries(); len(d) != 1 || d[0] != "sun.frag" {
-		t.Fatalf("discoveries: %v", d)
 	}
 	// The copy landed on the deck's fake filesystem.
 	exec(t, s, "exit")
@@ -372,24 +384,5 @@ func TestExitPopsThenEndsAtDeck(t *testing.T) {
 	exec(t, s2, "ssh relay.net")
 	if got := s2.End(); !strings.Contains(got, "closed by local host") {
 		t.Fatalf("End() from remote: %q", got)
-	}
-}
-
-func TestObjectiveProgression(t *testing.T) {
-	w := engine.NewWorld()
-	d := hacking.Deck{Objectives: []hacking.Objective{
-		{Flag: "a", Text: "first"},
-		{Flag: "b", Text: "second"},
-	}}
-	if got := d.CurrentObjective(w); got != "first" {
-		t.Fatalf("objective: %q", got)
-	}
-	w.Flags["a"] = true
-	if got := d.CurrentObjective(w); got != "second" {
-		t.Fatalf("objective: %q", got)
-	}
-	w.Flags["b"] = true
-	if got := d.CurrentObjective(w); got != "signal searching..." {
-		t.Fatalf("objective fallback: %q", got)
 	}
 }

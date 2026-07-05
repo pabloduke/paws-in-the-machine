@@ -12,11 +12,11 @@ adventure verbs. The lair and everything in it stay put while the
 terminal is open; `talk`, hub travel, and the normal prompt are simply
 out of reach until he closes it.
 
-Implementation note: it's all game fiction over in-memory content —
-`internal/systems/hacking` imports only the engine and stdlib string
-helpers. Hosts, files, processes, and `curl`-able resources are data
-declared in the game package, exactly like rooms; the commands operate
-on that data and nothing else.
+Implementation note: it's all game fiction over in-memory content.
+Hosts, files, processes, and `curl`-able resources are data declared in
+the game package, exactly like rooms; the commands operate on that data
+and nothing else. Markdown notes render through Glamour so `cat` can show
+Buddy's generated notes cleanly inside the terminal.
 
 ## Data model (`internal/systems/hacking`)
 
@@ -37,9 +37,12 @@ on that data and nothing else.
   net (and anything copied onto the deck) lives on the content and
   persists.
 - **Deck** — a data-only marker component (the `dialogue.Talkable`
-  pattern) attached to the deck entity: it carries the net, the local
-  host name, and the objective hint list. Engine dispatch declines all
-  verbs; the UI owns the interactive session.
+  pattern) attached to the deck entity: it carries the net and the local
+  host name. Engine dispatch declines all verbs; the UI owns the
+  interactive session.
+- **Dynamic file** — a fake file whose text is rendered from world state
+  when read or searched. Buddy's `~/notes/notes.md` uses this for notes
+  derived from flags, without duplicating save state.
 
 ## Commands (v1)
 
@@ -48,7 +51,7 @@ on that data and nothing else.
 | `ls [path]` | list a directory; dirs get a `/` suffix |
 | `cd <path>` | change directory (within the current host) |
 | `pwd` | print the working directory |
-| `cat <file>` | print file text; fires `OnRead` |
+| `cat <file>` | print file text; Markdown files render with Glamour; fires `OnRead` |
 | `grep [-ir] <pat> [path...]` | case-insensitive recursive substring search; a match fires `OnRead` |
 | `cp <src> <dst>` | copy a file; copying to the deck fires `OnCopy`. `~` always resolves to the deck's home from any host — no scp needed |
 | `mkdir <dir...>` | create fake directories; parent directories must already exist |
@@ -123,9 +126,18 @@ Content attaches flag names to files and processes:
 - `OnRun` — set when the executable is run.
 
 Each hook sets a World flag. Dialogue, room descriptions, checks, and
-quests already read flags, so `cat`-ing the right log can change what
-the barista says. Discovery texture comes from reading: hostnames are
+Buddy's notes already read flags, so `cat`-ing the right log can change
+what the barista says. Discovery texture comes from reading: hostnames are
 found inside files and `curl` indexes, not given away.
+
+## Buddy's notes
+
+The player-facing notes surface is a file on the deck, not a menu. Buddy keeps
+`~/notes/notes.md`, a Markdown-flavored text file generated from flags.
+Players read it with `cat ~/notes/notes.md` and can search it with
+`grep -ir <pattern> ~/notes`. Notes are written as things Buddy has found
+or inferred, with vague clue texture allowed, but not explicit next-step
+instructions.
 
 ## Logging in
 
@@ -148,11 +160,10 @@ exactly):
   scrollback viewport for narration/output (PgUp/PgDn), and a prompt
   line attached beneath it — `paws_in_the_machine@host:path $` — where all typing
   lands.
-- **Quest panel** (~25%, read-only): OBJECTIVE (first unmet entry in
-  the deck's flag→hint list, else a placeholder), LOCATION
-  (`host:/path`), DISCOVERIES (files copied onto the deck, "none yet"
-  when empty), STATUS (link/ICE/trace placeholders).
-- Narrow terminals keep the terminal usable first; the quest panel
+- **Reserved panel** (~25%, read-only): intentionally blank for now. It
+  keeps the CRT composition ready for later ideas without showing location,
+  discoveries, status, objectives, or next-step instructions.
+- Narrow terminals keep the terminal usable first; the reserved panel
   shrinks. Widths are clamped — no negative-width rendering.
 
 ## Later

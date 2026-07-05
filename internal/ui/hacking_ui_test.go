@@ -28,8 +28,8 @@ func TestHackingScreenSwapsAndRestores(t *testing.T) {
 		t.Fatalf("terminal title missing: %q", view)
 	}
 	for _, section := range []string{"OBJECTIVE", "LOCATION", "DISCOVERIES", "STATUS"} {
-		if !strings.Contains(view, section) {
-			t.Fatalf("quest panel missing %s", section)
+		if strings.Contains(view, section) {
+			t.Fatalf("terminal right panel should stay blank, found %s", section)
 		}
 	}
 	if strings.Contains(view, "THE CITY") || strings.Contains(view, "LOG") {
@@ -41,7 +41,7 @@ func TestHackingScreenSwapsAndRestores(t *testing.T) {
 	mod = typeLine(mod, "ls")
 	mm = mod.(Model)
 	joined := strings.Join(mm.shellEntries, "\n")
-	if !strings.Contains(joined, "notes.txt") {
+	if !strings.Contains(joined, "notes/") {
 		t.Fatalf("ls output should land in shell scrollback: %q", joined)
 	}
 	if len(mm.entries) != logLen {
@@ -133,8 +133,9 @@ func TestHackingBeatSetsFlags(t *testing.T) {
 	if !w.Flags["got_sun_fragment"] {
 		t.Fatalf("downloading sun.frag should set got_sun_fragment; flags=%v", w.Flags)
 	}
-	if view := mod.View(); !strings.Contains(view, "sun.frag") {
-		t.Fatalf("DISCOVERIES should list the download")
+	mod = typeLine(mod, "cat ~/notes/notes.md")
+	if joined := stripANSI(strings.Join(mod.(Model).shellEntries, "\n")); !strings.Contains(joined, "fragment") {
+		t.Fatalf("notes should mention the copied fragment: %q", joined)
 	}
 }
 
@@ -198,8 +199,10 @@ func TestMicroslopPasswordPuzzle(t *testing.T) {
 	if !w.Flags["got_microslop_notice"] {
 		t.Fatalf("copying Microslop notice should set flag; flags=%v", w.Flags)
 	}
-	if view := mod.View(); !strings.Contains(view, "sun_notice.txt") {
-		t.Fatalf("DISCOVERIES should list Microslop notice: %q", view)
+	mod = typeLine(mod, "cat ~/notes/notes.md")
+	if joined := stripANSI(strings.Join(mod.(Model).shellEntries, "\n")); !strings.Contains(joined, "apple") ||
+		!strings.Contains(joined, "SUNFARM-ARC") || !strings.Contains(joined, "sunlight liability notice") {
+		t.Fatalf("notes should record Microslop discoveries: %q", joined)
 	}
 }
 

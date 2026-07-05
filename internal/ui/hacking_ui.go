@@ -80,16 +80,15 @@ func (shellSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 }
 
 // Screen is the full-screen terminal layout: dominant terminal with
-// the prompt attached beneath it, read-only quest panel right.
+// the prompt attached beneath it, read-only status panel right.
 func (shellSurface) Screen(m *Model) string {
-	termW, questW, panelH := m.shellDims()
+	termW, statusW, panelH := m.shellDims()
 
 	title := crtTitleStyle.Render("CYBERDECK // " + strings.ToUpper(m.shell.HostName()))
 	term := crtPanelFocusStyle.Width(termW - 2).Height(panelH - 2).
 		Render(title + "\n" + m.shellVP.View())
-	quest := crtPanelStyle.Width(questW - 2).Height(panelH - 2).
-		Render(m.questPanel())
-	row := lipgloss.JoinHorizontal(lipgloss.Top, term, quest)
+	status := crtPanelStyle.Width(statusW - 2).Height(panelH - 2).Render("")
+	row := lipgloss.JoinHorizontal(lipgloss.Top, term, status)
 
 	prompt := lipgloss.NewStyle().MaxWidth(termW).Background(crtDark).Render(m.shellInput.View())
 	return row + "\n" + prompt
@@ -101,17 +100,17 @@ func (shellSurface) Resize(m *Model) {
 	m.refreshShell()
 }
 
-// shellDims returns terminal width, quest-panel width, and panel
-// height. The terminal is preserved first; the quest panel shrinks.
-func (m Model) shellDims() (termW, questW, panelH int) {
-	questW = 26
-	if m.width-questW < 46 {
-		questW = m.width - 46
+// shellDims returns terminal width, status-panel width, and panel
+// height. The terminal is preserved first; the status panel shrinks.
+func (m Model) shellDims() (termW, statusW, panelH int) {
+	statusW = 26
+	if m.width-statusW < 46 {
+		statusW = m.width - 46
 	}
-	if questW < 12 {
-		questW = 12
+	if statusW < 12 {
+		statusW = 12
 	}
-	termW = m.width - questW
+	termW = m.width - statusW
 	if termW < 20 {
 		termW = 20
 	}
@@ -119,7 +118,7 @@ func (m Model) shellDims() (termW, questW, panelH int) {
 	if panelH < 5 {
 		panelH = 5
 	}
-	return termW, questW, panelH
+	return termW, statusW, panelH
 }
 
 // openShell logs into the deck and swaps the screen to the terminal.
@@ -184,30 +183,4 @@ func (m *Model) closeShell() {
 	m.eng.World.CheckEvents()
 	m.refreshLog()
 	m.maybeLevelUp()
-}
-
-// questPanel is the read-only orientation panel beside the terminal.
-func (m Model) questPanel() string {
-	w := m.eng.World
-	var b strings.Builder
-	b.WriteString(crtPanelTitleStyle.Render("OBJECTIVE"))
-	b.WriteString("\n" + m.deckCfg.CurrentObjective(w))
-
-	b.WriteString("\n\n" + crtPanelTitleStyle.Render("LOCATION"))
-	b.WriteString("\n" + m.shell.HostName() + ":" + m.shell.Path())
-
-	b.WriteString("\n\n" + crtPanelTitleStyle.Render("DISCOVERIES"))
-	if found := m.shell.Discoveries(); len(found) == 0 {
-		b.WriteString("\n" + crtDimStyle.Render("none yet"))
-	} else {
-		for _, name := range found {
-			b.WriteString("\n" + name)
-		}
-	}
-
-	b.WriteString("\n\n" + crtPanelTitleStyle.Render("STATUS"))
-	b.WriteString("\nlink: stable")
-	b.WriteString("\nICE: " + crtDimStyle.Render("none detected"))
-	b.WriteString("\ntrace: " + crtDimStyle.Render("cold"))
-	return b.String()
 }

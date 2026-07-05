@@ -6,9 +6,10 @@
 // commands that poke them (ls, cd, cat, grep, cp, scan, ssh, curl, ps, kill,
 // run) are all game fiction over in-memory content declared by the
 // game package — the resemblance to real tools ends at the prompt.
-// Implementation note: the package imports only the engine and stdlib
-// string helpers; hooks on files and processes set world flags, which
-// is how a hack advances the story.
+// Implementation note: hooks on files and processes set world flags,
+// which is how a hack advances the story. Markdown notes render through
+// Glamour so the in-game cat output can stay readable without giving the
+// filesystem real access.
 package hacking
 
 import (
@@ -16,6 +17,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/charmbracelet/glamour"
 
 	"github.com/pabloduke/paws-in-the-machine/internal/engine"
 )
@@ -28,15 +31,19 @@ type Node struct {
 	Dir      bool
 	Text     string  // file contents: story prose, fake configs, clues
 	Children []*Node // directory entries
-	RunText  string  // non-empty marks the file executable via `run`
-	OnRead   string  // flag set when cat'ed or grep-matched
-	OnCopy   string  // flag set when copied onto the deck
-	OnRun    string  // flag set when run
-	Copied   bool    // placed by cp — feeds the DISCOVERIES panel
+	TextFn   func(*engine.World) string
+	RunText  string // non-empty marks the file executable via `run`
+	OnRead   string // flag set when cat'ed or grep-matched
+	OnCopy   string // flag set when copied onto the deck
+	OnRun    string // flag set when run
+	Copied   bool   // placed by cp — marks a deck-side discovery
 }
 
 // File and Dir are content-authoring helpers.
 func File(name, text string) *Node { return &Node{Name: name, Text: text} }
+func DynamicFile(name string, fn func(*engine.World) string) *Node {
+	return &Node{Name: name, TextFn: fn}
+}
 func Dir(name string, children ...*Node) *Node {
 	return &Node{Name: name, Dir: true, Children: children}
 }
@@ -142,7 +149,7 @@ func NewSession(w *engine.World, net map[string]*Host, deckHost string) (*Sessio
 // HostName is the current fake host, for the terminal title bar.
 func (s *Session) HostName() string { return s.host.Name }
 
-// Path is the current fake working directory, for the quest panel.
+// Path is the current fake working directory, for the terminal status panel.
 func (s *Session) Path() string { return "/" + strings.Join(s.cwd, "/") }
 
 // login is Buddy's handle — the name the net knows him by.
@@ -160,23 +167,6 @@ func (s *Session) Prompt() string {
 		}
 	}
 	return login + "@" + s.host.Name + ":" + path + " $ "
-}
-
-// Discoveries lists files that have been copied onto the deck.
-func (s *Session) Discoveries() []string {
-	var out []string
-	var walk func(n *Node)
-	walk = func(n *Node) {
-		if n.Copied && !n.Dir {
-			out = append(out, n.Name)
-		}
-		for _, c := range n.Children {
-			walk(c)
-		}
-	}
-	walk(s.deck.Root)
-	sort.Strings(out)
-	return out
 }
 
 // Exec runs one typed line against the session. done reports that the
@@ -351,6 +341,13 @@ func (s *Session) cd(args []string) string {
 // read fires a file's OnRead hook and returns its text.
 func (s *Session) read(n *Node) string {
 	s.setFlag(n.OnRead)
+	return s.fileText(n)
+}
+
+func (s *Session) fileText(n *Node) string {
+	if n.TextFn != nil {
+		return n.TextFn(s.w)
+	}
 	return n.Text
 }
 
@@ -367,10 +364,22 @@ func (s *Session) cat(args []string) string {
 		case n.Dir:
 			out = append(out, "cat: "+arg+": Is a directory")
 		default:
-			out = append(out, s.read(n))
+			text := s.read(n)
+			if strings.HasSuffix(n.Name, ".md") {
+				text = renderMarkdown(text)
+			}
+			out = append(out, text)
 		}
 	}
 	return strings.Join(out, "\n")
+}
+
+func renderMarkdown(text string) string {
+	out, err := glamour.Render(text, "dark")
+	if err != nil {
+		return text
+	}
+	return strings.TrimRight(out, "\n")
 }
 
 func (s *Session) grep(args []string) string {
@@ -435,7 +444,7 @@ func walkFiles(n *Node, path string, visit func(string, *Node)) {
 
 func (s *Session) grepFile(pat, path string, n *Node, prefix bool) []string {
 	var out []string
-	for _, ln := range strings.Split(n.Text, "\n") {
+	for _, ln := range strings.Split(s.fileText(n), "\n") {
 		if strings.Contains(strings.ToLower(ln), pat) {
 			s.setFlag(n.OnRead) // a matched line counts as read
 			if prefix {
@@ -816,20 +825,13 @@ const helpText = `deck shell:
 // screen. Engine dispatch declines every verb — the UI owns the
 // interactive session.
 type Deck struct {
-	Net        map[string]*Host
-	Host       string // local host name on the net
-	Objectives []Objective
+	Net  map[string]*Host
+	Host string // local host name on the net
 }
 
 // Handle declines every command; see the type comment.
 func (Deck) Handle(*engine.World, *engine.Entity, engine.Command) (string, bool) {
 	return "", false
-}
-
-// Objective is one quest-panel hint: Text shows while Flag is unset.
-type Objective struct {
-	Flag string
-	Text string
 }
 
 // DecksInScope returns entities the player can currently reach that
@@ -857,14 +859,4 @@ func DecksInScope(w *engine.World) []*engine.Entity {
 		})
 	}
 	return out
-}
-
-// CurrentObjective picks the first unmet hint, or a placeholder.
-func (d Deck) CurrentObjective(w *engine.World) string {
-	for _, o := range d.Objectives {
-		if !w.Flags[o.Flag] {
-			return o.Text
-		}
-	}
-	return "signal searching..."
 }

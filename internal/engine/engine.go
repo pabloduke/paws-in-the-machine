@@ -51,8 +51,6 @@ func (e *Engine) execute(input string) string {
 		return Inventory(w)
 	case "stats":
 		return StatSheet(w)
-	case "journal":
-		return JournalText(w)
 	case "train":
 		return Train(w, cmd.Object)
 	case "help":
@@ -242,5 +240,4 @@ const helpText = `Commands:
   stats                 your numbers
   train <stat>          spend a stat point (earned by leveling up)
   inventory (i)         what you're carrying
-  journal (j)           what you've learned
   quit (q)              end the session`

@@ -1,6 +1,11 @@
 package game
 
-import "github.com/pabloduke/paws-in-the-machine/internal/systems/hacking"
+import (
+	"strings"
+
+	"github.com/pabloduke/paws-in-the-machine/internal/engine"
+	"github.com/pabloduke/paws-in-the-machine/internal/systems/hacking"
+)
 
 // starterNet is the net behind Buddy's deck: the hosts, files, and
 // processes of the first hacking beat (docs/systems/hacking.md).
@@ -13,10 +18,9 @@ func starterNet() map[string]*hacking.Host {
 			Root: hacking.Dir("/",
 				hacking.Dir("home",
 					hacking.Dir("paws_in_the_machine",
-						hacking.File("notes.txt",
-							"(Placeholder) paw-scrawled notes:\n"+
-								"the whisper came in off the old net. the relay\n"+
-								"never really died. start there:  curl undernet.relay"),
+						hacking.Dir("notes",
+							hacking.DynamicFile("notes.md", buddyNotes),
+						),
 					),
 				),
 				hacking.Dir("bin"),
@@ -124,4 +128,27 @@ func starterNet() map[string]*hacking.Host {
 			},
 		},
 	}
+}
+
+func netJournal() []engine.Entry {
+	return []engine.Entry{
+		{Flag: flagKnowsMicroslopPassword, Text: "The barista said Microslop contractor boxes were reset to `apple`."},
+		{Flag: flagMicroslopRouteOpen, Text: "The coffee shop rack puts the deck somewhere Microslop can hear it."},
+		{Flag: flagReadSunNotice, Text: "Microslop buried old sun liability under grid asset `SUNFARM-ARC`."},
+		{Flag: flagGotSunNotice, Text: "Copied Microslop's sunlight liability notice onto the deck."},
+	}
+}
+
+func buddyNotes(w *engine.World) string {
+	entries := w.JournalEntries()
+	if len(entries) == 0 {
+		return "# Notes\n\nNothing solid yet."
+	}
+
+	var b strings.Builder
+	b.WriteString("# Notes\n")
+	for _, e := range entries {
+		b.WriteString("\n- " + e)
+	}
+	return b.String()
 }

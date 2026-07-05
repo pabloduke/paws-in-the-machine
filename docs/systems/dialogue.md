@@ -83,5 +83,4 @@ the conversation ends.
 
 - NPC presence rules: entities appearing or moving as a function of flags.
 - Larger memory vocabulary if repeated patterns exceed simple flags.
-- Dialogue-driven objective/journal updates once the journal system
-  exists.
+- Dialogue-driven notes updates once the content needs them.

@@ -29,13 +29,6 @@ func buildLair() (*engine.Entity, *engine.Entity) {
 		hacking.Deck{
 			Net:  starterNet(),
 			Host: "deck",
-			Objectives: []hacking.Objective{
-				{Flag: flagKnowsMicroslopPassword, Text: "work the barista. They know Microslop, and Microslop hurt them."},
-				{Flag: flagMicroslopRouteOpen, Text: "password: apple. Sneak past the corpo hound and plug the deck into the backroom rack."},
-				{Flag: flagGotSunNotice, Text: "ssh microslop and search their files for sun traces."},
-				{Flag: flagHeardWhisper, Text: "trace the whisper in the dead code"},
-				{Flag: flagGotSunFragment, Text: "pull whatever 'sun' data is still out there"},
-			},
 		},
 	)
 
