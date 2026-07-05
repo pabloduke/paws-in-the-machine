@@ -26,6 +26,14 @@ func buildCoffeeshop() *engine.Entity {
 
 	barista := engine.NewEntity("barista", "the barista", "barista", "human").With(
 		engine.Notable{},
+		// Position as a function of state (docs/systems/presence.md):
+		// once the shard is out in the open, she works the back room.
+		engine.Placed{Fn: func(w *engine.World) string {
+			if w.Flags[flagBaristaSawShard] {
+				return "backroom"
+			}
+			return "coffeeshop"
+		}},
 		engine.Description{Text: "(Placeholder) The barista has the hollow-eyed " +
 			"look of someone who has seen too many loyalty apps and not " +
 			"enough sunlight."},
@@ -142,4 +150,23 @@ func buildCoffeeshop() *engine.Entity {
 
 	coffeeshop.Add(counter, barista, machine, laptop, hound, door)
 	return coffeeshop
+}
+
+// coffeeshopEvents narrates the stage changes presence makes silently
+// (docs/systems/presence.md: presence says where, events say what
+// you saw).
+func coffeeshopEvents() []engine.When {
+	return []engine.When{
+		{
+			Flags: []string{flagBaristaSawShard},
+			Enter: "coffeeshop",
+			Once:  flagSeenCounterEmpty,
+			Do: func(w *engine.World) string {
+				return "(Placeholder) The counter stands unmanned, the " +
+					"espresso machine hissing to no one. Through the gap " +
+					"in the back door: the barista, hunched over the " +
+					"server rack."
+			},
+		},
+	}
 }

@@ -40,6 +40,8 @@ func (dialogueSurface) Intercept(m *Model, cmd engine.Command) bool {
 	m.dialogue = session
 	m.dlgSel = 0
 	m.input.Blur()
+	// The stage holds still while the scene plays (presence.md).
+	m.eng.World.HoldPlacements = true
 	m.entries = append(m.entries, session.Speaker()+": "+session.Text())
 	return true
 }
@@ -58,6 +60,7 @@ func (dialogueSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 		m.dialogue = nil
 		m.input.Focus()
 		m.entries = append(m.entries, dimStyle.Render("[conversation ended]"))
+		m.endScene()
 		m.refreshLog()
 		m.maybeLevelUp()
 	case tea.KeyUp:
@@ -102,12 +105,20 @@ func (m *Model) pickDialogue(n int) {
 	if m.dialogue.Done() {
 		m.dialogue = nil
 		m.input.Focus()
+		m.endScene()
 		m.maybeLevelUp()
 	} else if !locked {
 		m.dlgSel = 0
 		m.entries = append(m.entries, m.dialogue.Speaker()+": "+m.dialogue.Text())
 	}
 	m.refreshLog()
+}
+
+// endScene releases the placement hold and runs one checkpoint so
+// the stage catches up the moment the conversation is over.
+func (m *Model) endScene() {
+	m.eng.World.HoldPlacements = false
+	m.eng.World.CheckEvents()
 }
 
 // dialogueView renders the active conversation: the NPC line on top,
