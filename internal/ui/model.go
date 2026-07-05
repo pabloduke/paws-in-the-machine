@@ -13,6 +13,7 @@ package ui
 
 import (
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -111,6 +112,21 @@ type Model struct {
 	commands []string // executed commands, oldest first
 	histPos  int      // 0 = live input; n = n commands back
 	draft    string   // live input stashed while browsing history
+
+	// phase is the render phase for the ambient weather (rain.go) —
+	// presentation state only, advanced by the rain ticker. The game
+	// itself never ticks (docs/systems/turns.md).
+	phase int
+}
+
+// rainFrame paces the ambient animation — one const to dial if it
+// ever matters (battery, slow ssh links).
+const rainFrame = 300 * time.Millisecond
+
+type rainTick time.Time
+
+func rainTicker() tea.Cmd {
+	return tea.Tick(rainFrame, func(t time.Time) tea.Msg { return rainTick(t) })
 }
 
 // New builds a session around the engine, seeding the LOG with the
@@ -130,13 +146,19 @@ func New(eng *engine.Engine, intro string) Model {
 }
 
 func (m Model) Init() tea.Cmd {
-	return textinput.Blink
+	return tea.Batch(textinput.Blink, rainTicker())
 }
 
 func (m Model) mainRowHeight() int { return m.height - logHeight - promptHeight }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case rainTick:
+		// Pure re-render fuel: advance the weather, reschedule, touch
+		// nothing else.
+		m.phase++
+		return m, rainTicker()
+
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		// LOG panel: 2 border rows + 1 title row + viewport.

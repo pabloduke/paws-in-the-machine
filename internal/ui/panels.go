@@ -5,47 +5,50 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
+
 	"github.com/pabloduke/paws-in-the-machine/internal/engine"
 )
 
-// drizzleDensity is columns per raindrop in the room panel's drizzle
-// line — raise it for lighter rain, lower for heavier.
-const drizzleDensity = 7
+// flickerMod: roughly one frame in this many, the room sign dips to
+// its faded shade — a failing neon tube.
+const flickerMod = 17
 
-// drizzle draws one sparse line of rain. Drop positions are a pure
-// function of state (room ID + transcript length), so the rain shifts
-// only when the player acts — the XCOM rule, for weather (turns.md:
-// no timers, no ticks).
-func drizzle(seedStr string, salt, width int) string {
-	seed := uint32(salt)
-	for _, r := range seedStr {
-		seed = seed*31 + uint32(r)
+// neonSign renders the room name as a neon sign: faded-glow halo at
+// each end, and a rare phase-based flicker. Style only ever changes;
+// the text itself is constant.
+func (m Model) neonSign(name string) string {
+	h := uint32(2166136261)
+	for _, r := range m.eng.World.Room().ID {
+		h = (h ^ uint32(r)) * 16777619
 	}
-	glyphs := []rune{'╱', '·', '╱', '`'}
-	row := make([]rune, width)
-	for i := range row {
-		row[i] = ' '
+	title := roomTitleStyle
+	if (int(h%flickerMod)+m.phase)%flickerMod == 0 {
+		title = signFadeStyle
 	}
-	for i := 0; i < width/drizzleDensity; i++ {
-		seed = seed*1664525 + 1013904223
-		pos := int(seed>>16) % width
-		row[pos] = glyphs[int(seed>>8)%len(glyphs)]
-	}
-	return rainStyle.Render(string(row))
+	halo := signGlowStyle.Render("▒")
+	return halo + " " + title.Render("◈ "+name) + " " + halo
 }
 
 // roomPanel is the live room view: title from the room name, body from
-// world state — always current, never a transcript.
+// world state — always current, never a transcript. Dead space below
+// the prose carries the rain (rain.go), driven by the render phase.
 func (m Model) roomPanel() string {
 	width := m.width - leftPanelWidth - rightPanelWidth
 	name, body, _ := strings.Cut(engine.Look(m.eng.World), "\n\n")
-	content := roomTitleStyle.Render("◈ "+strings.ToUpper(name)) +
-		"\n" + drizzle(m.eng.World.Room().ID, len(m.entries), width-6)
+	content := m.neonSign(strings.ToUpper(name))
 	if body != "" {
-		content += "\n" + body
+		content += "\n\n" + body
 	}
-	return panelStyle.Width(width - 2).Height(m.mainRowHeight() - 2).
-		Render(bodyStyle.Width(width - 4).Render(content))
+	innerH := m.mainRowHeight() - 2
+	prose := bodyStyle.Width(width - 4).Render(content)
+	if free := innerH - lipgloss.Height(prose); free >= 3 {
+		// One blank gap line, then rain to the bottom of the panel.
+		rows := rainField(m.eng.World.Room().ID, m.phase, width-6, free-1)
+		prose += "\n" + bodyStyle.Width(width-4).
+			Render("\n"+strings.Join(rows, "\n"))
+	}
+	return panelStyle.Width(width - 2).Height(innerH).Render(prose)
 }
 
 // rightPanel: BUDDY (level and XP — the full sheet and inventory live

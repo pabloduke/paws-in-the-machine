@@ -55,4 +55,15 @@ var (
 	// the hubs — a log-in target, not a place you walk to.
 	deckTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(phosphor)
 	deckRowStyle   = lipgloss.NewStyle().Foreground(phosphor)
+
+	// Faded neon (the room sign, rain.go): a washed-out amber for the
+	// sign's glow halo and its flicker frames.
+	fadedAmber    = lipgloss.Color("#7d5a16")
+	signGlowStyle = lipgloss.NewStyle().Foreground(fadedAmber)
+	signFadeStyle = lipgloss.NewStyle().Bold(true).Foreground(fadedAmber)
+
+	// Rain trails (rain.go): a drop fades upward, head to tail.
+	rainHeadStyle = lipgloss.NewStyle().Foreground(bone)
+	rainMidStyle  = lipgloss.NewStyle().Foreground(rainGrey)
+	rainTailStyle = lipgloss.NewStyle().Foreground(rainGrey).Faint(true)
 )
