@@ -28,7 +28,7 @@ var (
 // rain on the window above the transcript.
 var drizzleBorder = func() lipgloss.Border {
 	b := lipgloss.NormalBorder()
-	b.Top = "─╱── ─·─ ──╱─ ── ·─ "
+	b.Top = "─·── ─·─ ──·─ ── ·─ "
 	return b
 }()
 

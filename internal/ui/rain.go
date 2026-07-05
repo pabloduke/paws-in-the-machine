@@ -54,13 +54,14 @@ func rainField(roomID string, phase, width, height int) []string {
 	for r := 0; r < height; r++ {
 		b.Reset()
 		for c := 0; c < width; c++ {
+			// All periods — the fade alone carries the motion.
 			switch grid[r][c] {
 			case 1:
-				b.WriteString(rainTailStyle.Render("`"))
+				b.WriteString(rainTailStyle.Render("·"))
 			case 2:
 				b.WriteString(rainMidStyle.Render("·"))
 			case 3:
-				b.WriteString(rainHeadStyle.Render("╱"))
+				b.WriteString(rainHeadStyle.Render("·"))
 			default:
 				b.WriteByte(' ')
 			}

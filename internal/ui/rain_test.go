@@ -23,14 +23,16 @@ func TestRainFieldIsDeterministic(t *testing.T) {
 	}
 }
 
-// headRows finds the drop heads in a frame: column -> rows with '╱',
-// styling stripped.
+// headRows finds the rain cells in a frame: column -> rows with '·',
+// styling stripped. (Head and trail are all periods; the trail rides
+// directly above its head, so the smooth-fall property holds for
+// every cell.)
 func headRows(field []string) map[int][]int {
 	ansi := regexp.MustCompile("\x1b\\[[0-9;]*m")
 	heads := map[int][]int{}
 	for r, line := range field {
 		for c, ch := range []rune(ansi.ReplaceAllString(line, "")) {
-			if ch == '╱' {
+			if ch == '·' {
 				heads[c] = append(heads[c], r)
 			}
 		}
@@ -73,12 +75,12 @@ func TestRainFallsSmoothly(t *testing.T) {
 
 func TestRainStaysGentle(t *testing.T) {
 	field := strings.Join(rainField("plaza", 9, 70, 10), "\n")
-	drops := strings.Count(field, "╱")
+	drops := strings.Count(field, "·")
 	if drops == 0 {
 		t.Fatalf("rain should be visible")
 	}
-	if max := 70 / rainColsPerDrop; drops > max {
-		t.Fatalf("too heavy: %d heads, want <= %d", drops, max)
+	if max := 70 / rainColsPerDrop * (rainTrailLen + 1); drops > max {
+		t.Fatalf("too heavy: %d cells, want <= %d", drops, max)
 	}
 }
 
