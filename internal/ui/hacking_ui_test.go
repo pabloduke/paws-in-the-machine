@@ -72,6 +72,36 @@ func TestTerminalExitReturnsToRoom(t *testing.T) {
 	}
 }
 
+func TestTerminalPromptInsidePanelAndScrollbackBottomAnchored(t *testing.T) {
+	w := game.NewWorld()
+	mod := newSized(w)
+	mod = typeLine(mod, "use deck")
+	mm := mod.(Model)
+
+	scrollLines := strings.Split(stripANSI(mm.shellVP.View()), "\n")
+	if len(scrollLines) < 3 {
+		t.Fatalf("expected a multi-line terminal viewport, got %q", mm.shellVP.View())
+	}
+	if strings.TrimSpace(scrollLines[0]) != "" {
+		t.Fatalf("short scrollback should be bottom-anchored, first viewport line=%q", scrollLines[0])
+	}
+	if !strings.Contains(scrollLines[len(scrollLines)-1], "CantOS") {
+		t.Fatalf("newest short scrollback should sit at the bottom, viewport=%q", strings.Join(scrollLines, "\n"))
+	}
+
+	for _, r := range "ls" {
+		mod, _ = mod.Update(kr(r))
+	}
+	view := stripANSI(mod.View())
+	lines := strings.Split(view, "\n")
+	if !strings.Contains(view, "paws_in_the_machine@deck:~ $ ls") {
+		t.Fatalf("typed command should render in terminal prompt:\n%s", view)
+	}
+	if strings.Contains(lines[len(lines)-1], "paws_in_the_machine@deck:~ $ ls") {
+		t.Fatalf("terminal prompt should not render below the panel:\n%s", view)
+	}
+}
+
 func TestDeckLoginFromPanel(t *testing.T) {
 	w := game.NewWorld()
 	mod := newSized(w)

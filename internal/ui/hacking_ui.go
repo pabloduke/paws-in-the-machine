@@ -79,19 +79,22 @@ func (shellSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 	return cmd
 }
 
-// Screen is the full-screen terminal layout: dominant terminal with
-// the prompt attached beneath it, read-only status panel right.
+// Screen is the full-screen terminal layout: dominant terminal with an
+// in-panel prompt, read-only status panel right.
 func (shellSurface) Screen(m *Model) string {
 	termW, statusW, panelH := m.shellDims()
 
 	title := crtTitleStyle.Render("CYBERDECK // " + strings.ToUpper(m.shell.HostName()))
+	prompt := lipgloss.NewStyle().
+		Width(m.shellVP.Width).
+		MaxWidth(m.shellVP.Width).
+		Background(crtDark).
+		Render(m.shellInput.View())
+	content := lipgloss.JoinVertical(lipgloss.Left, title, m.shellVP.View(), prompt)
 	term := crtPanelFocusStyle.Width(termW - 2).Height(panelH - 2).
-		Render(title + "\n" + m.shellVP.View())
+		Render(content)
 	status := crtPanelStyle.Width(statusW - 2).Height(panelH - 2).Render("")
-	row := lipgloss.JoinHorizontal(lipgloss.Top, term, status)
-
-	prompt := lipgloss.NewStyle().MaxWidth(termW).Background(crtDark).Render(m.shellInput.View())
-	return row + "\n" + prompt
+	return lipgloss.JoinHorizontal(lipgloss.Top, term, status)
 }
 
 // Resize refits the terminal to the window.
@@ -114,7 +117,7 @@ func (m Model) shellDims() (termW, statusW, panelH int) {
 	if termW < 20 {
 		termW = 20
 	}
-	panelH = m.height - promptHeight
+	panelH = m.height
 	if panelH < 5 {
 		panelH = 5
 	}
@@ -131,7 +134,7 @@ func (m *Model) openShell(d hacking.Deck) {
 	m.shell = s
 	m.deckCfg = d
 	m.shellEntries = []string{crtDimStyle.Render(
-		"PAWS/OS — 'help' lists commands · 'exit' (or esc) leaves the terminal")}
+		"CantOS — 'help' lists commands · 'exit' (or esc) leaves the terminal")}
 
 	ti := textinput.New()
 	ti.Prompt = crtPromptStyle.Render(s.Prompt())
@@ -146,7 +149,7 @@ func (m *Model) openShell(d hacking.Deck) {
 // resizeShell fits the scrollback viewport to the current window.
 func (m *Model) resizeShell() {
 	termW, _, panelH := m.shellDims()
-	w, h := termW-4, panelH-3 // borders + title row
+	w, h := termW-4, panelH-4 // borders + title row + prompt row
 	if w < 1 {
 		w = 1
 	}
@@ -169,6 +172,9 @@ func (m *Model) resizeShell() {
 func (m *Model) refreshShell() {
 	wrapped := crtOutputStyle.Width(m.shellVP.Width).
 		Render(strings.Join(m.shellEntries, "\n"))
+	if missing := m.shellVP.Height - lipgloss.Height(wrapped); missing > 0 {
+		wrapped = strings.Repeat("\n", missing) + wrapped
+	}
 	m.shellVP.SetContent(wrapped)
 	m.shellVP.GotoBottom()
 }
