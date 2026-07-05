@@ -20,6 +20,7 @@ const (
 
 	// Once-markers for event rules (docs/systems/events.md).
 	flagSeenWhisperReaction = "seen_whisper_reaction"
+	flagSeenCounterEmpty    = "seen_counter_empty"
 )
 
 // One-shot XP award markers (awardOnce / dialogue.AwardOnce).

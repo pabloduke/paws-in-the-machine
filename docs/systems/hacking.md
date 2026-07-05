@@ -12,6 +12,23 @@ adventure verbs. The lair and everything in it stay put while the
 terminal is open; `talk`, hub travel, and the normal prompt are simply
 out of reach until he closes it.
 
+## Design rule: no checks in the terminal, ever
+
+The game's central mechanical split: the cat's body is **character
+skill** (Stealth/Agility/Charm, XP, hidden seeded rolls — the world
+says "you can't, *yet*: come back stronger"); the deck is **player
+skill** (the terminal says "you haven't figured it out, *yet*: come
+back smarter"). Buddy already knows how to hack — the player is
+Buddy's mind at the deck.
+
+So nothing in the terminal may roll, gate on a stat, or spend a
+check: no Hacking stat, no breach rolls, no XP-gated commands.
+ICE difficulty is always puzzle difficulty — harder to figure out,
+never harder to roll. If hacking ever needs progression, it comes as
+**tools** (a cracked binary found in play that opens new commands),
+never numbers. Completed intrusion beats may *award* XP (the body
+grows; see below) — they must never *require* it.
+
 Implementation note: it's all game fiction over in-memory content —
 `internal/systems/hacking` imports only the engine and stdlib string
 helpers. Hosts, files, processes, and `curl`-able resources are data

@@ -30,6 +30,9 @@ type Entry struct {
 // hold fires, in declaration order; output queues on Pending for the
 // UI to present. Every path that completes a player action calls it.
 func (w *World) CheckEvents() {
+	if !w.HoldPlacements {
+		w.applyPlacements()
+	}
 	room := w.Room()
 	entered := room != w.prevRoom
 	w.prevRoom = room

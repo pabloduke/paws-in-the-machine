@@ -49,17 +49,19 @@ one package under `internal/systems/<name>/` — see Architecture in the readme.
    the game. See `systems/stealth.md`.
 7. 📝 **NPCs/dialogue** — first dialogue slice is built: `talk <npc>`
    enters a numbered node graph with visible-choice requirements and
-   flag/XP effects. NPC presence and broader memory are still open.
-   Positions are a function of game state (flags), never simulated
-   movement. A dog = NPC component + observer configuration on one
-   entity. See `systems/dialogue.md`.
+   flag/XP effects. Presence is built: positions are a function of
+   game state (`engine.Placed`, see `systems/presence.md`), never
+   simulated movement. Broader NPC memory still open. A dog = NPC
+   component + observer configuration on one entity.
+   See `systems/dialogue.md`.
 8. 📝 **Hacking** — first slice built: logging into the deck opens a full-screen
    terminal (shell over in-memory hosts/files/processes: ls, cd, cat,
    grep, cp, ssh, curl, ps, kill, run) with a quest panel. Buddy stays
    at the deck the whole time — it's a terminal session. Hooks set flags.
-   No Hacking stat, no rolls: the player performs the hack through
-   play; ICE is puzzle, not check — ICE, credential gates, and XP
-   payouts still open. See `systems/hacking.md`.
+   No Hacking stat, no rolls, ever (design rule in the spec): stats
+   are character skill, the terminal is player skill; ICE is puzzle,
+   not check — ICE, credential gates, and XP payouts still open.
+   See `systems/hacking.md`.
 9. ✅ **Hubs & travel** — city topology: hubs (districts) containing
    explorable rooms, all known/travelable from the start (Buddy's lived
    here all his life); game state gates relevance, not access. Travel
