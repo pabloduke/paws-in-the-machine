@@ -113,7 +113,7 @@ func (m Model) cityPanel() string {
 	cur := hubs.Current(m.eng.World)
 
 	var b strings.Builder
-	b.WriteString(panelTitleStyle.Render("THE CITY"))
+	b.WriteString(panelTitleStyle.Render("▸ THE CITY"))
 	prevKind := panelHub
 	for i, it := range items {
 		// A blank line and a green subhead set the deck(s) apart from

@@ -241,7 +241,8 @@ func (m *Model) executeLine(line string) {
 
 func (m Model) View() string {
 	if !m.ready {
-		return "booting the deck..."
+		return panelTitleStyle.Render("PAWS IN THE MACHINE") + "\n" +
+			rainStyle.Render("rain on the window.")
 	}
 	for _, s := range surfaces {
 		if fs, ok := s.(fullscreenSurface); ok && s.Active(&m) {
