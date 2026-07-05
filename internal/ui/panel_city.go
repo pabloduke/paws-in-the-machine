@@ -113,7 +113,7 @@ func (m Model) cityPanel() string {
 	cur := hubs.Current(m.eng.World)
 
 	var b strings.Builder
-	b.WriteString(panelTitleStyle.Render("THE CITY"))
+	b.WriteString(panelTitleStyle.Render("▸ THE CITY"))
 	prevKind := panelHub
 	for i, it := range items {
 		// A blank line and a green subhead set the deck(s) apart from
@@ -136,7 +136,7 @@ func (m Model) cityPanel() string {
 		}
 		b.WriteString("\n" + row)
 	}
-	hint := "tab: focus"
+	hint := "tab: focus · [ ] rain"
 	if m.panelFocused {
 		hint = "up/down enter, esc"
 	} else if m.dialogue != nil {

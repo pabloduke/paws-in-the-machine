@@ -13,6 +13,7 @@ package ui
 
 import (
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -111,6 +112,25 @@ type Model struct {
 	commands []string // executed commands, oldest first
 	histPos  int      // 0 = live input; n = n commands back
 	draft    string   // live input stashed while browsing history
+
+	// phase is the render phase for the ambient weather (rain.go) —
+	// presentation state only, advanced by the rain ticker. The game
+	// itself never ticks (docs/systems/turns.md).
+	phase int
+	// rainLevel is the rain's opacity rung ('[' dims, ']' brightens;
+	// 0 turns it off entirely). Player preference, not game state.
+	rainLevel int
+}
+
+// rainFrame paces the ambient animation — one const to dial if it
+// ever matters (battery, slow ssh links). Fast frames + staggered
+// per-drop speeds (rain.go) is what makes the rain read as smooth.
+const rainFrame = 100 * time.Millisecond
+
+type rainTick time.Time
+
+func rainTicker() tea.Cmd {
+	return tea.Tick(rainFrame, func(t time.Time) tea.Msg { return rainTick(t) })
 }
 
 // New builds a session around the engine, seeding the LOG with the
@@ -122,21 +142,28 @@ func New(eng *engine.Engine, intro string) Model {
 	ti.Focus()
 
 	return Model{
-		eng:      eng,
-		input:    ti,
-		entries:  []string{intro},
-		SavePath: defaultSavePath(),
+		eng:       eng,
+		input:     ti,
+		entries:   []string{intro},
+		SavePath:  defaultSavePath(),
+		rainLevel: defaultRainLevel,
 	}
 }
 
 func (m Model) Init() tea.Cmd {
-	return textinput.Blink
+	return tea.Batch(textinput.Blink, rainTicker())
 }
 
 func (m Model) mainRowHeight() int { return m.height - logHeight - promptHeight }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case rainTick:
+		// Pure re-render fuel: advance the weather, reschedule, touch
+		// nothing else.
+		m.phase++
+		return m, rainTicker()
+
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		// LOG panel: 2 border rows + 1 title row + viewport.
@@ -168,6 +195,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if s.Active(&m) {
 				return m, s.HandleKey(&m, msg)
 			}
+		}
+		// '[' / ']' dial the rain's opacity anywhere in the overworld —
+		// a view preference, so the prompt never sees the keys.
+		switch msg.String() {
+		case "[":
+			m.setRain(-1)
+			return m, nil
+		case "]":
+			m.setRain(1)
+			return m, nil
 		}
 		// Keystrokes go to exactly one component: PgUp/PgDn scroll the
 		// LOG, Tab focuses the city panel, Up/Down browse command
@@ -241,7 +278,8 @@ func (m *Model) executeLine(line string) {
 
 func (m Model) View() string {
 	if !m.ready {
-		return "booting the deck..."
+		return panelTitleStyle.Render("PAWS IN THE MACHINE") + "\n" +
+			rainStyle.Render("rain on the window.")
 	}
 	for _, s := range surfaces {
 		if fs, ok := s.(fullscreenSurface); ok && s.Active(&m) {
@@ -256,6 +294,18 @@ func (m Model) View() string {
 		}
 	}
 	return mainRow + "\n" + m.logPanel() + "\n" + m.input.View()
+}
+
+// setRain nudges the rain opacity one rung, clamped to [0, max];
+// 0 makes it invisible.
+func (m *Model) setRain(d int) {
+	m.rainLevel += d
+	if m.rainLevel < 0 {
+		m.rainLevel = 0
+	}
+	if m.rainLevel > maxRainLevel {
+		m.rainLevel = maxRainLevel
+	}
 }
 
 // recall moves through executed commands: dir=1 older, dir=-1 newer.

@@ -42,7 +42,7 @@ func (eventsSurface) Overlay(m *Model, bg string) string {
 // eventView renders one story beat, scene-break style.
 func (m Model) eventView() string {
 	var b strings.Builder
-	b.WriteString(roomTitleStyle.Render("* * *"))
+	b.WriteString(dimStyle.Render("░▒▓") + roomTitleStyle.Render(" · ") + dimStyle.Render("▓▒░"))
 	b.WriteString("\n\n" + m.eng.World.Pending[0])
 	b.WriteString("\n\n" + dimStyle.Render("enter to continue"))
 	return b.String()
