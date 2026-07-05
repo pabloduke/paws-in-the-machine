@@ -16,7 +16,7 @@ Implementation note: it's all game fiction over in-memory content.
 Hosts, files, processes, and `curl`-able resources are data declared in
 the game package, exactly like rooms; the commands operate on that data
 and nothing else. Markdown notes render through Glamour so `cat` can show
-Buddy's generated notes cleanly inside the terminal.
+Buddy's generated notes cleanly in the terminal reader panel.
 
 ## Data model (`internal/systems/hacking`)
 
@@ -51,7 +51,7 @@ Buddy's generated notes cleanly inside the terminal.
 | `ls [path]` | list a directory; dirs get a `/` suffix |
 | `cd <path>` | change directory (within the current host) |
 | `pwd` | print the working directory |
-| `cat <file>` | print file text; Markdown files render with Glamour; fires `OnRead` |
+| `cat <file>` | print file text; Markdown files open in the reader panel; fires `OnRead` |
 | `grep [-ir] <pat> [path...]` | case-insensitive recursive substring search; a match fires `OnRead` |
 | `cp <src> <dst>` | copy a file; copying to the deck fires `OnCopy`. `~` always resolves to the deck's home from any host — no scp needed |
 | `mkdir <dir...>` | create fake directories; parent directories must already exist |
@@ -156,13 +156,16 @@ Full-screen swap while a session is live (the three-panel room UI and
 LOG are hidden, not destroyed — closing the terminal restores them
 exactly):
 
-- **Terminal** (~75% width): bordered, titled `CYBERDECK // <host>`,
-  with scrollback bottom-anchored above the in-panel prompt —
+- **Terminal** (~60% width when the reader is active, otherwise dominant):
+  bordered, titled `CYBERDECK // <host>`, with scrollback bottom-anchored above the in-panel prompt —
   `paws_in_the_machine@host:path $` — where all typing lands in CRT green.
-- **Reserved panel** (~25%, read-only): intentionally blank for now. It
-  keeps the CRT composition ready for later ideas without showing location,
-  discoveries, status, objectives, or next-step instructions.
-- Narrow terminals keep the terminal usable first; the reserved panel
+- **Reader panel** (~40% width when active): opens when `cat` reads a
+  Markdown file, renders the latest document with Glamour at panel width,
+  and stays visible until another Markdown file opens or the terminal closes.
+  The terminal scrollback keeps the typed command plus a short
+  `opened <path> in reader` notice instead of duplicating the full document.
+  Tab toggles reader focus; Up/Down scroll the focused reader.
+- Narrow terminals keep the terminal usable first; the reader panel
   shrinks. Widths are clamped — no negative-width rendering.
 
 ## Later

@@ -51,11 +51,25 @@ func (shellSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 		m.shellEntries = append(m.shellEntries, m.shell.End())
 		m.closeShell()
 		return nil
+	case tea.KeyTab:
+		if m.readerMD != "" {
+			m.readerFocus = !m.readerFocus
+		}
+		return nil
 	case tea.KeyPgUp, tea.KeyPgDown:
 		var cmd tea.Cmd
 		m.shellVP, cmd = m.shellVP.Update(msg)
 		return cmd
+	case tea.KeyUp, tea.KeyDown:
+		if m.readerFocus {
+			var cmd tea.Cmd
+			m.shellReader, cmd = m.shellReader.Update(msg)
+			return cmd
+		}
 	case tea.KeyEnter:
+		if m.readerFocus {
+			return nil
+		}
 		line := strings.TrimSpace(m.shellInput.Value())
 		m.shellInput.Reset()
 		if line == "" {
@@ -63,16 +77,27 @@ func (shellSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 		}
 		m.shellEntries = append(m.shellEntries,
 			crtEchoStyle.Render(m.shell.Prompt()+line))
-		out, done := m.shell.Exec(line)
-		if out != "" {
-			m.shellEntries = append(m.shellEntries, crtOutputStyle.Render(out))
+		result := m.shell.ExecDetailed(line)
+		if result.Document != nil {
+			m.readerTitle = result.Document.Path
+			m.readerMD = result.Document.Markdown
+			m.resizeShell()
+			m.refreshShellReader()
+			m.shellEntries = append(m.shellEntries,
+				crtDimStyle.Render("opened "+result.Document.Path+" in reader"))
+		} else if result.Output != "" {
+			m.shellEntries = append(m.shellEntries, crtOutputStyle.Render(result.Output))
 		}
-		if done {
+		if result.Done {
 			m.closeShell()
 			return nil
 		}
 		m.shellInput.Prompt = m.shell.Prompt()
+		m.resizeShellInput()
 		m.refreshShell()
+		return nil
+	}
+	if m.readerFocus {
 		return nil
 	}
 	var cmd tea.Cmd
@@ -96,9 +121,17 @@ func (shellSurface) Screen(m *Model) string {
 		Background(crtDark).
 		Render(m.shellInput.View())
 	content := lipgloss.JoinVertical(lipgloss.Left, title, m.shellVP.View(), prompt)
-	term := crtPanelFocusStyle.Width(termW - 2).Height(panelH - 2).
+	termStyle := crtPanelFocusStyle
+	if m.readerFocus {
+		termStyle = crtPanelStyle
+	}
+	term := termStyle.Width(termW - 2).Height(panelH - 2).
 		Render(content)
-	status := crtPanelStyle.Width(statusW - 2).Height(panelH - 2).Render("")
+	statusStyle := crtPanelStyle
+	if m.readerFocus {
+		statusStyle = crtPanelFocusStyle
+	}
+	status := statusStyle.Width(statusW - 2).Height(panelH - 2).Render(m.readerPanel())
 	return lipgloss.JoinHorizontal(lipgloss.Top, term, status)
 }
 
@@ -106,12 +139,16 @@ func (shellSurface) Screen(m *Model) string {
 func (shellSurface) Resize(m *Model) {
 	m.resizeShell()
 	m.refreshShell()
+	m.refreshShellReader()
 }
 
 // shellDims returns terminal width, status-panel width, and panel
 // height. The terminal is preserved first; the status panel shrinks.
 func (m Model) shellDims() (termW, statusW, panelH int) {
 	statusW = 26
+	if m.readerMD != "" {
+		statusW = m.width * 40 / 100
+	}
 	if m.width-statusW < 46 {
 		statusW = m.width - 46
 	}
@@ -140,6 +177,9 @@ func (m *Model) openShell(d hacking.Deck) {
 	m.deckCfg = d
 	m.shellEntries = []string{crtDimStyle.Render(
 		"CantOS — 'help' lists commands · 'exit' (or esc) leaves the terminal")}
+	m.readerTitle = ""
+	m.readerMD = ""
+	m.readerFocus = false
 
 	ti := textinput.New()
 	ti.Prompt = s.Prompt()
@@ -156,7 +196,7 @@ func (m *Model) openShell(d hacking.Deck) {
 
 // resizeShell fits the scrollback viewport to the current window.
 func (m *Model) resizeShell() {
-	termW, _, panelH := m.shellDims()
+	termW, statusW, panelH := m.shellDims()
 	w, h := termW-4, panelH-5 // borders + title row + prompt row; viewport renders one trailing row
 	if w < 1 {
 		w = 1
@@ -174,7 +214,25 @@ func (m *Model) resizeShell() {
 		m.shellVP.Width = w
 		m.shellVP.Height = h
 	}
-	m.shellInput.Width = w - lipgloss.Width(m.shell.Prompt())
+	m.resizeShellInput()
+
+	rw, rh := statusW-4, panelH-5 // borders + reader title + hint row
+	if rw < 1 {
+		rw = 1
+	}
+	if rh < 1 {
+		rh = 1
+	}
+	if m.shellReader.Width == 0 {
+		m.shellReader = viewport.New(rw, rh)
+	} else {
+		m.shellReader.Width = rw
+		m.shellReader.Height = rh
+	}
+}
+
+func (m *Model) resizeShellInput() {
+	m.shellInput.Width = m.shellVP.Width - lipgloss.Width(m.shell.Prompt())
 	if m.shellInput.Width < 1 {
 		m.shellInput.Width = 1
 	}
@@ -191,11 +249,37 @@ func (m *Model) refreshShell() {
 	m.shellVP.GotoBottom()
 }
 
+func (m *Model) refreshShellReader() {
+	if m.readerMD == "" || m.shellReader.Width == 0 {
+		return
+	}
+	rendered := hacking.RenderMarkdown(m.readerMD, m.shellReader.Width)
+	m.shellReader.SetContent(rendered)
+}
+
+func (m Model) readerPanel() string {
+	if m.readerMD == "" {
+		return ""
+	}
+	titleText := ansi.Truncate("READER // "+m.readerTitle, m.shellReader.Width, "")
+	title := crtTitleStyle.
+		Width(m.shellReader.Width).
+		MaxWidth(m.shellReader.Width).
+		Render(titleText)
+	hintText := ansi.Truncate("tab: terminal · up/down: scroll", m.shellReader.Width, "")
+	hint := crtDimStyle.
+		Width(m.shellReader.Width).
+		MaxWidth(m.shellReader.Width).
+		Render(hintText)
+	return lipgloss.JoinVertical(lipgloss.Left, title, m.shellReader.View(), hint)
+}
+
 // closeShell tears the session down and restores the room UI. Rules
 // don't evaluate while the terminal is open (docs/systems/events.md),
 // so logging out is when the world reacts to flags set in-session.
 func (m *Model) closeShell() {
 	m.shell = nil
+	m.readerFocus = false
 	m.input.Focus()
 	m.entries = append(m.entries, dimStyle.Render("[left the terminal]"))
 	m.eng.World.CheckEvents()

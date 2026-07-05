@@ -131,6 +131,20 @@ type Session struct {
 	pendingService *Service
 }
 
+// ExecResult is the structured result of a fake shell command.
+type ExecResult struct {
+	Output   string
+	Done     bool
+	Document *Document
+}
+
+// Document is a Markdown file read by cat that the UI can render in
+// the terminal reader panel.
+type Document struct {
+	Path     string
+	Markdown string
+}
+
 // NewSession opens the shell on the deck's local host.
 func NewSession(w *engine.World, net map[string]*Host, deckHost string) (*Session, error) {
 	deck, ok := net[deckHost]
@@ -172,50 +186,58 @@ func (s *Session) Prompt() string {
 // Exec runs one typed line against the session. done reports that the
 // session ended — `exit`/`logout` popped all the way back off the deck.
 func (s *Session) Exec(line string) (out string, done bool) {
+	result := s.ExecDetailed(line)
+	return result.Output, result.Done
+}
+
+// ExecDetailed runs one typed line and returns output plus optional UI
+// metadata, such as a Markdown document read by cat.
+func (s *Session) ExecDetailed(line string) ExecResult {
 	if s.pending != nil {
-		return s.password(line), false
+		return ExecResult{Output: s.password(line)}
 	}
 	args := strings.Fields(line)
 	if len(args) == 0 {
-		return "", false
+		return ExecResult{}
 	}
 	cmd := args[0]
 	args = args[1:]
 	switch cmd {
 	case "ls":
-		return s.ls(args), false
+		return ExecResult{Output: s.ls(args)}
 	case "cd":
-		return s.cd(args), false
+		return ExecResult{Output: s.cd(args)}
 	case "pwd":
-		return s.Path(), false
+		return ExecResult{Output: s.Path()}
 	case "cat":
-		return s.cat(args), false
+		return s.cat(args)
 	case "grep":
-		return s.grep(args), false
+		return ExecResult{Output: s.grep(args)}
 	case "cp":
-		return s.cp(args), false
+		return ExecResult{Output: s.cp(args)}
 	case "mkdir":
-		return s.mkdir(args), false
+		return ExecResult{Output: s.mkdir(args)}
 	case "touch":
-		return s.touch(args), false
+		return ExecResult{Output: s.touch(args)}
 	case "scan":
-		return s.scan(args), false
+		return ExecResult{Output: s.scan(args)}
 	case "ssh":
-		return s.ssh(args), false
+		return ExecResult{Output: s.ssh(args)}
 	case "exit", "logout":
-		return s.exit()
+		out, done := s.exit()
+		return ExecResult{Output: out, Done: done}
 	case "curl":
-		return s.curl(args), false
+		return ExecResult{Output: s.curl(args)}
 	case "ps":
-		return s.ps(), false
+		return ExecResult{Output: s.ps()}
 	case "kill":
-		return s.kill(args), false
+		return ExecResult{Output: s.kill(args)}
 	case "run":
-		return s.run(args), false
+		return ExecResult{Output: s.run(args)}
 	case "help":
-		return helpText, false
+		return ExecResult{Output: helpText}
 	}
-	return cmd + ": command not found", false
+	return ExecResult{Output: cmd + ": command not found"}
 }
 
 // End reports the narration the UI shows when the terminal is closed
@@ -351,11 +373,12 @@ func (s *Session) fileText(n *Node) string {
 	return n.Text
 }
 
-func (s *Session) cat(args []string) string {
+func (s *Session) cat(args []string) ExecResult {
 	if len(args) == 0 {
-		return "usage: cat <file>"
+		return ExecResult{Output: "usage: cat <file>"}
 	}
 	var out []string
+	var doc *Document
 	for _, arg := range args {
 		n := s.node(arg)
 		switch {
@@ -366,16 +389,38 @@ func (s *Session) cat(args []string) string {
 		default:
 			text := s.read(n)
 			if strings.HasSuffix(n.Name, ".md") {
+				doc = &Document{Path: arg, Markdown: text}
 				text = renderMarkdown(text)
 			}
 			out = append(out, text)
 		}
 	}
-	return strings.Join(out, "\n")
+	return ExecResult{Output: strings.Join(out, "\n"), Document: doc}
 }
 
 func renderMarkdown(text string) string {
-	out, err := glamour.Render(text, "dark")
+	return RenderMarkdown(text, 0)
+}
+
+// RenderMarkdown renders Markdown for terminal display. width <= 0 uses
+// Glamour's default wrapping.
+func RenderMarkdown(text string, width int) string {
+	var (
+		out string
+		err error
+	)
+	if width > 0 {
+		var r *glamour.TermRenderer
+		r, err = glamour.NewTermRenderer(
+			glamour.WithStylePath("dark"),
+			glamour.WithWordWrap(width),
+		)
+		if err == nil {
+			out, err = r.Render(text)
+		}
+	} else {
+		out, err = glamour.Render(text, "dark")
+	}
 	if err != nil {
 		return text
 	}

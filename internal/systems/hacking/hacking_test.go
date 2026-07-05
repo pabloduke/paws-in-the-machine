@@ -141,6 +141,34 @@ func TestFilesystemNavigation(t *testing.T) {
 	}
 }
 
+func TestDetailedCatReportsMarkdownDocument(t *testing.T) {
+	_, s := newShell(t)
+	result := s.ExecDetailed("cat ~/notes/notes.md")
+	if result.Done {
+		t.Fatalf("cat should not end session")
+	}
+	if result.Document == nil {
+		t.Fatalf("markdown cat should include document metadata")
+	}
+	if result.Document.Path != "~/notes/notes.md" {
+		t.Fatalf("document path=%q", result.Document.Path)
+	}
+	if !strings.Contains(result.Document.Markdown, "Nothing solid yet") {
+		t.Fatalf("document markdown missing notes: %q", result.Document.Markdown)
+	}
+	if !strings.Contains(stripANSI(result.Output), "Nothing solid yet") {
+		t.Fatalf("legacy output should still render markdown: %q", stripANSI(result.Output))
+	}
+
+	result = s.ExecDetailed("cat nope")
+	if result.Document != nil {
+		t.Fatalf("missing file should not include document: %#v", result.Document)
+	}
+	if result.Output != "cat: nope: No such file or directory" {
+		t.Fatalf("missing file output: %q", result.Output)
+	}
+}
+
 func TestCreateDirectoriesAndFiles(t *testing.T) {
 	_, s := newShell(t)
 

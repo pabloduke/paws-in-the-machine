@@ -110,15 +110,99 @@ func TestTerminalScreenRowsAlignToWindowWidth(t *testing.T) {
 	w := game.NewWorld()
 	mod := newSized(w)
 	mod = typeLine(mod, "use deck")
+	assertTerminalScreenSize(t, mod, 100, 30)
+}
+
+func TestTerminalScreenRowsAlignWithReaderOpen(t *testing.T) {
+	w := game.NewWorld()
+	mod := newSized(w)
+	mod = typeLine(mod, "use deck")
+	mod = typeLine(mod, "cat ~/notes/notes.md")
+	mm := mod.(Model)
+	termW, readerW, _ := mm.shellDims()
+	if termW != 60 || readerW != 40 {
+		t.Fatalf("reader split term=%d reader=%d, want 60/40", termW, readerW)
+	}
+	assertTerminalScreenSize(t, mod, 100, 30)
+	mod, _ = mod.Update(tea.WindowSizeMsg{Width: 30, Height: 10})
+	assertTerminalScreenSize(t, mod, 32, 10)
+}
+
+func assertTerminalScreenSize(t *testing.T, mod tea.Model, wantW, wantH int) {
+	t.Helper()
 	view := mod.View()
 	lines := strings.Split(view, "\n")
-	if got := len(lines); got != 30 {
-		t.Fatalf("terminal height=%d, want 30:\n%s", got, stripANSI(view))
+	if got := len(lines); got != wantH {
+		t.Fatalf("terminal height=%d, want %d:\n%s", got, wantH, stripANSI(view))
 	}
 	for i, line := range lines {
-		if got := lipgloss.Width(line); got != 100 {
-			t.Fatalf("terminal row %d width=%d, want 100:\n%s", i, got, stripANSI(view))
+		if got := lipgloss.Width(line); got != wantW {
+			t.Fatalf("terminal row %d width=%d, want %d:\n%s", i, got, wantW, stripANSI(view))
 		}
+	}
+}
+
+func TestMarkdownCatOpensReaderPanel(t *testing.T) {
+	w := game.NewWorld()
+	mod := newSized(w)
+	mod = typeLine(mod, "use deck")
+	mod = typeLine(mod, "cat ~/notes/notes.md")
+	mm := mod.(Model)
+	joined := stripANSI(strings.Join(mm.shellEntries, "\n"))
+	if !strings.Contains(joined, "opened ~/notes/notes.md in reader") {
+		t.Fatalf("terminal should show reader notice: %q", joined)
+	}
+	if strings.Contains(joined, "Nothing solid yet") {
+		t.Fatalf("terminal should not duplicate reader document: %q", joined)
+	}
+	if reader := readerText(mod); !strings.Contains(reader, "Nothing solid yet") {
+		t.Fatalf("reader should render notes: %q", reader)
+	}
+	if mm.readerTitle != "~/notes/notes.md" || mm.readerMD == "" {
+		t.Fatalf("reader metadata missing: title=%q markdown=%q", mm.readerTitle, mm.readerMD)
+	}
+}
+
+func TestNonMarkdownCatStaysInTerminalScrollback(t *testing.T) {
+	w := game.NewWorld()
+	mod := newSized(w)
+	mod = typeLine(mod, "use deck")
+	mod = typeLine(mod, "ssh sunfarm.arc")
+	mod = typeLine(mod, "cat /var/log/burial.log")
+	mm := mod.(Model)
+	if mm.readerMD != "" {
+		t.Fatalf("non-markdown cat should not open reader: %q", mm.readerMD)
+	}
+	if joined := stripANSI(strings.Join(mm.shellEntries, "\n")); !strings.Contains(joined, "buried the sun") {
+		t.Fatalf("non-markdown cat output should stay in terminal: %q", joined)
+	}
+}
+
+func TestTerminalReaderFocusScrollsWithArrows(t *testing.T) {
+	w := game.NewWorld()
+	mod := newSized(w)
+	mod = typeLine(mod, "use deck")
+	mod = typeLine(mod, "cat ~/notes/notes.md")
+	mod, _ = mod.Update(spec(tea.KeyTab))
+	if !mod.(Model).readerFocus {
+		t.Fatalf("tab should focus reader")
+	}
+	mod, _ = mod.Update(kr('x'))
+	if got := mod.(Model).shellInput.Value(); got != "" {
+		t.Fatalf("typing while reader is focused should not reach prompt: %q", got)
+	}
+	before := mod.(Model).shellReader.YOffset
+	mod, _ = mod.Update(spec(tea.KeyDown))
+	if after := mod.(Model).shellReader.YOffset; after < before {
+		t.Fatalf("reader down should not move upward: before=%d after=%d", before, after)
+	}
+	mod, _ = mod.Update(spec(tea.KeyTab))
+	if mod.(Model).readerFocus {
+		t.Fatalf("second tab should return focus to terminal")
+	}
+	mod, _ = mod.Update(kr('x'))
+	if got := mod.(Model).shellInput.Value(); got != "x" {
+		t.Fatalf("typing after returning focus should reach prompt: %q", got)
 	}
 }
 
@@ -184,8 +268,8 @@ func TestHackingBeatSetsFlags(t *testing.T) {
 		t.Fatalf("downloading sun.frag should set got_sun_fragment; flags=%v", w.Flags)
 	}
 	mod = typeLine(mod, "cat ~/notes/notes.md")
-	if joined := stripANSI(strings.Join(mod.(Model).shellEntries, "\n")); !strings.Contains(joined, "fragment") {
-		t.Fatalf("notes should mention the copied fragment: %q", joined)
+	if reader := readerText(mod); !strings.Contains(reader, "fragment") {
+		t.Fatalf("notes should mention the copied fragment: %q", reader)
 	}
 }
 
@@ -250,10 +334,15 @@ func TestMicroslopPasswordPuzzle(t *testing.T) {
 		t.Fatalf("copying Microslop notice should set flag; flags=%v", w.Flags)
 	}
 	mod = typeLine(mod, "cat ~/notes/notes.md")
-	if joined := stripANSI(strings.Join(mod.(Model).shellEntries, "\n")); !strings.Contains(joined, "apple") ||
-		!strings.Contains(joined, "SUNFARM-ARC") || !strings.Contains(joined, "sunlight liability notice") {
-		t.Fatalf("notes should record Microslop discoveries: %q", joined)
+	if reader := readerText(mod); !strings.Contains(reader, "apple") ||
+		!strings.Contains(reader, "SUNFARM-ARC") ||
+		!strings.Contains(reader, "sunlight") || !strings.Contains(reader, "liability notice") {
+		t.Fatalf("notes should record Microslop discoveries: %q", reader)
 	}
+}
+
+func readerText(mod tea.Model) string {
+	return stripANSI(mod.(Model).shellReader.View())
 }
 
 func chooseDialogueContaining(t *testing.T, mod tea.Model, text string) tea.Model {

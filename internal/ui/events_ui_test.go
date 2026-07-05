@@ -70,8 +70,8 @@ func TestWhisperEventBeat(t *testing.T) {
 	// The notes file now carries the whisper entry.
 	mod = typeLine(mod, "use deck")
 	mod = typeLine(mod, "cat ~/notes/notes.md")
-	if joined := stripANSI(strings.Join(mod.(Model).shellEntries, "\n")); !strings.Contains(joined, "sunfarm.arc") {
-		t.Fatalf("notes should show the whisper entry:\n%s", joined)
+	if reader := readerText(mod); !strings.Contains(reader, "sunfarm.arc") {
+		t.Fatalf("notes should show the whisper entry:\n%s", reader)
 	}
 }
 
@@ -80,7 +80,7 @@ func TestNotesEmptyState(t *testing.T) {
 	mod := newSized(w)
 	mod = typeLine(mod, "use deck")
 	mod = typeLine(mod, "cat ~/notes/notes.md")
-	if joined := stripANSI(strings.Join(mod.(Model).shellEntries, "\n")); !strings.Contains(joined, "Nothing solid yet") {
-		t.Fatalf("empty notes state missing:\n%s", joined)
+	if reader := readerText(mod); !strings.Contains(reader, "Nothing solid yet") {
+		t.Fatalf("empty notes state missing:\n%s", reader)
 	}
 }

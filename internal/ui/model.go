@@ -98,6 +98,10 @@ type Model struct {
 	shellEntries []string // terminal scrollback, separate from the LOG
 	shellVP      viewport.Model
 	shellInput   textinput.Model
+	shellReader  viewport.Model
+	readerTitle  string
+	readerMD     string
+	readerFocus  bool
 
 	entries  []string // transcript lines shown in the LOG
 	commands []string // executed commands, oldest first
