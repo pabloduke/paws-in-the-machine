@@ -20,11 +20,16 @@ const (
 // fall at staggered per-drop speeds (a row per 2–4 frames, offset
 // from each other) so the field never steps in lockstep: at a fast
 // frame rate that reads as smooth motion, not a slideshow. A drop
-// fades upward: bright head, grey mid, faint tail.
-func rainField(roomID string, phase, width, height int) []string {
-	if width < 1 || height < 1 {
+// fades upward: bright head, grey mid, faint tail. level picks a
+// rung of the opacity ladder (styles.go); 0 renders nothing.
+func rainField(roomID string, phase, width, height, level int) []string {
+	if width < 1 || height < 1 || level < 1 {
 		return nil
 	}
+	if level > maxRainLevel {
+		level = maxRainLevel
+	}
+	shades := rainShades[level]
 	// Brightness level per cell: 0 empty, 1 tail, 2 mid, 3 head.
 	grid := make([][]int, height)
 	for r := range grid {
@@ -55,15 +60,10 @@ func rainField(roomID string, phase, width, height int) []string {
 		b.Reset()
 		for c := 0; c < width; c++ {
 			// All periods — the fade alone carries the motion.
-			switch grid[r][c] {
-			case 1:
-				b.WriteString(rainTailStyle.Render("·"))
-			case 2:
-				b.WriteString(rainMidStyle.Render("·"))
-			case 3:
-				b.WriteString(rainHeadStyle.Render("·"))
-			default:
+			if lvl := grid[r][c]; lvl == 0 {
 				b.WriteByte(' ')
+			} else {
+				b.WriteString(shades[3-lvl].Render("·"))
 			}
 		}
 		rows[r] = strings.TrimRight(b.String(), " ")

@@ -117,6 +117,9 @@ type Model struct {
 	// presentation state only, advanced by the rain ticker. The game
 	// itself never ticks (docs/systems/turns.md).
 	phase int
+	// rainLevel is the rain's opacity rung ('[' dims, ']' brightens;
+	// 0 turns it off entirely). Player preference, not game state.
+	rainLevel int
 }
 
 // rainFrame paces the ambient animation — one const to dial if it
@@ -139,10 +142,11 @@ func New(eng *engine.Engine, intro string) Model {
 	ti.Focus()
 
 	return Model{
-		eng:      eng,
-		input:    ti,
-		entries:  []string{intro},
-		SavePath: defaultSavePath(),
+		eng:       eng,
+		input:     ti,
+		entries:   []string{intro},
+		SavePath:  defaultSavePath(),
+		rainLevel: defaultRainLevel,
 	}
 }
 
@@ -191,6 +195,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if s.Active(&m) {
 				return m, s.HandleKey(&m, msg)
 			}
+		}
+		// '[' / ']' dial the rain's opacity anywhere in the overworld —
+		// a view preference, so the prompt never sees the keys.
+		switch msg.String() {
+		case "[":
+			m.setRain(-1)
+			return m, nil
+		case "]":
+			m.setRain(1)
+			return m, nil
 		}
 		// Keystrokes go to exactly one component: PgUp/PgDn scroll the
 		// LOG, Tab focuses the city panel, Up/Down browse command
@@ -280,6 +294,18 @@ func (m Model) View() string {
 		}
 	}
 	return mainRow + "\n" + m.logPanel() + "\n" + m.input.View()
+}
+
+// setRain nudges the rain opacity one rung, clamped to [0, max];
+// 0 makes it invisible.
+func (m *Model) setRain(d int) {
+	m.rainLevel += d
+	if m.rainLevel < 0 {
+		m.rainLevel = 0
+	}
+	if m.rainLevel > maxRainLevel {
+		m.rainLevel = maxRainLevel
+	}
 }
 
 // recall moves through executed commands: dir=1 older, dir=-1 newer.

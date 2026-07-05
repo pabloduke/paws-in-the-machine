@@ -45,7 +45,7 @@ func (m Model) roomPanel() string {
 	prose := bodyStyle.Width(width - 4).Render(content)
 	if free := innerH - lipgloss.Height(prose); free >= 3 {
 		// One blank gap line, then rain to the bottom of the panel.
-		rows := rainField(m.eng.World.Room().ID, m.phase, width-6, free-1)
+		rows := rainField(m.eng.World.Room().ID, m.phase, width-6, free-1, m.rainLevel)
 		prose += "\n" + bodyStyle.Width(width-4).
 			Render("\n"+strings.Join(rows, "\n"))
 	}

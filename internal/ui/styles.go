@@ -62,8 +62,29 @@ var (
 	signGlowStyle = lipgloss.NewStyle().Foreground(fadedAmber)
 	signFadeStyle = lipgloss.NewStyle().Bold(true).Foreground(fadedAmber)
 
-	// Rain trails (rain.go): a drop fades upward, head to tail.
-	rainHeadStyle = lipgloss.NewStyle().Foreground(bone)
-	rainMidStyle  = lipgloss.NewStyle().Foreground(rainGrey)
-	rainTailStyle = lipgloss.NewStyle().Foreground(rainGrey).Faint(true)
+	// Rain opacity ladder ('[' dims, ']' brightens; level 0 renders
+	// nothing). Each step is the head/mid/tail shades of a drop's
+	// fade; defaultRainLevel is the shipped look. Index 0 is unused —
+	// rainField returns early instead.
+	rainShades = [...][3]lipgloss.Style{
+		{},
+		shadeRow("#5a5e62", "#292e34", "#1b1f23"),
+		shadeRow("#8d9298", "#404850", "#2b3037"),
+		shadeRow("#c9d1d9", "#5c6773", "#3d454e"),
+		shadeRow("#f1faff", "#6e7c8a", "#49535e"),
+	}
 )
+
+const (
+	defaultRainLevel = 3
+	maxRainLevel     = len(rainShades) - 1
+)
+
+// shadeRow builds one head/mid/tail step of the rain ladder.
+func shadeRow(head, mid, tail string) [3]lipgloss.Style {
+	return [3]lipgloss.Style{
+		lipgloss.NewStyle().Foreground(lipgloss.Color(head)),
+		lipgloss.NewStyle().Foreground(lipgloss.Color(mid)),
+		lipgloss.NewStyle().Foreground(lipgloss.Color(tail)),
+	}
+}

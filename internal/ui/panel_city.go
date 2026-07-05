@@ -136,7 +136,7 @@ func (m Model) cityPanel() string {
 		}
 		b.WriteString("\n" + row)
 	}
-	hint := "tab: focus"
+	hint := "tab: focus · [ ] rain"
 	if m.panelFocused {
 		hint = "up/down enter, esc"
 	} else if m.dialogue != nil {
