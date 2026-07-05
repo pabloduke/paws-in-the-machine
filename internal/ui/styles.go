@@ -9,12 +9,12 @@ const (
 	promptHeight    = 1
 )
 
-// The overworld palette: wet neon city at night. The rule is *chrome
+// Overworld palette: wet neon city at night. The rule is *chrome
 // glows, prose doesn't* — UI furniture (titles, borders, focus) takes
 // the neon; story text stays bone-plain so the words carry the scene.
-// The terminal keeps its own green phosphor world (hacking_ui.go);
-// deck rows below are that world leaking through. Truecolor values
-// degrade gracefully on 256/16-color terminals via lipgloss.
+// The terminal has its own separate set (styles_terminal.go); deck
+// rows below are that world leaking through. Truecolor values degrade
+// gracefully on 256/16-color terminals via lipgloss.
 var (
 	neonMagenta = lipgloss.Color("#ff2a6d") // signage, titles, focus
 	neonCyan    = lipgloss.Color("#05d9e8") // player's own light: echoes, selection
