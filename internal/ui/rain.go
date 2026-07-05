@@ -10,13 +10,17 @@ import "strings"
 const (
 	rainColsPerDrop = 10 // gentle: about one drop per this many columns
 	rainTrailLen    = 2  // fading cells trailing above a drop's head
+	rainMinSpeed    = 2  // fastest drop: one row per this many frames
+	rainMaxSpeed    = 4  // slowest drop: one row per this many frames
 )
 
 // rainField draws height rows of drops falling through the room
-// panel's dead space. Each drop's column and fall offset come from a
-// hash of the room ID — every room gets its own rain — and phase
-// moves every drop down one row per frame, wrapping just past the
-// bottom. A drop fades upward: bright head, grey mid, faint tail.
+// panel's dead space. Each drop's column, fall offset, and speed come
+// from a hash of the room ID — every room gets its own rain. Drops
+// fall at staggered per-drop speeds (a row per 2–4 frames, offset
+// from each other) so the field never steps in lockstep: at a fast
+// frame rate that reads as smooth motion, not a slideshow. A drop
+// fades upward: bright head, grey mid, faint tail.
 func rainField(roomID string, phase, width, height int) []string {
 	if width < 1 || height < 1 {
 		return nil
@@ -35,7 +39,10 @@ func rainField(roomID string, phase, width, height int) []string {
 		seed = seed*1664525 + 1013904223
 		col := int(seed>>16) % width
 		off := int(seed>>4) % cycle
-		head := (off + phase) % cycle
+		speed := rainMinSpeed + int(seed>>2)%(rainMaxSpeed-rainMinSpeed+1)
+		// (phase+off)/speed staggers *when* each drop steps, so drops
+		// with the same speed still don't move on the same frame.
+		head := (off + (phase+off)/speed) % cycle
 		for k := 0; k <= rainTrailLen; k++ {
 			if r := head - k; r >= 0 && r < height {
 				grid[r][col] = 3 - k

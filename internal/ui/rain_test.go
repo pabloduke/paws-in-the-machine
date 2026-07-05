@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -22,15 +23,50 @@ func TestRainFieldIsDeterministic(t *testing.T) {
 	}
 }
 
-// The falling property: everything visible in one frame appears one
-// row lower in the next (new drops enter at row 0, exempt).
-func TestRainFalls(t *testing.T) {
-	const h = 8
-	now := rainField("lair", 4, 60, h)
-	next := rainField("lair", 5, 60, h)
-	for r := 0; r < h-1; r++ {
-		if now[r] != next[r+1] {
-			t.Fatalf("row %d should fall to row %d:\n%q\n%q", r, r+1, now[r], next[r+1])
+// headRows finds the drop heads in a frame: column -> rows with '╱',
+// styling stripped.
+func headRows(field []string) map[int][]int {
+	ansi := regexp.MustCompile("\x1b\\[[0-9;]*m")
+	heads := map[int][]int{}
+	for r, line := range field {
+		for c, ch := range []rune(ansi.ReplaceAllString(line, "")) {
+			if ch == '╱' {
+				heads[c] = append(heads[c], r)
+			}
+		}
+	}
+	return heads
+}
+
+// The smooth-fall property: frame to frame, a drop either holds its
+// row or moves down exactly one — never jumps — and no drop stalls
+// longer than the slowest speed.
+func TestRainFallsSmoothly(t *testing.T) {
+	const h, w = 8, 60
+	for p := 0; p < 30; p++ {
+		now := headRows(rainField("lair", p, w, h))
+		next := headRows(rainField("lair", p+1, w, h))
+		for col, rows := range now {
+			for _, r := range rows {
+				ok := false
+				for _, nr := range next[col] {
+					// hold, one-row fall, or wrap past the bottom
+					if nr == r || nr == r+1 || nr < r {
+						ok = true
+					}
+				}
+				// A head may also fall off-screen (trail-only frames).
+				if !ok && r < h-1 && len(next[col]) > 0 {
+					t.Fatalf("phase %d col %d: head at %d jumped to %v", p, col, r, next[col])
+				}
+			}
+		}
+		if p%rainMaxSpeed == 0 {
+			a := strings.Join(rainField("lair", p, w, h), "\n")
+			b := strings.Join(rainField("lair", p+rainMaxSpeed, w, h), "\n")
+			if a == b {
+				t.Fatalf("phase %d: nothing moved across %d frames", p, rainMaxSpeed)
+			}
 		}
 	}
 }

@@ -11,8 +11,9 @@ import (
 )
 
 // flickerMod: roughly one frame in this many, the room sign dips to
-// its faded shade — a failing neon tube.
-const flickerMod = 17
+// its faded shade — a failing neon tube. At a 100ms frame, 53 is a
+// dip every ~5s.
+const flickerMod = 53
 
 // neonSign renders the room name as a neon sign: faded-glow halo at
 // each end, and a rare phase-based flicker. Style only ever changes;

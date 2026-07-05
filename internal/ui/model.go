@@ -120,8 +120,9 @@ type Model struct {
 }
 
 // rainFrame paces the ambient animation — one const to dial if it
-// ever matters (battery, slow ssh links).
-const rainFrame = 300 * time.Millisecond
+// ever matters (battery, slow ssh links). Fast frames + staggered
+// per-drop speeds (rain.go) is what makes the rain read as smooth.
+const rainFrame = 100 * time.Millisecond
 
 type rainTick time.Time
 
