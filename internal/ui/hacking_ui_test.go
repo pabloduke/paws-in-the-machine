@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/pabloduke/paws-in-the-machine/internal/game"
 )
@@ -77,6 +78,9 @@ func TestTerminalPromptInsidePanelAndScrollbackBottomAnchored(t *testing.T) {
 	mod := newSized(w)
 	mod = typeLine(mod, "use deck")
 	mm := mod.(Model)
+	if mm.shellInput.TextStyle.GetForeground() != crtGreen {
+		t.Fatalf("typed terminal text should use CRT green")
+	}
 
 	scrollLines := strings.Split(stripANSI(mm.shellVP.View()), "\n")
 	if len(scrollLines) < 3 {
@@ -99,6 +103,22 @@ func TestTerminalPromptInsidePanelAndScrollbackBottomAnchored(t *testing.T) {
 	}
 	if strings.Contains(lines[len(lines)-1], "paws_in_the_machine@deck:~ $ ls") {
 		t.Fatalf("terminal prompt should not render below the panel:\n%s", view)
+	}
+}
+
+func TestTerminalScreenRowsAlignToWindowWidth(t *testing.T) {
+	w := game.NewWorld()
+	mod := newSized(w)
+	mod = typeLine(mod, "use deck")
+	view := mod.View()
+	lines := strings.Split(view, "\n")
+	if got := len(lines); got != 30 {
+		t.Fatalf("terminal height=%d, want 30:\n%s", got, stripANSI(view))
+	}
+	for i, line := range lines {
+		if got := lipgloss.Width(line); got != 100 {
+			t.Fatalf("terminal row %d width=%d, want 100:\n%s", i, got, stripANSI(view))
+		}
 	}
 }
 

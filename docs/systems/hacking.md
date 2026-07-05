@@ -157,9 +157,8 @@ LOG are hidden, not destroyed — closing the terminal restores them
 exactly):
 
 - **Terminal** (~75% width): bordered, titled `CYBERDECK // <host>`,
-  scrollback viewport for narration/output (PgUp/PgDn), and a prompt
-  line attached beneath it — `paws_in_the_machine@host:path $` — where all typing
-  lands.
+  with scrollback bottom-anchored above the in-panel prompt —
+  `paws_in_the_machine@host:path $` — where all typing lands in CRT green.
 - **Reserved panel** (~25%, read-only): intentionally blank for now. It
   keeps the CRT composition ready for later ideas without showing location,
   discoveries, status, objectives, or next-step instructions.

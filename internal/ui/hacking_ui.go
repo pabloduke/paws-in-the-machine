@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/pabloduke/paws-in-the-machine/internal/engine"
 	"github.com/pabloduke/paws-in-the-machine/internal/systems/hacking"
@@ -70,7 +71,7 @@ func (shellSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 			m.closeShell()
 			return nil
 		}
-		m.shellInput.Prompt = crtPromptStyle.Render(m.shell.Prompt())
+		m.shellInput.Prompt = m.shell.Prompt()
 		m.refreshShell()
 		return nil
 	}
@@ -84,7 +85,11 @@ func (shellSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 func (shellSurface) Screen(m *Model) string {
 	termW, statusW, panelH := m.shellDims()
 
-	title := crtTitleStyle.Render("CYBERDECK // " + strings.ToUpper(m.shell.HostName()))
+	titleText := ansi.Truncate("CYBERDECK // "+strings.ToUpper(m.shell.HostName()), m.shellVP.Width, "")
+	title := crtTitleStyle.
+		Width(m.shellVP.Width).
+		MaxWidth(m.shellVP.Width).
+		Render(titleText)
 	prompt := lipgloss.NewStyle().
 		Width(m.shellVP.Width).
 		MaxWidth(m.shellVP.Width).
@@ -137,7 +142,10 @@ func (m *Model) openShell(d hacking.Deck) {
 		"CantOS — 'help' lists commands · 'exit' (or esc) leaves the terminal")}
 
 	ti := textinput.New()
-	ti.Prompt = crtPromptStyle.Render(s.Prompt())
+	ti.Prompt = s.Prompt()
+	ti.PromptStyle = crtPromptStyle
+	ti.TextStyle = crtPromptStyle
+	ti.Cursor.Style = crtPromptStyle
 	ti.Focus()
 	m.shellInput = ti
 	m.input.Blur()
@@ -149,7 +157,7 @@ func (m *Model) openShell(d hacking.Deck) {
 // resizeShell fits the scrollback viewport to the current window.
 func (m *Model) resizeShell() {
 	termW, _, panelH := m.shellDims()
-	w, h := termW-4, panelH-4 // borders + title row + prompt row
+	w, h := termW-4, panelH-5 // borders + title row + prompt row; viewport renders one trailing row
 	if w < 1 {
 		w = 1
 	}
@@ -165,6 +173,10 @@ func (m *Model) resizeShell() {
 	} else {
 		m.shellVP.Width = w
 		m.shellVP.Height = h
+	}
+	m.shellInput.Width = w - lipgloss.Width(m.shell.Prompt())
+	if m.shellInput.Width < 1 {
+		m.shellInput.Width = 1
 	}
 }
 
