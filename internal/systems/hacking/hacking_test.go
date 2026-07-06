@@ -153,11 +153,20 @@ func TestDetailedCatReportsMarkdownDocument(t *testing.T) {
 	if result.Document.Path != "~/notes/notes.md" {
 		t.Fatalf("document path=%q", result.Document.Path)
 	}
-	if !strings.Contains(result.Document.Markdown, "Nothing solid yet") {
-		t.Fatalf("document markdown missing notes: %q", result.Document.Markdown)
+	if result.Document.Kind != hacking.DocumentMarkdown {
+		t.Fatalf("document kind=%q", result.Document.Kind)
+	}
+	if !strings.Contains(result.Document.Text, "Nothing solid yet") {
+		t.Fatalf("document markdown missing notes: %q", result.Document.Text)
 	}
 	if !strings.Contains(stripANSI(result.Output), "Nothing solid yet") {
 		t.Fatalf("legacy output should still render markdown: %q", stripANSI(result.Output))
+	}
+
+	exec(t, s, "touch scratch.txt")
+	result = s.ExecDetailed("cat scratch.txt")
+	if result.Document == nil || result.Document.Kind != hacking.DocumentText {
+		t.Fatalf("txt cat should include text document: %#v", result.Document)
 	}
 
 	result = s.ExecDetailed("cat nope")
@@ -166,6 +175,104 @@ func TestDetailedCatReportsMarkdownDocument(t *testing.T) {
 	}
 	if result.Output != "cat: nope: No such file or directory" {
 		t.Fatalf("missing file output: %q", result.Output)
+	}
+}
+
+func TestMarkdownRenderUsesCompactReaderStyle(t *testing.T) {
+	out := hacking.RenderMarkdown("# Mine\n\nhello *soft* **loud**\n\n- one\n* star item\n- two with `code`", 36)
+	plain := stripANSI(out)
+	if strings.Contains(plain, "# Mine") {
+		t.Fatalf("heading marker should not render in compact style: %q", plain)
+	}
+	for _, want := range []string{"// MINE", "hello *soft* **loud**", "• one", "• star item", "• two with code"} {
+		if !strings.Contains(plain, want) {
+			t.Fatalf("rendered markdown missing %q: %q", want, plain)
+		}
+	}
+	if strings.Contains(out, "\x1b[48;") {
+		t.Fatalf("reader markdown should not emit background-filled blocks: %q", out)
+	}
+}
+
+func TestEditTouchedTextAndMarkdownFiles(t *testing.T) {
+	_, s := newShell(t)
+	exec(t, s, "touch myNotes.md scratch.txt")
+
+	result := s.ExecDetailed("edit myNotes.md")
+	if result.Edit == nil {
+		t.Fatalf("edit should open markdown editor: %#v", result)
+	}
+	if result.Edit.Path != "~/myNotes.md" || result.Edit.Text != "" {
+		t.Fatalf("edit buffer: %#v", result.Edit)
+	}
+	if out := s.SaveEdit(result.Edit.Path, "# My Notes\n\nhello"); out != "saved ~/myNotes.md" {
+		t.Fatalf("save markdown: %q", out)
+	}
+	if out := exec(t, s, "cat myNotes.md"); !strings.Contains(stripANSI(out), "hello") {
+		t.Fatalf("saved markdown missing: %q", stripANSI(out))
+	}
+	if listing := exec(t, s, "ls"); strings.Contains(listing, ".bak") {
+		t.Fatalf("touch-created file should not get backup: %q", listing)
+	}
+
+	result = s.ExecDetailed("edit scratch.txt")
+	if result.Edit == nil {
+		t.Fatalf("edit should open txt editor: %#v", result)
+	}
+	if out := s.SaveEdit(result.Edit.Path, "plain note"); out != "saved ~/scratch.txt" {
+		t.Fatalf("save txt: %q", out)
+	}
+	result = s.ExecDetailed("cat scratch.txt")
+	if result.Document == nil || result.Document.Kind != hacking.DocumentText ||
+		result.Document.Text != "plain note" {
+		t.Fatalf("saved txt document: %#v", result.Document)
+	}
+}
+
+func TestEditExistingTextFileCreatesOneBackup(t *testing.T) {
+	w, s := newShell(t)
+	w.Flags["microslop_route_open"] = true
+	exec(t, s, "ssh microslop")
+	exec(t, s, "apple")
+
+	result := s.ExecDetailed("edit /home/readme.txt")
+	if result.Edit == nil || result.Edit.Text != "search logs for sun" {
+		t.Fatalf("edit existing txt: %#v", result.Edit)
+	}
+	if out := s.SaveEdit(result.Edit.Path, "changed"); out != "saved /home/readme.txt" {
+		t.Fatalf("save existing txt: %q", out)
+	}
+	if out := exec(t, s, "cat /home/readme.txt.bak"); out != "search logs for sun" {
+		t.Fatalf("backup should contain original text: %q", out)
+	}
+	if out := s.SaveEdit(result.Edit.Path, "changed again"); out != "saved /home/readme.txt" {
+		t.Fatalf("second save existing txt: %q", out)
+	}
+	if listing := exec(t, s, "ls /home"); strings.Contains(listing, "readme.txt.bak.1") {
+		t.Fatalf("second save should not create another backup: %q", listing)
+	}
+	if out := exec(t, s, "cat /home/readme.txt"); out != "changed again" {
+		t.Fatalf("second save text: %q", out)
+	}
+}
+
+func TestEditErrors(t *testing.T) {
+	_, s := newShell(t)
+	if out := s.ExecDetailed("edit").Output; out != "usage: edit <file>" {
+		t.Fatalf("edit usage: %q", out)
+	}
+	if out := s.ExecDetailed("edit missing.txt").Output; out != "edit: missing.txt: No such file or directory" {
+		t.Fatalf("edit missing: %q", out)
+	}
+	if out := s.ExecDetailed("edit notes").Output; out != "edit: notes: Is a directory" {
+		t.Fatalf("edit dir: %q", out)
+	}
+	if out := s.ExecDetailed("edit ~/notes/notes.md").Output; out != "edit: ~/notes/notes.md: generated file is read-only" {
+		t.Fatalf("edit dynamic: %q", out)
+	}
+	exec(t, s, "touch data.log")
+	if out := s.ExecDetailed("edit data.log").Output; out != "edit: data.log: only .txt and .md files are editable" {
+		t.Fatalf("edit extension: %q", out)
 	}
 }
 

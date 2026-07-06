@@ -19,8 +19,74 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/glamour"
+	glamansi "github.com/charmbracelet/glamour/ansi"
 
 	"github.com/pabloduke/paws-in-the-machine/internal/engine"
+)
+
+var (
+	boolTrue = true
+
+	markdownStyle = glamansi.StyleConfig{
+		Heading: glamansi.StyleBlock{
+			StylePrimitive: glamansi.StylePrimitive{BlockSuffix: "\n"},
+		},
+		H1: glamansi.StyleBlock{
+			StylePrimitive: glamansi.StylePrimitive{
+				BlockPrefix: "// ",
+				Bold:        &boolTrue,
+				Upper:       &boolTrue,
+			},
+		},
+		H2: glamansi.StyleBlock{
+			StylePrimitive: glamansi.StylePrimitive{
+				BlockPrefix: "## ",
+				Bold:        &boolTrue,
+			},
+		},
+		H3: glamansi.StyleBlock{
+			StylePrimitive: glamansi.StylePrimitive{
+				BlockPrefix: "### ",
+				Bold:        &boolTrue,
+			},
+		},
+		Emph: glamansi.StylePrimitive{
+			BlockPrefix: "*",
+			BlockSuffix: "*",
+			Italic:      &boolTrue,
+		},
+		Strong: glamansi.StylePrimitive{
+			BlockPrefix: "**",
+			BlockSuffix: "**",
+			Bold:        &boolTrue,
+		},
+		List: glamansi.StyleList{
+			LevelIndent: 2,
+		},
+		Item: glamansi.StylePrimitive{
+			BlockPrefix: "• ",
+		},
+		Enumeration: glamansi.StylePrimitive{
+			BlockPrefix: ". ",
+		},
+		Task: glamansi.StyleTask{
+			Ticked:   "[x] ",
+			Unticked: "[ ] ",
+		},
+		Code: glamansi.StyleBlock{
+			StylePrimitive: glamansi.StylePrimitive{
+				BlockPrefix: "`",
+				BlockSuffix: "`",
+			},
+		},
+		BlockQuote: glamansi.StyleBlock{
+			Indent:      uintPtr(1),
+			IndentToken: stringPtr("| "),
+		},
+		HorizontalRule: glamansi.StylePrimitive{
+			Format: "--------",
+		},
+	}
 )
 
 // Node is one entry in a fake filesystem: a directory (with children)
@@ -37,6 +103,8 @@ type Node struct {
 	OnCopy   string // flag set when copied onto the deck
 	OnRun    string // flag set when run
 	Copied   bool   // placed by cp — marks a deck-side discovery
+	Touched  bool   // created by touch — user-owned, no edit backup needed
+	BackedUp bool   // edit backup already created
 }
 
 // File and Dir are content-authoring helpers.
@@ -136,13 +204,28 @@ type ExecResult struct {
 	Output   string
 	Done     bool
 	Document *Document
+	Edit     *EditBuffer
 }
 
-// Document is a Markdown file read by cat that the UI can render in
+// Document is a text file read by cat that the UI can render in
 // the terminal reader panel.
 type Document struct {
-	Path     string
-	Markdown string
+	Path string
+	Text string
+	Kind DocumentKind
+}
+
+type DocumentKind string
+
+const (
+	DocumentMarkdown DocumentKind = "markdown"
+	DocumentText     DocumentKind = "text"
+)
+
+// EditBuffer is a text file opened by edit for the UI editor panel.
+type EditBuffer struct {
+	Path string
+	Text string
 }
 
 // NewSession opens the shell on the deck's local host.
@@ -211,6 +294,8 @@ func (s *Session) ExecDetailed(line string) ExecResult {
 		return ExecResult{Output: s.Path()}
 	case "cat":
 		return s.cat(args)
+	case "edit":
+		return s.edit(args)
 	case "grep":
 		return ExecResult{Output: s.grep(args)}
 	case "cp":
@@ -311,6 +396,35 @@ func (s *Session) node(p string) *Node {
 	return find(host.Root, segs)
 }
 
+func (s *Session) resolvedPath(p string) string {
+	host, segs := s.locate(p)
+	path := "/" + strings.Join(segs, "/")
+	if host == s.deck {
+		if rest, ok := strings.CutPrefix(path, s.deck.Home); ok {
+			if rest == "" {
+				return "~"
+			}
+			return "~" + rest
+		}
+	}
+	return path
+}
+
+func editableTextName(name string) bool {
+	return strings.HasSuffix(name, ".txt") || strings.HasSuffix(name, ".md")
+}
+
+func documentKind(name string) (DocumentKind, bool) {
+	switch {
+	case strings.HasSuffix(name, ".md"):
+		return DocumentMarkdown, true
+	case strings.HasSuffix(name, ".txt"):
+		return DocumentText, true
+	default:
+		return "", false
+	}
+}
+
 // --- fake file commands -----------------------------------------------
 
 func (s *Session) ls(args []string) string {
@@ -388,14 +502,38 @@ func (s *Session) cat(args []string) ExecResult {
 			out = append(out, "cat: "+arg+": Is a directory")
 		default:
 			text := s.read(n)
+			if kind, ok := documentKind(n.Name); ok {
+				doc = &Document{Path: s.resolvedPath(arg), Text: text, Kind: kind}
+			}
 			if strings.HasSuffix(n.Name, ".md") {
-				doc = &Document{Path: arg, Markdown: text}
 				text = renderMarkdown(text)
 			}
 			out = append(out, text)
 		}
 	}
 	return ExecResult{Output: strings.Join(out, "\n"), Document: doc}
+}
+
+func (s *Session) edit(args []string) ExecResult {
+	if len(args) != 1 {
+		return ExecResult{Output: "usage: edit <file>"}
+	}
+	n := s.node(args[0])
+	switch {
+	case n == nil:
+		return ExecResult{Output: "edit: " + args[0] + ": No such file or directory"}
+	case n.Dir:
+		return ExecResult{Output: "edit: " + args[0] + ": Is a directory"}
+	case n.TextFn != nil:
+		return ExecResult{Output: "edit: " + args[0] + ": generated file is read-only"}
+	case !editableTextName(n.Name):
+		return ExecResult{Output: "edit: " + args[0] + ": only .txt and .md files are editable"}
+	}
+	path := s.resolvedPath(args[0])
+	return ExecResult{
+		Output: "editing " + path + " in right panel",
+		Edit:   &EditBuffer{Path: path, Text: n.Text},
+	}
 }
 
 func renderMarkdown(text string) string {
@@ -412,20 +550,28 @@ func RenderMarkdown(text string, width int) string {
 	if width > 0 {
 		var r *glamour.TermRenderer
 		r, err = glamour.NewTermRenderer(
-			glamour.WithStylePath("dark"),
+			glamour.WithStyles(markdownStyle),
 			glamour.WithWordWrap(width),
 		)
 		if err == nil {
 			out, err = r.Render(text)
 		}
 	} else {
-		out, err = glamour.Render(text, "dark")
+		var r *glamour.TermRenderer
+		r, err = glamour.NewTermRenderer(glamour.WithStyles(markdownStyle))
+		if err == nil {
+			out, err = r.Render(text)
+		}
 	}
 	if err != nil {
 		return text
 	}
 	return strings.TrimRight(out, "\n")
 }
+
+func uintPtr(v uint) *uint { return &v }
+
+func stringPtr(v string) *string { return &v }
 
 func (s *Session) grep(args []string) string {
 	if len(args) == 0 {
@@ -516,6 +662,8 @@ func (s *Session) cp(args []string) string {
 
 	dstHost, dstSegs := s.locate(args[1])
 	placed := src.clone()
+	placed.Touched = false
+	placed.BackedUp = false
 	if dst := find(dstHost.Root, dstSegs); dst != nil && dst.Dir {
 		// copy into the directory under the source name
 		replaceChild(dst, placed)
@@ -584,9 +732,52 @@ func (s *Session) touch(args []string) string {
 			out = append(out, "touch: cannot touch '"+arg+"': No such file or directory")
 			continue
 		}
-		replaceChild(parent, File(segs[len(segs)-1], ""))
+		n := File(segs[len(segs)-1], "")
+		n.Touched = true
+		replaceChild(parent, n)
 	}
 	return strings.Join(out, "\n")
+}
+
+// SaveEdit writes editor text back to a static .txt/.md file, creating
+// a one-time backup before first overwrite of non-touch-created files.
+func (s *Session) SaveEdit(path, text string) string {
+	host, segs := s.locate(path)
+	n := find(host.Root, segs)
+	switch {
+	case n == nil:
+		return "save failed: " + path + ": No such file or directory"
+	case n.Dir:
+		return "save failed: " + path + ": Is a directory"
+	case n.TextFn != nil:
+		return "save failed: " + path + ": generated file is read-only"
+	case !editableTextName(n.Name):
+		return "save failed: " + path + ": only .txt and .md files are editable"
+	}
+	if !n.Touched && !n.BackedUp {
+		parent := find(host.Root, segs[:len(segs)-1])
+		if parent == nil || !parent.Dir {
+			return "save failed: " + path + ": No such file or directory"
+		}
+		backup := File(nextBackupName(parent, n.Name), n.Text)
+		replaceChild(parent, backup)
+		n.BackedUp = true
+	}
+	n.Text = text
+	return "saved " + s.resolvedPath(path)
+}
+
+func nextBackupName(parent *Node, name string) string {
+	base := name + ".bak"
+	if parent.child(base) == nil {
+		return base
+	}
+	for i := 1; ; i++ {
+		candidate := base + "." + strconv.Itoa(i)
+		if parent.child(candidate) == nil {
+			return candidate
+		}
+	}
 }
 
 // replaceChild inserts c into dir, overwriting a same-named entry.
@@ -853,7 +1044,8 @@ func (s *Session) setFlag(name string) {
 const helpText = `deck shell:
   ls [path]           list directory
   cd <path> / pwd     move around / where am I
-  cat <file>          read a file
+  cat <file>          read a file (.md/.txt open in reader)
+  edit <file>         edit .md/.txt files, autosave on tab
   grep -ir <pat> [path] recursively search file lines
   cp <src> <dst>      copy (~ is always the deck's home)
   mkdir <dir>         create fake directories

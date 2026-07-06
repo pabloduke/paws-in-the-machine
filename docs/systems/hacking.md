@@ -51,7 +51,8 @@ Buddy's generated notes cleanly in the terminal reader panel.
 | `ls [path]` | list a directory; dirs get a `/` suffix |
 | `cd <path>` | change directory (within the current host) |
 | `pwd` | print the working directory |
-| `cat <file>` | print file text; Markdown files open in the reader panel; fires `OnRead` |
+| `cat <file>` | print file text; `.md` and `.txt` files open in the reader panel; fires `OnRead` |
+| `edit <file>` | open a static `.md` or `.txt` file in the right-panel editor; autosaves on Tab |
 | `grep [-ir] <pat> [path...]` | case-insensitive recursive substring search; a match fires `OnRead` |
 | `cp <src> <dst>` | copy a file; copying to the deck fires `OnCopy`. `~` always resolves to the deck's home from any host — no scp needed |
 | `mkdir <dir...>` | create fake directories; parent directories must already exist |
@@ -84,6 +85,14 @@ inside this fake shell. There is no `sudo`, permissions, timestamps,
 file modes, recursive `mkdir -p`, text redirection, or real filesystem
 access. `mkdir` and `touch` mutate only the content-declared in-memory
 host trees.
+
+`edit <file>` is a tiny notepad for static `.md` and `.txt` files.
+Markdown edits are raw source text; formatted display happens when the
+player later `cat`s the file. Dynamic generated files like
+`~/notes/notes.md` are read-only because they are derived from world
+flags. Files created with `touch` save directly. Any other editable text
+file gets a one-time sibling backup before the first save, using
+`<name>.bak`, then `.bak.1`, `.bak.2`, and so on if needed.
 
 Some hosts can require a story route before they answer. If the route
 flag is missing, `ssh microslop` prints a fake network-unreachable error
@@ -159,12 +168,14 @@ exactly):
 - **Terminal** (~60% width when the reader is active, otherwise dominant):
   bordered, titled `CYBERDECK // <host>`, with scrollback bottom-anchored above the in-panel prompt —
   `paws_in_the_machine@host:path $` — where all typing lands in CRT green.
-- **Reader panel** (~40% width when active): opens when `cat` reads a
-  Markdown file, renders the latest document with Glamour at panel width,
-  and stays visible until another Markdown file opens or the terminal closes.
-  The terminal scrollback keeps the typed command plus a short
-  `opened <path> in reader` notice instead of duplicating the full document.
-  Tab toggles reader focus; Up/Down scroll the focused reader.
+- **Reader/editor panel** (~40% width when active): opens when `cat`
+  reads a Markdown or text file, rendering Markdown with Glamour and text
+  as wrapped plain output. `edit` opens the same panel as a multiline text
+  editor. The terminal scrollback keeps the typed command plus a short
+  `opened <path> in reader` or save notice instead of duplicating the full
+  document. Tab toggles reader focus; in the editor, Tab autosaves and
+  returns focus to the terminal. Up/Down scroll the focused reader or move
+  the editor cursor.
 - Narrow terminals keep the terminal usable first; the reader panel
   shrinks. Widths are clamped — no negative-width rendering.
 

@@ -163,6 +163,31 @@ func TestMarkdownCatOpensReaderPanel(t *testing.T) {
 	}
 }
 
+func TestTextCatOpensReaderPanel(t *testing.T) {
+	w := game.NewWorld()
+	mod := newSized(w)
+	mod = typeLine(mod, "use deck")
+	mod = typeLine(mod, "touch myNotes.txt")
+	mod = typeLine(mod, "edit myNotes.txt")
+	mod = typeRunes(mod, "plain note")
+	mod, _ = mod.Update(spec(tea.KeyTab))
+	mod = typeLine(mod, "cat myNotes.txt")
+	mm := mod.(Model)
+	joined := stripANSI(strings.Join(mm.shellEntries, "\n"))
+	if !strings.Contains(joined, "opened ~/myNotes.txt in reader") {
+		t.Fatalf("terminal should show txt reader notice: %q", joined)
+	}
+	if strings.Contains(joined, "plain note") {
+		t.Fatalf("terminal should not duplicate txt reader document: %q", joined)
+	}
+	if reader := readerText(mod); !strings.Contains(reader, "plain note") {
+		t.Fatalf("reader should render txt: %q", reader)
+	}
+	if mm.readerText != "plain note" || mm.readerMD != "" {
+		t.Fatalf("reader text metadata mismatch text=%q md=%q", mm.readerText, mm.readerMD)
+	}
+}
+
 func TestNonMarkdownCatStaysInTerminalScrollback(t *testing.T) {
 	w := game.NewWorld()
 	mod := newSized(w)
@@ -175,6 +200,51 @@ func TestNonMarkdownCatStaysInTerminalScrollback(t *testing.T) {
 	}
 	if joined := stripANSI(strings.Join(mm.shellEntries, "\n")); !strings.Contains(joined, "buried the sun") {
 		t.Fatalf("non-markdown cat output should stay in terminal: %q", joined)
+	}
+}
+
+func TestTerminalEditorAutosavesOnTab(t *testing.T) {
+	w := game.NewWorld()
+	mod := newSized(w)
+	mod = typeLine(mod, "use deck")
+	mod = typeLine(mod, "touch myNotes.md")
+	mod = typeLine(mod, "edit myNotes.md")
+	mm := mod.(Model)
+	if mm.editorPath != "~/myNotes.md" || !mm.readerFocus {
+		t.Fatalf("edit should focus editor, path=%q focus=%v", mm.editorPath, mm.readerFocus)
+	}
+	mod = typeRunes(mod, "# Mine")
+	mod, _ = mod.Update(spec(tea.KeyEnter))
+	mod = typeRunes(mod, "hello")
+	mod, _ = mod.Update(spec(tea.KeyTab))
+	mm = mod.(Model)
+	if mm.editorPath != "" || mm.readerFocus {
+		t.Fatalf("tab should save and return focus, path=%q focus=%v", mm.editorPath, mm.readerFocus)
+	}
+	if joined := stripANSI(strings.Join(mm.shellEntries, "\n")); !strings.Contains(joined, "saved ~/myNotes.md") {
+		t.Fatalf("save notice missing: %q", joined)
+	}
+	mod = typeLine(mod, "cat myNotes.md")
+	if reader := readerText(mod); !strings.Contains(reader, "// MINE") || !strings.Contains(reader, "hello") {
+		t.Fatalf("saved markdown should render in reader: %q", reader)
+	}
+}
+
+func TestTerminalEditorSavesOnEscBeforeClosing(t *testing.T) {
+	w := game.NewWorld()
+	mod := newSized(w)
+	mod = typeLine(mod, "use deck")
+	mod = typeLine(mod, "touch scratch.txt")
+	mod = typeLine(mod, "edit scratch.txt")
+	mod = typeRunes(mod, "saved on close")
+	mod, _ = mod.Update(spec(tea.KeyEsc))
+	if mod.(Model).shell != nil {
+		t.Fatalf("esc should close terminal")
+	}
+	mod = typeLine(mod, "use deck")
+	mod = typeLine(mod, "cat scratch.txt")
+	if reader := readerText(mod); !strings.Contains(reader, "saved on close") {
+		t.Fatalf("esc should save editor before closing: %q", reader)
 	}
 }
 
@@ -343,6 +413,13 @@ func TestMicroslopPasswordPuzzle(t *testing.T) {
 
 func readerText(mod tea.Model) string {
 	return stripANSI(mod.(Model).shellReader.View())
+}
+
+func typeRunes(mod tea.Model, text string) tea.Model {
+	for _, r := range text {
+		mod, _ = mod.Update(kr(r))
+	}
+	return mod
 }
 
 func chooseDialogueContaining(t *testing.T, mod tea.Model, text string) tea.Model {
