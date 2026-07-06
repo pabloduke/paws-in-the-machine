@@ -1,6 +1,8 @@
 # Stats, Checks & Obstacles
 
-Status: core model agreed; open questions listed at bottom.
+Status: agreed; built (modifiers and failure consequences included).
+Remaining: difficulty-scale calibration (a tuning pass, not a
+mechanism).
 
 ## The stat rule: a stat must be a verb
 
@@ -86,7 +88,18 @@ new-game time and persists in world state (and future save files).
 
 ## Modifiers (the flavor lives here)
 
-Situational, composable, content-defined. Examples:
+Situational, composable, content-defined — and declarative: an
+`Attempt` carries `Mods []Mod`, where a `Mod` is flag conditions
+(`If`/`Unless`, same shape as event rules) plus a `Delta` on the
+roll. The effective check is `roll + stat + Σ(applicable deltas) vs
+difficulty`; the effective stat feeds the roll hash, so any changed
+circumstance is a genuinely new roll (XCOM rule preserved), and the
+XP award shrinks by the help you had (`difficulty − effective`,
+floor 1 — a cheesed check pays less). A `Mod` may name a `Consume`
+flag: spent the moment the roll uses it, pass or fail (a distraction
+is used when you move on it).
+
+Examples:
 
 - Neon-lit rooms favor Buddy's orange fur (Stealth bonus).
 - Carrying a human object penalizes Stealth: a cat carrying nothing is
@@ -108,11 +121,37 @@ Situational, composable, content-defined. Examples:
   function plus a `Guarded` component content attaches to obstacle
   entities (the approach matrix as configuration).
 
+## Failure is a fork, not a wall
+
+A failed check is a story state the world reacts to, never a bare
+"try again." One mechanism covers every severity:
+
+- An `Attempt` declares `OnFail []string` — flags set when it fails.
+  Everything downstream is ordinary blackboard content: an event
+  beat narrates the alert, a journal entry records it, a negative
+  `Mod` on later attempts makes the alerted world genuinely harder,
+  dialogue and presence can branch on it. Failure changes the
+  inputs, so the XCOM rule's message ("change something") is
+  enforced by the mechanics, not just the prose.
+- **Soft**: no `OnFail` — refusal prose only.
+- **Stateful**: `OnFail` sets an alert flag; content wires it into
+  mods/events/dialogue (dogs escalate this way).
+- **Hard**: `Seals` names a flag that closes the approach for good
+  (route burned), refusing with `SealedText` — no roll, no XP, no
+  consumption.
+
+This is cheap branching: one flag per interesting failure, picked up
+independently by every system that reads flags. Not every failure
+needs a flag — content spends them only where failure is
+interesting.
+
+Demo beat (placeholder content): failing the corpo hound sets
+`hound_alerted` (−2 on later attempts, an event beat, a journal
+entry); knocking the espresso machine shatters a mug
+(`mug_shattered`, +4, consumed by the roll it covers). Fail → knock
+→ sneak clears.
+
 ## Open questions
 
-1. Failure consequences, concretely: shooed away (soft), area alert
-   flag (stateful), route burned (hard)? Probably varies by observer
-   type.
-2. Difficulty scale calibration (what Stealth 10 means against what
+1. Difficulty scale calibration (what Stealth 10 means against what
    range).
-3. Modifier implementation (not built yet; spec'd only).

@@ -41,12 +41,50 @@ func Check(w *engine.World, id string, stat, difficulty int) bool {
 	return roll+stat >= difficulty
 }
 
-// Attempt is one open door through an obstacle: a difficulty and the
-// prose for each outcome.
+// Mod is a situational modifier: a circumstance, read from flags,
+// that shifts an attempt (docs/systems/stealth.md). Circumstances
+// are telegraphed in prose by content; the numbers stay hidden.
+type Mod struct {
+	If     []string // flags that must all be true
+	Unless []string // flags that must all be false
+	Delta  int      // + works for Buddy, − against him
+	// Consume names a flag spent by rolling with this mod, pass or
+	// fail — a distraction is used the moment you move on it.
+	Consume string
+}
+
+// applies reports whether the circumstance currently holds.
+func (m Mod) applies(w *engine.World) bool {
+	for _, f := range m.If {
+		if !w.Flags[f] {
+			return false
+		}
+	}
+	for _, f := range m.Unless {
+		if w.Flags[f] {
+			return false
+		}
+	}
+	return true
+}
+
+// Attempt is one open door through an obstacle: a difficulty, the
+// prose for each outcome, and what the attempt does to the world.
 type Attempt struct {
 	Difficulty int
 	Success    string
 	Failure    string
+
+	// Mods are the situational modifiers that can shift this attempt.
+	Mods []Mod
+	// OnFail flags are set when the attempt fails: failure is a story
+	// state, not a retry gate — events, dialogue, presence, and Mods
+	// on later attempts all read these off the blackboard.
+	OnFail []string
+	// Seals names a flag that closes this approach for good (a burned
+	// route); SealedText is its refusal prose.
+	Seals      string
+	SealedText string
 }
 
 // Guarded makes an entity an obstacle that gates a destination. Content
@@ -85,8 +123,34 @@ func (g Guarded) Handle(w *engine.World, self *engine.Entity, cmd engine.Command
 		return fmt.Sprintf("That's not going to work on %s.", self.Name), true
 	}
 
+	if attempt.Seals != "" && w.Flags[attempt.Seals] {
+		if attempt.SealedText != "" {
+			return attempt.SealedText, true
+		}
+		return fmt.Sprintf("That door through %s is closed for good.", self.Name), true
+	}
+
+	// Circumstances shift the attempt; changed circumstances are new
+	// inputs, so the XCOM rule re-rolls them (Check hashes the
+	// effective stat). Distractions are spent by the roll either way.
+	effective := approach.stat(w)
+	for _, mod := range attempt.Mods {
+		if !mod.applies(w) {
+			continue
+		}
+		effective += mod.Delta
+		if mod.Consume != "" {
+			delete(w.Flags, mod.Consume)
+		}
+	}
+
 	id := self.ID + "." + string(approach)
-	if !Check(w, id, approach.stat(w), attempt.Difficulty) {
+	if !Check(w, id, effective, attempt.Difficulty) {
+		// Failure is a fork, not a wall: it writes to the blackboard
+		// and the world reacts (events, dialogue, later Mods).
+		for _, f := range attempt.OnFail {
+			w.Flags[f] = true
+		}
 		return attempt.Failure, true
 	}
 
@@ -94,8 +158,9 @@ func (g Guarded) Handle(w *engine.World, self *engine.Entity, cmd engine.Command
 	dest := w.FindID(g.Dest)
 	dest.Add(w.Player)
 	// The XP award is the roll you needed: harder-for-you pays more,
-	// and grown stats shrink old rewards (self-balancing).
-	award := attempt.Difficulty - approach.stat(w)
+	// and grown stats (or a stacked deck of modifiers) shrink the
+	// reward (self-balancing).
+	award := attempt.Difficulty - effective
 	if award < 1 {
 		award = 1
 	}

@@ -38,15 +38,16 @@ one package under `internal/systems/<name>/` — see Architecture in the readme.
 
 ### Headline systems
 
-6. ✅ **Stats/checks/obstacles** (skeleton; XP earn/spend, failure
-   consequences, and modifiers still open) — the core mechanic: nobody
-   suspects a
+6. ✅ **Stats/checks/obstacles** (difficulty calibration is a later
+   tuning pass) — the core mechanic: nobody suspects a
    cat. Three stats, each a verb (Stealth=sneak past, Agility=parkour
    around, Charm=charm); XP is the growth currency spent to raise them.
    Obstacles declare an approach matrix (per-approach difficulty, or
    impossible). Hidden seeded rolls, XCOM rule (identical attempt,
-   identical result), prose-telegraphed circumstances. The only dice in
-   the game. See `systems/stealth.md`.
+   identical result). Circumstances are declarative flag-conditioned
+   modifiers (consumable distractions included); failure is a fork,
+   not a wall — `OnFail` flags the world reacts to, `Seals` for
+   burned routes. The only dice in the game. See `systems/stealth.md`.
 7. 📝 **NPCs/dialogue** — first dialogue slice is built: `talk <npc>`
    enters a numbered node graph with visible-choice requirements and
    flag/XP effects. Presence is built: positions are a function of

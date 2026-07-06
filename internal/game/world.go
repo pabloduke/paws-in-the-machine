@@ -41,6 +41,7 @@ func NewWorld() *engine.World {
 	w.Rules = append(w.Rules, lairEvents()...)
 	w.Rules = append(w.Rules, coffeeshopEvents()...)
 	w.Journal = append(w.Journal, lairJournal()...)
+	w.Journal = append(w.Journal, coffeeshopJournal()...)
 
 	// Idioms a player will reach for that the generic parser can't guess.
 	w.Rewrites["log in"] = "use deck"
