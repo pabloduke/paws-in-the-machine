@@ -18,9 +18,17 @@ const (
 	flagBaristaSoftened = "barista_softened"
 	flagBaristaSawShard = "barista_saw_shard"
 
+	// Set by check failures and read back as modifiers/events
+	// (docs/systems/stealth.md: failure is a story state).
+	flagHoundAlerted = "hound_alerted"
+	// Set by knocking the espresso machine; consumed by the sneak
+	// roll it distracts for.
+	flagMugShattered = "mug_shattered"
+
 	// Once-markers for event rules (docs/systems/events.md).
 	flagSeenWhisperReaction = "seen_whisper_reaction"
 	flagSeenCounterEmpty    = "seen_counter_empty"
+	flagSeenHoundAlerted    = "seen_hound_alerted"
 )
 
 // One-shot XP award markers (awardOnce / dialogue.AwardOnce).

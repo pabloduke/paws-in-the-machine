@@ -101,8 +101,15 @@ func buildCoffeeshop() *engine.Entity {
 		engine.Description{Text: "(Placeholder) A chrome espresso machine, " +
 			"hissing like something alive."},
 		engine.On{Verb: "knock", Do: func(w *engine.World) string {
-			return "(Placeholder) You put a paw on the chrome. It is heavy, " +
-				"hot, and unimpressed."
+			if w.Flags[flagMugShattered] {
+				return "(Placeholder) The barista is still sweeping up the " +
+					"last mug. Knocking again buys you nothing new — yet."
+			}
+			w.Flags[flagMugShattered] = true
+			return "(Placeholder) You put a paw on the chrome. The machine " +
+				"is heavy, hot, and unimpressed — but the mug drying on its " +
+				"lid isn't. It detonates on the tile, and every head in the " +
+				"shop turns toward the sound."
 		}},
 	)
 
@@ -129,6 +136,16 @@ func buildCoffeeshop() *engine.Entity {
 					Failure: "(Placeholder) A low growl. The hound's eyes " +
 						"track you before you've taken two steps. Not " +
 						"like this — something has to change.",
+					// Failure alerts the hound (dogs escalate); the mug
+					// distraction is spent by the roll it covers. With
+					// the pinned seed the demo loop is: fail at 10,
+					// alerted −2, mug +4 → 12 clears it.
+					OnFail: []string{flagHoundAlerted},
+					Mods: []checks.Mod{
+						{If: []string{flagHoundAlerted}, Delta: -2},
+						{If: []string{flagMugShattered}, Delta: +4,
+							Consume: flagMugShattered},
+					},
 				},
 				checks.Parkour: {
 					Difficulty: 18,
@@ -138,6 +155,10 @@ func buildCoffeeshop() *engine.Entity {
 					Failure: "(Placeholder) You misjudge the counter's " +
 						"grease factor and abort the run. The hound " +
 						"huffs. Not like this — something has to change.",
+					OnFail: []string{flagHoundAlerted},
+					Mods: []checks.Mod{
+						{If: []string{flagHoundAlerted}, Delta: -2},
+					},
 				},
 			},
 			Refusals: map[checks.Approach]string{
@@ -168,5 +189,27 @@ func coffeeshopEvents() []engine.When {
 					"server rack."
 			},
 		},
+		// A failed run past the hound is a story state, not a retry
+		// gate (docs/systems/stealth.md): the alert lands as a beat,
+		// and the same flag stiffens later attempts via a Mod.
+		{
+			Flags: []string{flagHoundAlerted},
+			Once:  flagSeenHoundAlerted,
+			Do: func(w *engine.World) string {
+				return "(Placeholder) The hound is on its feet now, nose " +
+					"working the air, eyes sweeping the floor at cat " +
+					"height. Word travels up a corpo dog's leash. You'll " +
+					"need to change the situation — or be twice as good."
+			},
+		},
+	}
+}
+
+// coffeeshopJournal: derived entries, visible once their flag is true.
+func coffeeshopJournal() []engine.Entry {
+	return []engine.Entry{
+		{Flag: flagHoundAlerted, Text: "(Placeholder) The corpo hound at " +
+			"the coffee shop has my scent. A distraction might reset " +
+			"the odds."},
 	}
 }
