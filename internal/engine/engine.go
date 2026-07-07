@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -154,6 +155,9 @@ func Look(w *World) string {
 		for dir := range x.Dirs {
 			dirs = append(dirs, dir)
 		}
+		// Deterministic order: the room view re-renders Look every
+		// UI frame, and unsorted map iteration made exits shuffle.
+		sort.Strings(dirs)
 		b.WriteString("\n\nExits: " + strings.Join(dirs, ", "))
 	}
 	return b.String()
