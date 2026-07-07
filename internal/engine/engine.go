@@ -51,8 +51,6 @@ func (e *Engine) execute(input string) string {
 		return Inventory(w)
 	case "stats":
 		return StatSheet(w)
-	case "journal":
-		return JournalText(w)
 	case "train":
 		return Train(w, cmd.Object)
 	case "help":
@@ -240,8 +238,8 @@ const helpText = `Commands:
   charm <thing>         weaponized cuteness (also: purr)
   talk <person>         start a conversation
   stats                 your numbers
-  train <stat>          spend a stat point (earned by leveling up)
-  inventory (i)         what you're carrying
-  journal (j)           what you've learned
-  save / load           keep your place / pick it back up
-  quit (q)              end the session`
+	train <stat>          spend a stat point (earned by leveling up)
+	inventory (i)         what you're carrying
+	journal (j)           what you've learned
+	save / load           keep your place / pick it back up
+	quit (q)              end the session`

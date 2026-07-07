@@ -86,10 +86,10 @@ func (m Model) journalView() string {
 	b.WriteString(roomTitleStyle.Render("JOURNAL"))
 	entries := m.eng.World.JournalEntries()
 	if len(entries) == 0 {
-		b.WriteString("\n\n" + dimStyle.Render("nothing yet — the city keeps its secrets"))
+		b.WriteString("\n\n" + dimStyle.Render("nothing yet - the city keeps its secrets"))
 	} else {
 		for _, e := range entries {
-			b.WriteString("\n\n· " + e)
+			b.WriteString("\n\n- " + e)
 		}
 	}
 	b.WriteString("\n\n" + dimStyle.Render("esc to close"))

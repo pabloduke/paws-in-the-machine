@@ -57,7 +57,7 @@ one package under `internal/systems/<name>/` — see Architecture in the readme.
    See `systems/dialogue.md`.
 8. 📝 **Hacking** — first slice built: logging into the deck opens a full-screen
    terminal (shell over in-memory hosts/files/processes: ls, cd, cat,
-   grep, cp, ssh, curl, ps, kill, run) with a quest panel. Buddy stays
+   grep, cp, scan, ssh, curl, ps, kill, run) with a status panel. Buddy stays
    at the deck the whole time — it's a terminal session. Hooks set flags.
    No Hacking stat, no rolls, ever (design rule in the spec): stats
    are character skill, the terminal is player skill; ICE is puzzle,
@@ -70,8 +70,9 @@ one package under `internal/systems/<name>/` — see Architecture in the readme.
 
 ### Supporting
 
-10. ✅ **Quest/objective tracking** — journal built on flags: derived,
-    never stored (`Entry{Flag, Text}` content + `journal` modal).
+10. ✅ **Notes/discovery tracking** — Buddy's `~/notes/notes.md` is built
+    from flags: derived, never stored, and written as what Buddy has learned
+    or found rather than what to do next.
     See `systems/events.md`.
 11. ✅ **Save/load** — serialize entity positions + flags (components
     hold config only; Placed entities re-derive). One slot,

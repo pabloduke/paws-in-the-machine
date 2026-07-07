@@ -1,7 +1,7 @@
 # Hacking
 
-Status: first playable slice built; ICE, credential gates, and XP payouts
-still open.
+Status: first playable slice built; ICE, richer credential gates, and XP
+payouts still open.
 
 Buddy is a cat sitting at a scavenged deck. He doesn't go anywhere: he
 logs into the deck — his powerful box — and works from a terminal,
@@ -33,7 +33,9 @@ Implementation note: it's all game fiction over in-memory content —
 `internal/systems/hacking` imports only the engine and stdlib string
 helpers. Hosts, files, processes, and `curl`-able resources are data
 declared in the game package, exactly like rooms; the commands operate
-on that data and nothing else.
+on that data and nothing else. Markdown notes render through Glamour so
+`cat` can show Buddy's generated notes cleanly in the terminal reader
+panel.
 
 ## Data model (`internal/systems/hacking`)
 
@@ -41,18 +43,25 @@ on that data and nothing else.
   or a file (text). Files may carry hooks (below) and a `RunText` if
   they're executable.
 - **Host** — a named system: a filesystem root, a process table,
-  `curl`-served resources, and a connect banner. The deck itself is a
-  host (the local one). The set of hosts is a **net**, declared by
+  `curl`-served resources, configured services/ports, an optional fake
+  password, an optional route flag, and a connect banner. The deck itself
+  is a host (the local one). The set of hosts is a **net**, declared by
   game content the same way rooms are.
+- **Service** — one fake port on a host: port number, protocol (`ssh`,
+  `ftp`, `telnet`, `http`), state (`open`, `closed`, `filtered`, `hidden`),
+  optional open-when flag, and optional password.
 - **Process** — `{PID, name, state}` plus an optional `OnKill` hook.
 - **Session** — `{current host, cwd, ssh stack}` — the state behind
   the screen. Created on login, discarded when the terminal closes; the
   net (and anything copied onto the deck) lives on the content and
   persists.
 - **Deck** — a data-only marker component (the `dialogue.Talkable`
-  pattern) attached to the deck entity: it carries the net, the local
-  host name, and the objective hint list. Engine dispatch declines all
-  verbs; the UI owns the interactive session.
+  pattern) attached to the deck entity: it carries the net and the local
+  host name. Engine dispatch declines all verbs; the UI owns the
+  interactive session.
+- **Dynamic file** — a fake file whose text is rendered from world state
+  when read or searched. Buddy's `~/notes/notes.md` uses this for notes
+  derived from flags, without duplicating save state.
 
 ## Commands (v1)
 
@@ -61,12 +70,14 @@ on that data and nothing else.
 | `ls [path]` | list a directory; dirs get a `/` suffix |
 | `cd <path>` | change directory (within the current host) |
 | `pwd` | print the working directory |
-| `cat <file>` | print file text; fires `OnRead` |
-| `grep <pat> <file...>` | substring match over file lines; a match fires `OnRead` |
+| `cat <file>` | print file text; `.md` and `.txt` files open in the reader panel; fires `OnRead` |
+| `edit <file>` | open a static `.md` or `.txt` file in the right-panel editor; autosaves on Tab |
+| `grep [-ir] <pat> [path...]` | case-insensitive recursive substring search; a match fires `OnRead` |
 | `cp <src> <dst>` | copy a file; copying to the deck fires `OnCopy`. `~` always resolves to the deck's home from any host — no scp needed |
 | `mkdir <dir...>` | create fake directories; parent directories must already exist |
 | `touch <file...>` | create empty fake files; existing files are unchanged |
-| `ssh <host>` | connect to a host on the net (pushes the current one) |
+| `scan <host>` | list configured ports and states for a host |
+| `ssh <host> [-p port]` | connect to SSH, defaulting to port 22 |
 | `exit` / `logout` | pop back one connection; at the deck, closes the terminal and returns to the room |
 | `curl <host>[/path]` | print a served resource — the recon tool |
 | `ps` | list the current host's processes |
@@ -82,11 +93,56 @@ read like the real strings (`cat: x: No such file or directory`,
 `curl: (6) Could not resolve host: ...`), `grep` with no match prints
 nothing.
 
+`grep` uses the useful puzzle shape: `grep -ir <pattern> <path...>`.
+Search is case-insensitive and recursive so players can quickly hunt clues
+across fake host trees without memorizing exact filenames first. Directories
+are searched recursively, files searched directly, and a matched hooked file
+still counts as read. With no path, `grep` searches the current directory.
+
 Creation commands are intentionally simple: Buddy is effectively root
 inside this fake shell. There is no `sudo`, permissions, timestamps,
 file modes, recursive `mkdir -p`, text redirection, or real filesystem
 access. `mkdir` and `touch` mutate only the content-declared in-memory
 host trees.
+
+`edit <file>` is a tiny notepad for static `.md` and `.txt` files.
+Markdown edits are raw source text; formatted display happens when the
+player later `cat`s the file. Dynamic generated files like
+`~/notes/notes.md` are read-only because they are derived from world
+flags. Files created with `touch` save directly. Any other editable text
+file gets a one-time sibling backup before the first save, using
+`<name>.bak`, then `.bak.1`, `.bak.2`, and so on if needed.
+
+Some hosts can require a story route before they answer. If the route
+flag is missing, `ssh microslop` prints a fake network-unreachable error
+and leaves Buddy on the deck. This models the non-terminal part of a
+hack: social engineering, stealth, and physically plugging the carried
+deck into a local jack.
+
+For hardened corpo targets, it is valid for every externally visible port
+to be closed or filtered at first. Buddy does not run a magic "firewall
+breacher" program to force ports open. Instead, overworld actions create
+legitimate-looking holes: starting diagnostics, plugging into an internal
+maintenance VLAN, tricking someone into remote support, or physically
+bridging forgotten hardware. The terminal reports the wall; Buddy changes
+the world so a service becomes reachable.
+
+Some hosts can also ask for a fake password. `ssh microslop` and
+`ssh microslop -p 22` both target SSH on port 22 unless content config says
+otherwise. A password-required line changes the prompt to `password: `. The
+next line is compared to the service or host's content-declared password. A
+correct password connects; a wrong one prints `Permission denied, please try
+again.` and leaves Buddy on the current host. Passwords are intentionally
+simple puzzle words, not real authentication.
+
+For the first Microslop beat, the intended setup is:
+
+- The barista was fired from Microslop and can reveal the simple password
+  after Buddy earns enough trust.
+- Buddy always carries the deck.
+- Buddy must get past the corpo hound into the back room and use the
+  server rack to patch the deck into the local network before `ssh
+  microslop` can reach the host.
 
 ## Hooks — the progression surface
 
@@ -98,9 +154,18 @@ Content attaches flag names to files and processes:
 - `OnRun` — set when the executable is run.
 
 Each hook sets a World flag. Dialogue, room descriptions, checks, and
-quests already read flags, so `cat`-ing the right log can change what
-the barista says. Discovery texture comes from reading: hostnames are
+Buddy's notes already read flags, so `cat`-ing the right log can change
+what the barista says. Discovery texture comes from reading: hostnames are
 found inside files and `curl` indexes, not given away.
+
+## Buddy's notes
+
+The player-facing notes surface is a file on the deck, not a menu. Buddy keeps
+`~/notes/notes.md`, a Markdown-flavored text file generated from flags.
+Players read it with `cat ~/notes/notes.md` and can search it with
+`grep -ir <pattern> ~/notes`. Notes are written as things Buddy has found
+or inferred, with vague clue texture allowed, but not explicit next-step
+instructions.
 
 ## Logging in
 
@@ -108,8 +173,9 @@ A deck in scope appears in the left panel (the hub-travel panel) under
 a green `// UPLINK` subhead, set apart from the city districts to read
 as a log-in target rather than a place you walk to. Tab focuses the
 panel, arrows move, Enter on the deck row opens the terminal — the same
-navigation as hub travel. `DecksInScope` is scope-based, so the deck
-only shows while Buddy is actually at it. (Typing `log in` / `use deck`
+navigation as hub travel. `DecksInScope` includes visible decks and the
+deck Buddy carries, so the terminal is available outside the lair when
+the story wants physical plug-in beats. (Typing `log in` / `use deck`
 still works as an alias path.)
 
 ## Screen layout
@@ -118,21 +184,24 @@ Full-screen swap while a session is live (the three-panel room UI and
 LOG are hidden, not destroyed — closing the terminal restores them
 exactly):
 
-- **Terminal** (~75% width): bordered, titled `CYBERDECK // <host>`,
-  scrollback viewport for narration/output (PgUp/PgDn), and a prompt
-  line attached beneath it — `paws_in_the_machine@host:path $` — where all typing
-  lands.
-- **Quest panel** (~25%, read-only): OBJECTIVE (first unmet entry in
-  the deck's flag→hint list, else a placeholder), LOCATION
-  (`host:/path`), DISCOVERIES (files copied onto the deck, "none yet"
-  when empty), STATUS (link/ICE/trace placeholders).
-- Narrow terminals keep the terminal usable first; the quest panel
+- **Terminal** (~60% width when the reader is active, otherwise dominant):
+  bordered, titled `CYBERDECK // <host>`, with scrollback bottom-anchored above the in-panel prompt —
+  `paws_in_the_machine@host:path $` — where all typing lands in CRT green.
+- **Reader/editor panel** (~40% width when active): opens when `cat`
+  reads a Markdown or text file, rendering Markdown with Glamour and text
+  as wrapped plain output. `edit` opens the same panel as a multiline text
+  editor. The terminal scrollback keeps the typed command plus a short
+  `opened <path> in reader` or save notice instead of duplicating the full
+  document. Tab toggles reader focus; in the editor, Tab autosaves and
+  returns focus to the terminal. Up/Down scroll the focused reader or move
+  the editor cursor.
+- Narrow terminals keep the terminal usable first; the reader panel
   shrinks. Widths are clamped — no negative-width rendering.
 
 ## Later
 
-- Credential gates on `ssh` (a host requiring a key file present on
-  the deck).
+- Credential gates on `ssh` beyond simple passwords (a host requiring a key
+  file present on the deck).
 - ICE as processes that fight back; traces; disconnect pressure.
 - XP payouts for completed intrusion beats (content-assigned per
   `stealth.md` — hacks are played, not rolled).

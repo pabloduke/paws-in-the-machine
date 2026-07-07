@@ -1,11 +1,11 @@
 # Events & Triggers
 
-Status: agreed; first slice built (rules, modal, derived journal).
+Status: agreed; first slice built (rules, modal, derived notes).
 
 The overworld's IF-THEN machine: rules that make the world react to
 game state. Generalizes the `engine.On` escape hatch (system #5 in
-docs/SYSTEMS.md). NPC presence, quest journal, and story beats are
-all planned as content on top of this one mechanism.
+docs/SYSTEMS.md). NPC presence, Buddy's notes, and story beats are all
+planned as content on top of this one mechanism.
 
 ## Model
 
@@ -69,10 +69,10 @@ also lands in the LOG so the transcript stays complete. The modal is
 an eventsSurface in `internal/ui/events_ui.go` + one registry line
 (docs/BOUNDARIES.md).
 
-## Journal
+## Notes
 
-The journal (system #10) is the first consumer, and it is **derived,
-not stored**: journal entries are declared content keyed to flags —
+Buddy's notes (system #10) are the first consumer, and they are **derived,
+not stored**: note entries are declared content keyed to flags —
 
 ```go
 events.Entry{Flag: flagHeardWhisper,
@@ -80,11 +80,11 @@ events.Entry{Flag: flagHeardWhisper,
            something they call the sun."}
 ```
 
-— and the journal view is every declared entry whose flag is true,
+— and the notes file is every declared entry whose flag is true,
 in declaration order. Nothing persists beyond flags the World
-already holds; save/load is untouched; the journal can never be
-stale because it is recomputed from state on open (same rule as the
-YOU SEE panel). Viewed via a `journal` verb → modal.
+already holds; save/load is untouched; the notes can never be stale
+because they are recomputed from state when `~/notes/notes.md` is read
+or searched (same rule as the YOU SEE panel).
 
 ## Ordering
 
@@ -103,10 +103,9 @@ content, not a scheduling feature to build.
   `dialogue.Pick`; the UI calls it once more on terminal logout.
   Rules are **not evaluated while the hacking terminal is open** —
   flags write live, the world reacts when Buddy stands up.
-- Rules and journal entries are content: declared in
+- Rules and note entries are content: declared in
   `internal/game/<area>.go` next to the rooms they concern
   (`lairEvents`, `lairJournal`), appended in `world.go`, using flag
   constants from `flags.go`.
 - UI: `internal/ui/events_ui.go` — `eventsSurface` (beat modal, fed
-  from `World.Pending`) and `journalSurface` (`journal` verb) — plus
-  two registry lines in `model.go`.
+  from `World.Pending`) — plus one registry line in `model.go`.

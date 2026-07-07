@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -107,6 +108,13 @@ type Model struct {
 	shellEntries []string // terminal scrollback, separate from the LOG
 	shellVP      viewport.Model
 	shellInput   textinput.Model
+	shellReader  viewport.Model
+	shellEditor  textarea.Model
+	readerTitle  string
+	readerMD     string
+	readerText   string
+	readerFocus  bool
+	editorPath   string
 
 	entries  []string // transcript lines shown in the LOG
 	commands []string // executed commands, oldest first

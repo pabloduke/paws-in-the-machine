@@ -3,12 +3,13 @@
 // cat at a terminal, connected to the deck (his powerful box) and
 // sshing outward from there, the way a person sits at a laptop logged
 // into a bigger machine. Hosts, filesystems, processes, and the
-// commands that poke them (ls, cd, cat, grep, cp, ssh, curl, ps, kill,
+// commands that poke them (ls, cd, cat, grep, cp, scan, ssh, curl, ps, kill,
 // run) are all game fiction over in-memory content declared by the
 // game package — the resemblance to real tools ends at the prompt.
-// Implementation note: the package imports only the engine and stdlib
-// string helpers; hooks on files and processes set world flags, which
-// is how a hack advances the story.
+// Implementation note: hooks on files and processes set world flags,
+// which is how a hack advances the story. Markdown notes render through
+// Glamour so the in-game cat output can stay readable without giving the
+// filesystem real access.
 package hacking
 
 import (
@@ -17,7 +18,75 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/charmbracelet/glamour"
+	glamansi "github.com/charmbracelet/glamour/ansi"
+
 	"github.com/pabloduke/paws-in-the-machine/internal/engine"
+)
+
+var (
+	boolTrue = true
+
+	markdownStyle = glamansi.StyleConfig{
+		Heading: glamansi.StyleBlock{
+			StylePrimitive: glamansi.StylePrimitive{BlockSuffix: "\n"},
+		},
+		H1: glamansi.StyleBlock{
+			StylePrimitive: glamansi.StylePrimitive{
+				BlockPrefix: "// ",
+				Bold:        &boolTrue,
+				Upper:       &boolTrue,
+			},
+		},
+		H2: glamansi.StyleBlock{
+			StylePrimitive: glamansi.StylePrimitive{
+				BlockPrefix: "## ",
+				Bold:        &boolTrue,
+			},
+		},
+		H3: glamansi.StyleBlock{
+			StylePrimitive: glamansi.StylePrimitive{
+				BlockPrefix: "### ",
+				Bold:        &boolTrue,
+			},
+		},
+		Emph: glamansi.StylePrimitive{
+			BlockPrefix: "*",
+			BlockSuffix: "*",
+			Italic:      &boolTrue,
+		},
+		Strong: glamansi.StylePrimitive{
+			BlockPrefix: "**",
+			BlockSuffix: "**",
+			Bold:        &boolTrue,
+		},
+		List: glamansi.StyleList{
+			LevelIndent: 2,
+		},
+		Item: glamansi.StylePrimitive{
+			BlockPrefix: "• ",
+		},
+		Enumeration: glamansi.StylePrimitive{
+			BlockPrefix: ". ",
+		},
+		Task: glamansi.StyleTask{
+			Ticked:   "[x] ",
+			Unticked: "[ ] ",
+		},
+		Code: glamansi.StyleBlock{
+			StylePrimitive: glamansi.StylePrimitive{
+				BlockPrefix: "`",
+				BlockSuffix: "`",
+			},
+		},
+		BlockQuote: glamansi.StyleBlock{
+			Indent:      uintPtr(1),
+			IndentToken: stringPtr("| "),
+		},
+		HorizontalRule: glamansi.StylePrimitive{
+			Format: "--------",
+		},
+	}
 )
 
 // Node is one entry in a fake filesystem: a directory (with children)
@@ -28,15 +97,21 @@ type Node struct {
 	Dir      bool
 	Text     string  // file contents: story prose, fake configs, clues
 	Children []*Node // directory entries
-	RunText  string  // non-empty marks the file executable via `run`
-	OnRead   string  // flag set when cat'ed or grep-matched
-	OnCopy   string  // flag set when copied onto the deck
-	OnRun    string  // flag set when run
-	Copied   bool    // placed by cp — feeds the DISCOVERIES panel
+	TextFn   func(*engine.World) string
+	RunText  string // non-empty marks the file executable via `run`
+	OnRead   string // flag set when cat'ed or grep-matched
+	OnCopy   string // flag set when copied onto the deck
+	OnRun    string // flag set when run
+	Copied   bool   // placed by cp — marks a deck-side discovery
+	Touched  bool   // created by touch — user-owned, no edit backup needed
+	BackedUp bool   // edit backup already created
 }
 
 // File and Dir are content-authoring helpers.
 func File(name, text string) *Node { return &Node{Name: name, Text: text} }
+func DynamicFile(name string, fn func(*engine.World) string) *Node {
+	return &Node{Name: name, TextFn: fn}
+}
 func Dir(name string, children ...*Node) *Node {
 	return &Node{Name: name, Dir: true, Children: children}
 }
@@ -68,15 +143,40 @@ type Process struct {
 	OnKill  string // flag set when killed
 }
 
+const (
+	ProtocolSSH    = "ssh"
+	ProtocolFTP    = "ftp"
+	ProtocolTelnet = "telnet"
+	ProtocolHTTP   = "http"
+
+	StateOpen     = "open"
+	StateClosed   = "closed"
+	StateFiltered = "filtered"
+	StateHidden   = "hidden"
+)
+
+// Service is one configured port on a fake host. OpenWhen is a story
+// flag that exposes an otherwise-filtered service.
+type Service struct {
+	Port     int
+	Protocol string
+	State    string
+	OpenWhen string
+	Password string
+}
+
 // Host is one fake system on the content-declared net. The deck
 // itself is a host; remote ones are reached with the ssh alias.
 type Host struct {
-	Name   string
-	Root   *Node             // fake filesystem root (a Dir)
-	Home   string            // path of the shell's home dir, e.g. "/home/paws_in_the_machine"
-	Banner string            // printed on connect
-	Procs  []*Process        // fake process table
-	Served map[string]string // fake curl resources: path -> body ("/" for the bare host)
+	Name     string
+	Root     *Node             // fake filesystem root (a Dir)
+	Home     string            // path of the shell's home dir, e.g. "/home/paws_in_the_machine"
+	Banner   string            // printed on connect
+	Password string            // fake password required before connecting; empty means open
+	Require  string            // fake network route flag required before connecting
+	Procs    []*Process        // fake process table
+	Served   map[string]string // fake curl resources: path -> body ("/" for the bare host)
+	Services []*Service        // fake ports exposed by the host
 }
 
 // conn is one held connection on the ssh stack.
@@ -89,12 +189,43 @@ type conn struct {
 // the terminal shows, the working directory, and the connection stack.
 // Buddy never moves; the session is the thing that travels.
 type Session struct {
-	w     *engine.World
-	net   map[string]*Host
-	deck  *Host
-	host  *Host
-	cwd   []string
-	stack []conn
+	w              *engine.World
+	net            map[string]*Host
+	deck           *Host
+	host           *Host
+	cwd            []string
+	stack          []conn
+	pending        *Host
+	pendingService *Service
+}
+
+// ExecResult is the structured result of a fake shell command.
+type ExecResult struct {
+	Output   string
+	Done     bool
+	Document *Document
+	Edit     *EditBuffer
+}
+
+// Document is a text file read by cat that the UI can render in
+// the terminal reader panel.
+type Document struct {
+	Path string
+	Text string
+	Kind DocumentKind
+}
+
+type DocumentKind string
+
+const (
+	DocumentMarkdown DocumentKind = "markdown"
+	DocumentText     DocumentKind = "text"
+)
+
+// EditBuffer is a text file opened by edit for the UI editor panel.
+type EditBuffer struct {
+	Path string
+	Text string
 }
 
 // NewSession opens the shell on the deck's local host.
@@ -115,7 +246,7 @@ func NewSession(w *engine.World, net map[string]*Host, deckHost string) (*Sessio
 // HostName is the current fake host, for the terminal title bar.
 func (s *Session) HostName() string { return s.host.Name }
 
-// Path is the current fake working directory, for the quest panel.
+// Path is the current fake working directory, for the terminal status panel.
 func (s *Session) Path() string { return "/" + strings.Join(s.cwd, "/") }
 
 // login is Buddy's handle — the name the net knows him by.
@@ -123,6 +254,9 @@ const login = "paws_in_the_machine"
 
 // Prompt renders the shell prompt, home shown as ~ on the deck.
 func (s *Session) Prompt() string {
+	if s.pending != nil {
+		return "password: "
+	}
 	path := s.Path()
 	if s.host == s.deck {
 		if rest, ok := strings.CutPrefix(path, s.deck.Home); ok {
@@ -152,45 +286,60 @@ func (s *Session) Discoveries() []string {
 // Exec runs one typed line against the session. done reports that the
 // session ended — `exit`/`logout` popped all the way back off the deck.
 func (s *Session) Exec(line string) (out string, done bool) {
+	result := s.ExecDetailed(line)
+	return result.Output, result.Done
+}
+
+// ExecDetailed runs one typed line and returns output plus optional UI
+// metadata, such as a Markdown document read by cat.
+func (s *Session) ExecDetailed(line string) ExecResult {
+	if s.pending != nil {
+		return ExecResult{Output: s.password(line)}
+	}
 	args := strings.Fields(line)
 	if len(args) == 0 {
-		return "", false
+		return ExecResult{}
 	}
 	cmd := args[0]
 	args = args[1:]
 	switch cmd {
 	case "ls":
-		return s.ls(args), false
+		return ExecResult{Output: s.ls(args)}
 	case "cd":
-		return s.cd(args), false
+		return ExecResult{Output: s.cd(args)}
 	case "pwd":
-		return s.Path(), false
+		return ExecResult{Output: s.Path()}
 	case "cat":
-		return s.cat(args), false
+		return s.cat(args)
+	case "edit":
+		return s.edit(args)
 	case "grep":
-		return s.grep(args), false
+		return ExecResult{Output: s.grep(args)}
 	case "cp":
-		return s.cp(args), false
+		return ExecResult{Output: s.cp(args)}
 	case "mkdir":
-		return s.mkdir(args), false
+		return ExecResult{Output: s.mkdir(args)}
 	case "touch":
-		return s.touch(args), false
+		return ExecResult{Output: s.touch(args)}
+	case "scan":
+		return ExecResult{Output: s.scan(args)}
 	case "ssh":
-		return s.ssh(args), false
+		return ExecResult{Output: s.ssh(args)}
 	case "exit", "logout":
-		return s.exit()
+		out, done := s.exit()
+		return ExecResult{Output: out, Done: done}
 	case "curl":
-		return s.curl(args), false
+		return ExecResult{Output: s.curl(args)}
 	case "ps":
-		return s.ps(), false
+		return ExecResult{Output: s.ps()}
 	case "kill":
-		return s.kill(args), false
+		return ExecResult{Output: s.kill(args)}
 	case "run":
-		return s.run(args), false
+		return ExecResult{Output: s.run(args)}
 	case "help":
-		return helpText, false
+		return ExecResult{Output: helpText}
 	}
-	return cmd + ": command not found", false
+	return ExecResult{Output: cmd + ": command not found"}
 }
 
 // End reports the narration the UI shows when the terminal is closed
@@ -264,6 +413,35 @@ func (s *Session) node(p string) *Node {
 	return find(host.Root, segs)
 }
 
+func (s *Session) resolvedPath(p string) string {
+	host, segs := s.locate(p)
+	path := "/" + strings.Join(segs, "/")
+	if host == s.deck {
+		if rest, ok := strings.CutPrefix(path, s.deck.Home); ok {
+			if rest == "" {
+				return "~"
+			}
+			return "~" + rest
+		}
+	}
+	return path
+}
+
+func editableTextName(name string) bool {
+	return strings.HasSuffix(name, ".txt") || strings.HasSuffix(name, ".md")
+}
+
+func documentKind(name string) (DocumentKind, bool) {
+	switch {
+	case strings.HasSuffix(name, ".md"):
+		return DocumentMarkdown, true
+	case strings.HasSuffix(name, ".txt"):
+		return DocumentText, true
+	default:
+		return "", false
+	}
+}
+
 // --- fake file commands -----------------------------------------------
 
 func (s *Session) ls(args []string) string {
@@ -316,14 +494,22 @@ func (s *Session) cd(args []string) string {
 // read fires a file's OnRead hook and returns its text.
 func (s *Session) read(n *Node) string {
 	s.setFlag(n.OnRead)
+	return s.fileText(n)
+}
+
+func (s *Session) fileText(n *Node) string {
+	if n.TextFn != nil {
+		return n.TextFn(s.w)
+	}
 	return n.Text
 }
 
-func (s *Session) cat(args []string) string {
+func (s *Session) cat(args []string) ExecResult {
 	if len(args) == 0 {
-		return "usage: cat <file>"
+		return ExecResult{Output: "usage: cat <file>"}
 	}
 	var out []string
+	var doc *Document
 	for _, arg := range args {
 		n := s.node(arg)
 		switch {
@@ -332,41 +518,151 @@ func (s *Session) cat(args []string) string {
 		case n.Dir:
 			out = append(out, "cat: "+arg+": Is a directory")
 		default:
-			out = append(out, s.read(n))
+			text := s.read(n)
+			if kind, ok := documentKind(n.Name); ok {
+				doc = &Document{Path: s.resolvedPath(arg), Text: text, Kind: kind}
+			}
+			if strings.HasSuffix(n.Name, ".md") {
+				text = renderMarkdown(text)
+			}
+			out = append(out, text)
 		}
 	}
-	return strings.Join(out, "\n")
+	return ExecResult{Output: strings.Join(out, "\n"), Document: doc}
 }
 
-func (s *Session) grep(args []string) string {
-	if len(args) < 2 {
-		return "usage: grep <pattern> <file...>"
+func (s *Session) edit(args []string) ExecResult {
+	if len(args) != 1 {
+		return ExecResult{Output: "usage: edit <file>"}
 	}
-	pat := args[0]
-	files := args[1:]
+	n := s.node(args[0])
+	switch {
+	case n == nil:
+		return ExecResult{Output: "edit: " + args[0] + ": No such file or directory"}
+	case n.Dir:
+		return ExecResult{Output: "edit: " + args[0] + ": Is a directory"}
+	case n.TextFn != nil:
+		return ExecResult{Output: "edit: " + args[0] + ": generated file is read-only"}
+	case !editableTextName(n.Name):
+		return ExecResult{Output: "edit: " + args[0] + ": only .txt and .md files are editable"}
+	}
+	path := s.resolvedPath(args[0])
+	return ExecResult{
+		Output: "editing " + path + " in right panel",
+		Edit:   &EditBuffer{Path: path, Text: n.Text},
+	}
+}
+
+func renderMarkdown(text string) string {
+	return RenderMarkdown(text, 0)
+}
+
+// RenderMarkdown renders Markdown for terminal display. width <= 0 uses
+// Glamour's default wrapping.
+func RenderMarkdown(text string, width int) string {
+	var (
+		out string
+		err error
+	)
+	if width > 0 {
+		var r *glamour.TermRenderer
+		r, err = glamour.NewTermRenderer(
+			glamour.WithStyles(markdownStyle),
+			glamour.WithWordWrap(width),
+		)
+		if err == nil {
+			out, err = r.Render(text)
+		}
+	} else {
+		var r *glamour.TermRenderer
+		r, err = glamour.NewTermRenderer(glamour.WithStyles(markdownStyle))
+		if err == nil {
+			out, err = r.Render(text)
+		}
+	}
+	if err != nil {
+		return text
+	}
+	return strings.TrimRight(out, "\n")
+}
+
+func uintPtr(v uint) *uint { return &v }
+
+func stringPtr(v string) *string { return &v }
+
+func (s *Session) grep(args []string) string {
+	if len(args) == 0 {
+		return "usage: grep [-ir] <pattern> [path...]"
+	}
+	for len(args) > 0 && strings.HasPrefix(args[0], "-") {
+		if args[0] != "-i" && args[0] != "-r" && args[0] != "-ir" && args[0] != "-ri" {
+			return "grep: unsupported option " + args[0]
+		}
+		args = args[1:]
+	}
+	if len(args) == 0 {
+		return "usage: grep [-ir] <pattern> [path...]"
+	}
+	pat := strings.ToLower(args[0])
+	paths := args[1:]
+	if len(paths) == 0 {
+		paths = []string{"."}
+	}
 	var out []string
-	for _, arg := range files {
+	multiple := len(paths) > 1
+	for _, arg := range paths {
 		n := s.node(arg)
 		switch {
 		case n == nil:
 			out = append(out, "grep: "+arg+": No such file or directory")
 			continue
 		case n.Dir:
-			out = append(out, "grep: "+arg+": Is a directory")
+			hadFile := false
+			walkFiles(n, arg, func(path string, file *Node) {
+				hadFile = true
+				out = append(out, s.grepFile(pat, path, file, true)...)
+			})
+			if !hadFile && multiple {
+				continue
+			}
 			continue
 		}
-		for _, ln := range strings.Split(n.Text, "\n") {
-			if strings.Contains(strings.ToLower(ln), strings.ToLower(pat)) {
-				s.setFlag(n.OnRead) // a matched line counts as read
-				if len(files) > 1 {
-					out = append(out, arg+":"+ln)
-				} else {
-					out = append(out, ln)
-				}
+		out = append(out, s.grepFile(pat, arg, n, multiple)...)
+	}
+	return strings.Join(out, "\n") // like the real thing: silent when nothing matches
+}
+
+func walkFiles(n *Node, path string, visit func(string, *Node)) {
+	if !n.Dir {
+		visit(path, n)
+		return
+	}
+	for _, c := range n.Children {
+		childPath := path
+		if childPath == "." {
+			childPath = c.Name
+		} else if childPath == "/" {
+			childPath += c.Name
+		} else {
+			childPath += "/" + c.Name
+		}
+		walkFiles(c, childPath, visit)
+	}
+}
+
+func (s *Session) grepFile(pat, path string, n *Node, prefix bool) []string {
+	var out []string
+	for _, ln := range strings.Split(s.fileText(n), "\n") {
+		if strings.Contains(strings.ToLower(ln), pat) {
+			s.setFlag(n.OnRead) // a matched line counts as read
+			if prefix {
+				out = append(out, path+":"+ln)
+			} else {
+				out = append(out, ln)
 			}
 		}
 	}
-	return strings.Join(out, "\n") // like the real thing: silent when nothing matches
+	return out
 }
 
 func (s *Session) cp(args []string) string {
@@ -383,6 +679,8 @@ func (s *Session) cp(args []string) string {
 
 	dstHost, dstSegs := s.locate(args[1])
 	placed := src.clone()
+	placed.Touched = false
+	placed.BackedUp = false
 	if dst := find(dstHost.Root, dstSegs); dst != nil && dst.Dir {
 		// copy into the directory under the source name
 		replaceChild(dst, placed)
@@ -451,9 +749,52 @@ func (s *Session) touch(args []string) string {
 			out = append(out, "touch: cannot touch '"+arg+"': No such file or directory")
 			continue
 		}
-		replaceChild(parent, File(segs[len(segs)-1], ""))
+		n := File(segs[len(segs)-1], "")
+		n.Touched = true
+		replaceChild(parent, n)
 	}
 	return strings.Join(out, "\n")
+}
+
+// SaveEdit writes editor text back to a static .txt/.md file, creating
+// a one-time backup before first overwrite of non-touch-created files.
+func (s *Session) SaveEdit(path, text string) string {
+	host, segs := s.locate(path)
+	n := find(host.Root, segs)
+	switch {
+	case n == nil:
+		return "save failed: " + path + ": No such file or directory"
+	case n.Dir:
+		return "save failed: " + path + ": Is a directory"
+	case n.TextFn != nil:
+		return "save failed: " + path + ": generated file is read-only"
+	case !editableTextName(n.Name):
+		return "save failed: " + path + ": only .txt and .md files are editable"
+	}
+	if !n.Touched && !n.BackedUp {
+		parent := find(host.Root, segs[:len(segs)-1])
+		if parent == nil || !parent.Dir {
+			return "save failed: " + path + ": No such file or directory"
+		}
+		backup := File(nextBackupName(parent, n.Name), n.Text)
+		replaceChild(parent, backup)
+		n.BackedUp = true
+	}
+	n.Text = text
+	return "saved " + s.resolvedPath(path)
+}
+
+func nextBackupName(parent *Node, name string) string {
+	base := name + ".bak"
+	if parent.child(base) == nil {
+		return base
+	}
+	for i := 1; ; i++ {
+		candidate := base + "." + strconv.Itoa(i)
+		if parent.child(candidate) == nil {
+			return candidate
+		}
+	}
 }
 
 // replaceChild inserts c into dir, overwriting a same-named entry.
@@ -469,17 +810,155 @@ func replaceChild(dir *Node, c *Node) {
 
 // --- fake net commands ------------------------------------------------
 
-func (s *Session) ssh(args []string) string {
-	if len(args) == 0 {
-		return "usage: ssh <host>"
+func (h *Host) configuredServices() []*Service {
+	if len(h.Services) > 0 {
+		return h.Services
+	}
+	return []*Service{{
+		Port:     22,
+		Protocol: ProtocolSSH,
+		State:    StateOpen,
+		Password: h.Password,
+	}}
+}
+
+func (s *Session) serviceState(host *Host, svc *Service) string {
+	state := svc.State
+	if state == "" {
+		state = StateOpen
+	}
+	if state == StateHidden {
+		return StateHidden
+	}
+	if host.Require != "" && !s.w.Flags[host.Require] {
+		return StateFiltered
+	}
+	if svc.OpenWhen != "" && !s.w.Flags[svc.OpenWhen] {
+		return StateFiltered
+	}
+	return state
+}
+
+func (s *Session) servicePassword(host *Host, svc *Service) string {
+	if svc == nil {
+		return host.Password
+	}
+	if svc.Password != "" {
+		return svc.Password
+	}
+	if svc.Protocol == ProtocolSSH {
+		return host.Password
+	}
+	return ""
+}
+
+func (s *Session) findService(host *Host, port int) *Service {
+	for _, svc := range host.configuredServices() {
+		if svc.Port == port {
+			return svc
+		}
+	}
+	return nil
+}
+
+func (s *Session) scan(args []string) string {
+	if len(args) != 1 {
+		return "usage: scan <host>"
 	}
 	host, ok := s.net[args[0]]
 	if !ok {
-		return "ssh: Could not resolve hostname " + args[0]
+		return "scan: Could not resolve hostname " + args[0]
+	}
+
+	services := host.configuredServices()
+	sort.Slice(services, func(i, j int) bool { return services[i].Port < services[j].Port })
+
+	var rows []string
+	allFiltered := len(services) > 0
+	for _, svc := range services {
+		state := s.serviceState(host, svc)
+		if state == StateHidden {
+			continue
+		}
+		if state != StateFiltered {
+			allFiltered = false
+		}
+		rows = append(rows, fmt.Sprintf("%-10s %5d  %-8s %s", host.Name, svc.Port, svc.Protocol, state))
+	}
+	if len(rows) == 0 {
+		return host.Name + ": no configured ports"
+	}
+	if allFiltered {
+		return host.Name + ": all scanned ports filtered"
+	}
+	return "HOST        PORT  SERVICE  STATE\n" + strings.Join(rows, "\n")
+}
+
+func (s *Session) ssh(args []string) string {
+	if len(args) == 0 {
+		return "usage: ssh <host> [-p port]"
+	}
+	hostName := args[0]
+	port := 22
+	args = args[1:]
+	for len(args) > 0 {
+		if len(args) != 2 || args[0] != "-p" {
+			return "usage: ssh <host> [-p port]"
+		}
+		parsed, err := strconv.Atoi(args[1])
+		if err != nil || parsed < 1 || parsed > 65535 {
+			return "ssh: Bad port '" + args[1] + "'"
+		}
+		port = parsed
+		args = nil
+	}
+
+	host, ok := s.net[hostName]
+	if !ok {
+		return "ssh: Could not resolve hostname " + hostName
 	}
 	if host == s.host {
 		return "already connected to " + host.Name
 	}
+	if host.Require != "" && !s.w.Flags[host.Require] {
+		return fmt.Sprintf("ssh: connect to host %s port %d: Network is unreachable", host.Name, port)
+	}
+	svc := s.findService(host, port)
+	if svc == nil {
+		return fmt.Sprintf("ssh: connect to host %s port %d: Connection refused", host.Name, port)
+	}
+	state := s.serviceState(host, svc)
+	switch state {
+	case StateClosed:
+		return fmt.Sprintf("ssh: connect to host %s port %d: Connection refused", host.Name, port)
+	case StateFiltered:
+		return fmt.Sprintf("ssh: connect to host %s port %d: Operation timed out", host.Name, port)
+	case StateHidden:
+		return fmt.Sprintf("ssh: connect to host %s port %d: Connection refused", host.Name, port)
+	}
+	if svc.Protocol != ProtocolSSH {
+		return fmt.Sprintf("ssh: port %d on %s is running %s, not ssh", port, host.Name, svc.Protocol)
+	}
+	if s.servicePassword(host, svc) != "" {
+		s.pending = host
+		s.pendingService = svc
+		return fmt.Sprintf("password required for %s:%d", host.Name, port)
+	}
+	return s.connect(host)
+}
+
+func (s *Session) password(input string) string {
+	host := s.pending
+	svc := s.pendingService
+	s.pending = nil
+	s.pendingService = nil
+	if strings.TrimSpace(input) != s.servicePassword(host, svc) {
+		return "Permission denied, please try again."
+	}
+	return s.connect(host)
+}
+
+func (s *Session) connect(host *Host) string {
 	s.stack = append(s.stack, conn{host: s.host, cwd: s.cwd})
 	s.host = host
 	s.cwd = splitPath(host.Home)
@@ -490,6 +969,8 @@ func (s *Session) ssh(args []string) string {
 }
 
 func (s *Session) exit() (string, bool) {
+	s.pending = nil
+	s.pendingService = nil
 	if len(s.stack) == 0 {
 		return "logout", true // closing the deck session drops back to the room
 	}
@@ -580,12 +1061,14 @@ func (s *Session) setFlag(name string) {
 const helpText = `deck shell:
   ls [path]           list directory
   cd <path> / pwd     move around / where am I
-  cat <file>          read a file
-  grep <pat> <files>  search file lines
+  cat <file>          read a file (.md/.txt open in reader)
+  edit <file>         edit .md/.txt files, autosave on tab
+  grep -ir <pat> [path] recursively search file lines
   cp <src> <dst>      copy (~ is always the deck's home)
   mkdir <dir>         create fake directories
   touch <file>        create empty fake files
-  ssh <host>          connect to a host
+  scan <host>         list configured ports
+  ssh <host> [-p n]   connect to ssh, default port 22
   curl <host>[/path]  poke a host without logging in
   ps / kill <pid>     list / stop processes
   run <file>          execute something
@@ -612,19 +1095,6 @@ type Objective struct {
 	Text string
 }
 
-// DecksInScope returns entities the player can currently reach that
-// carry a Deck — the terminals Buddy can log into from where he is.
-// Mirrors hubs.List, but scope-based: you must be at the deck.
-func DecksInScope(w *engine.World) []*engine.Entity {
-	var out []*engine.Entity
-	for _, e := range w.Visible() {
-		if _, ok := engine.Part[Deck](e); ok {
-			out = append(out, e)
-		}
-	}
-	return out
-}
-
 // CurrentObjective picks the first unmet hint, or a placeholder.
 func (d Deck) CurrentObjective(w *engine.World) string {
 	for _, o := range d.Objectives {
@@ -633,4 +1103,31 @@ func (d Deck) CurrentObjective(w *engine.World) string {
 		}
 	}
 	return "signal searching..."
+}
+
+// DecksInScope returns entities the player can currently reach that
+// carry a Deck — the terminals Buddy can log into from where he is.
+// Mirrors hubs.List, but includes both visible decks and decks Buddy carries.
+func DecksInScope(w *engine.World) []*engine.Entity {
+	var out []*engine.Entity
+	seen := map[*engine.Entity]bool{}
+	add := func(e *engine.Entity) {
+		if seen[e] {
+			return
+		}
+		if _, ok := engine.Part[Deck](e); ok {
+			seen[e] = true
+			out = append(out, e)
+		}
+	}
+	for _, e := range w.Visible() {
+		add(e)
+	}
+	for _, e := range w.Player.Contents {
+		e.Walk(func(c *engine.Entity) bool {
+			add(c)
+			return true
+		})
+	}
+	return out
 }

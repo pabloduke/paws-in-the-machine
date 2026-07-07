@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
@@ -9,9 +10,15 @@ import (
 	"github.com/pabloduke/paws-in-the-machine/internal/game"
 )
 
+var ansiRE = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+func stripANSI(s string) string {
+	return ansiRE.ReplaceAllString(s, "")
+}
+
 // The full whisper beat: flags set inside the terminal stay quiet
-// until logout, then the event modal presents, then the journal has
-// the entry. Exercises engine poll, shell deferral, modal, journal.
+// until logout, then the event modal presents, then Buddy's notes have
+// the entry. Exercises engine poll, shell deferral, modal, and notes.
 func TestWhisperEventBeat(t *testing.T) {
 	w := game.NewWorld()
 	mod := newSized(w)
@@ -60,26 +67,20 @@ func TestWhisperEventBeat(t *testing.T) {
 		t.Fatalf("Once rule fired twice: %v", w.Pending)
 	}
 
-	// The journal now carries the whisper entry.
-	mod = typeLine(mod, "journal")
-	mm = mod.(Model)
-	if !mm.journalOpen {
-		t.Fatalf("'journal' should open the journal modal")
-	}
-	if v := mod.View(); !strings.Contains(v, "JOURNAL") || !strings.Contains(v, "sunfarm.arc") {
-		t.Fatalf("journal should show the whisper entry:\n%s", v)
-	}
-	mod, _ = mod.Update(spec(tea.KeyEsc))
-	if mod.(Model).journalOpen {
-		t.Fatalf("esc should close the journal")
+	// The notes file now carries the whisper entry.
+	mod = typeLine(mod, "use deck")
+	mod = typeLine(mod, "cat ~/notes/notes.md")
+	if reader := readerText(mod); !strings.Contains(reader, "sunfarm.arc") {
+		t.Fatalf("notes should show the whisper entry:\n%s", reader)
 	}
 }
 
-func TestJournalEmptyState(t *testing.T) {
+func TestNotesEmptyState(t *testing.T) {
 	w := game.NewWorld()
 	mod := newSized(w)
-	mod = typeLine(mod, "journal")
-	if v := mod.View(); !strings.Contains(v, "city keeps its secrets") {
-		t.Fatalf("empty journal state missing:\n%s", v)
+	mod = typeLine(mod, "use deck")
+	mod = typeLine(mod, "cat ~/notes/notes.md")
+	if reader := readerText(mod); !strings.Contains(reader, "Nothing solid yet") {
+		t.Fatalf("empty notes state missing:\n%s", reader)
 	}
 }

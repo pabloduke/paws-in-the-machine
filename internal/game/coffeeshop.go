@@ -71,6 +71,21 @@ func buildCoffeeshop() *engine.Entity {
 							},
 							End: true,
 						},
+						{
+							Text: "Ask what Microslop did to them.",
+							Require: []dialogue.Requirement{
+								dialogue.Flag(flagBaristaSoftened),
+								dialogue.MissingFlag(flagKnowsMicroslopPassword),
+							},
+							Effects: []dialogue.Effect{
+								dialogue.SetFlag(flagKnowsMicroslopPassword),
+								dialogue.Say("(Placeholder) The barista's mouth goes flat. " +
+									"\"Microslop fired me for flagging a leak, then reset " +
+									"every contractor box to the same insult of a password: apple. " +
+									"If you're going there, make it hurt.\""),
+							},
+							End: true,
+						},
 						{Text: "Mrow.", Next: "mrow"},
 						{Text: "Leave.", End: true},
 					},
