@@ -135,3 +135,26 @@ beat is the first Microslop Corp terminal puzzle.
   full infiltration of Okuda HQ, not a switch in the coffee shop back
   room. Still owed: what okuda.grid's vault actually holds —
   `/srv/vault/410.txt` is a marked story stub.
+
+## Road to the real game (issues filed 2026-07-07)
+
+The remaining gap between "systems demo" and "content production can
+start" is fully issue-tracked; design intent lives in each issue:
+
+- **#22 ICE** — the last big undesigned mechanism (puzzle, never a
+  check; spec first).
+- **#23 richer credential gates** — keyfiles, cracking, alternate
+  Microslop password paths.
+- **#24 hacking XP payouts** — content-valued, via the flag hooks.
+- **#25 flag-gated doors/exits** — the small engine piece "buildings
+  deepen" needs; the terminal-openable variant is the #16 contract
+  reversed.
+- **#26 dialogue headless dead end** — known Talkable.Handle flaw.
+- **#27 difficulty calibration + unpin seed 3** — gates content
+  authoring at scale; release blocker.
+- **#28 terminal rulings** — history persistence, right-panel content.
+- **#29 Towers of Hanoi** — the backup-rotation shrine. It wouldn't
+  be a puzzle game without it (user ruling).
+
+After those: content production — the city map, act one, and
+replacing every `(Placeholder)` — which the user writes.
