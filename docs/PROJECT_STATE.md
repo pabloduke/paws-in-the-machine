@@ -24,7 +24,11 @@ beat is the first Microslop Corp terminal puzzle.
 - The terminal has a fake shell with simplified commands including `ls`, `cd`,
   `pwd`, `cat`, `grep`, `cp`, `mkdir`, `touch`, `scan`, `ssh`, `curl`, `ps`,
   `kill`, `run`, `exit`, and `help`.
-- Buddy's deck is now carried, so `use deck` / `log in` works outside the lair.
+- Buddy's deck lives in the lair and nowhere else (user ruling
+  2026-07-07, reversing the earlier carried-deck change): hacking
+  starts at home. The loop is scan from the lair → do the physical
+  work in the world → come home and jack in. `TestDeckOnlyReachableInLair`
+  and `TestDeckStaysHome` pin it.
 - SSH hosts can require a route flag and/or a fake password.
 - Hosts can declare fake services/ports, `scan <host>` lists configured port
   states, and `ssh <host> -p <port>` targets SSH on a specific port.

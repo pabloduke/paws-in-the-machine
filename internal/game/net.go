@@ -166,7 +166,7 @@ func starterNet() map[string]*hacking.Host {
 func netJournal() []engine.Entry {
 	return []engine.Entry{
 		{Flag: flagKnowsMicroslopPassword, Text: "The barista said Microslop contractor boxes were reset to `apple`."},
-		{Flag: flagMicroslopRouteOpen, Text: "The coffee shop rack puts the deck somewhere Microslop can hear it."},
+		{Flag: flagMicroslopRouteOpen, Text: "Bridged the coffee shop rack onto the lair's uplink. The deck can reach Microslop now."},
 		{Flag: flagReadSunNotice, Text: "Microslop buried old sun liability under grid asset `SUNFARM-ARC`."},
 		{Flag: flagGotSunNotice, Text: "Copied Microslop's sunlight liability notice onto the deck."},
 		{Flag: flagReadOkuda410, Text: "(Placeholder) okuda.grid is asset 410: records Okuda was paid to lose, still humming in their own records office."},

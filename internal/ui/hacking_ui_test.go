@@ -301,13 +301,24 @@ func TestDeckLoginFromPanel(t *testing.T) {
 	}
 }
 
-func TestDeckCarriedAndAvailableOutsideLair(t *testing.T) {
+// The deck lives in the lair and nowhere else (user ruling
+// 2026-07-07, reversing the earlier carried-deck behavior): hacking
+// starts at home, or there's no point to having a lair.
+func TestDeckOnlyReachableInLair(t *testing.T) {
 	w := game.NewWorld()
 	mod := newSized(w)
 	mod = typeLine(mod, "north") // leave the lair for the coffee shop
-	if view := mod.View(); !strings.Contains(view, "UPLINK") || !strings.Contains(view, "the deck") {
-		t.Fatalf("carried deck should stay reachable from another room:\n%s", view)
+	for _, it := range mod.(Model).panelItems() {
+		if it.kind == panelDeck {
+			t.Fatalf("no deck panel item should exist outside the lair")
+		}
 	}
+	mod = typeLine(mod, "use deck")
+	if mod.(Model).shell != nil {
+		t.Fatalf("the deck should not open outside the lair")
+	}
+
+	mod = typeLine(mod, "south") // home again
 	found := false
 	for _, it := range mod.(Model).panelItems() {
 		if it.kind == panelDeck {
@@ -315,12 +326,11 @@ func TestDeckCarriedAndAvailableOutsideLair(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatalf("carried deck should have a panel item outside the lair")
+		t.Fatalf("the deck should have a panel item in the lair")
 	}
-
 	mod = typeLine(mod, "use deck")
 	if mod.(Model).shell == nil {
-		t.Fatalf("carried deck should open the terminal outside the lair")
+		t.Fatalf("the deck should open the terminal in the lair")
 	}
 }
 
@@ -373,6 +383,10 @@ func TestMicroslopPasswordPuzzle(t *testing.T) {
 		t.Fatalf("using the backroom rack should open the Microslop route; flags=%v", w.Flags)
 	}
 
+	// The deck lives in the lair (deck_test.go): the route is open,
+	// but hacking it means going home first.
+	mod = typeLine(mod, "north") // back room -> coffee shop
+	mod = typeLine(mod, "south") // coffee shop -> lair
 	mod = typeLine(mod, "use deck")
 	mod = typeLine(mod, "ssh microslop")
 	if view := mod.View(); !strings.Contains(view, "password:") {
