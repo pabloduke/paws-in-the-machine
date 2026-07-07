@@ -5,10 +5,11 @@ import (
 	"github.com/pabloduke/paws-in-the-machine/internal/systems/hacking"
 )
 
-// buildLair is Buddy's Lair: the high shelf, the mug, the shard, and
-// the window. It returns Buddy's carried deck separately so world.go
-// can attach it to the player after the player is placed in the room.
-func buildLair() (*engine.Entity, *engine.Entity) {
+// buildLair is Buddy's Lair: the high shelf, the mug, the shard, the
+// window — and the deck, which lives here and nowhere else. Hacking
+// starts at home (user ruling 2026-07-07): the lair is the base you
+// scan from and return to, or there's no point to having one.
+func buildLair() *engine.Entity {
 	lair := engine.NewEntity("lair", "Buddy's Lair").With(
 		engine.Description{Text: "(Placeholder) The lair. Rain on the window, " +
 			"neon through the blinds."},
@@ -73,9 +74,9 @@ func buildLair() (*engine.Entity, *engine.Entity) {
 		engine.Portable{},
 	)
 
-	lair.Add(shelf, shard, window)
+	lair.Add(deck, shelf, shard, window)
 	shelf.Add(mug)
-	return lair, deck
+	return lair
 }
 
 // lairEvents are the lair's event rules (docs/systems/events.md).

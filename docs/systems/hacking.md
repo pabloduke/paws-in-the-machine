@@ -116,8 +116,9 @@ file gets a one-time sibling backup before the first save, using
 Some hosts can require a story route before they answer. If the route
 flag is missing, `ssh microslop` prints a fake network-unreachable error
 and leaves Buddy on the deck. This models the non-terminal part of a
-hack: social engineering, stealth, and physically plugging the carried
-deck into a local jack.
+hack: social engineering, stealth, and physically bridging local
+hardware (a rack's maintenance jack, a patched cable) onto the lair's
+uplink. The deck itself never leaves the lair — hacking starts at home.
 
 For hardened corpo targets, it is valid for every externally visible port
 to be closed or filtered at first. Buddy does not run a magic "firewall

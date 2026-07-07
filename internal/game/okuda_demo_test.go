@@ -10,8 +10,8 @@ import (
 	"github.com/pabloduke/paws-in-the-machine/internal/systems/hubs"
 )
 
-// deckSession opens a shell on Buddy's carried deck, the way the
-// terminal UI does.
+// deckSession opens a shell on Buddy's deck (home in the lair), the
+// way the terminal UI does.
 func deckSession(t *testing.T, w *engine.World) *hacking.Session {
 	t.Helper()
 	d, ok := engine.Part[hacking.Deck](w.FindID("deck"))

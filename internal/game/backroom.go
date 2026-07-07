@@ -45,12 +45,15 @@ func buildBackroom() *engine.Entity {
 			"wonder who it really belongs to."},
 		engine.On{Verb: "use", Do: func(w *engine.World) string {
 			if w.Flags[flagMicroslopRouteOpen] {
-				return "(Placeholder) The deck is already patched into the rack's forgotten maintenance jack."
+				return "(Placeholder) The bridge you wired through the rack's " +
+					"forgotten maintenance jack is still up. The lair's " +
+					"uplink can hear Microslop breathing."
 			}
 			w.Flags[flagMicroslopRouteOpen] = true
-			return "(Placeholder) You nose a loose cable down, hook the deck " +
-				"into the rack's forgotten maintenance jack, and the Microslop " +
-				"intranet ghost-lights on your screen."
+			return "(Placeholder) You nose a loose cable into the rack's " +
+				"forgotten maintenance jack and wire a quiet bridge onto " +
+				"its network. From here, the lair's uplink can reach the " +
+				"Microslop intranet. The deck at home just grew longer claws."
 		}},
 	)
 
