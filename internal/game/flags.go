@@ -22,6 +22,15 @@ const (
 	flagKnowsMicroslopPassword = "knows_microslop_password"
 	flagMicroslopRouteOpen     = "microslop_route_open"
 
+	// Okuda HQ (okuda.go). The port flag is the overworld half of the
+	// first overworld↔terminal handshake: the office console sets it,
+	// okuda.grid's SSH service reads it (net.go).
+	flagOkudaPortOpen     = "okuda_port_open"
+	flagSawLobbyFlyer     = "saw_lobby_flyer"
+	flagPlayedLostCat     = "played_lost_cat"
+	flagCorridorLightsOut = "corridor_lights_out"
+	flagReadOkuda410      = "read_okuda_410"
+
 	// Set by check failures and read back as modifiers/events
 	// (docs/systems/stealth.md: failure is a story state).
 	flagHoundAlerted = "hound_alerted"
@@ -32,11 +41,17 @@ const (
 	// scraps: the hound stops watching the back door (perception,
 	// docs/systems/stealth.md) until something ends snack time.
 	flagHoundLured = "hound_lured"
+	// Okuda check failures (okuda.go): a refused cat becomes a
+	// situation; a spooked guard stiffens both routes in.
+	flagReceptionistSuspicious = "receptionist_suspicious"
+	flagOkudaGuardAlerted      = "okuda_guard_alerted"
 
 	// Once-markers for event rules (docs/systems/events.md).
-	flagSeenWhisperReaction = "seen_whisper_reaction"
-	flagSeenCounterEmpty    = "seen_counter_empty"
-	flagSeenHoundAlerted    = "seen_hound_alerted"
+	flagSeenWhisperReaction        = "seen_whisper_reaction"
+	flagSeenCounterEmpty           = "seen_counter_empty"
+	flagSeenHoundAlerted           = "seen_hound_alerted"
+	flagSeenReceptionistSuspicious = "seen_receptionist_suspicious"
+	flagSeenOkudaGuardAlerted      = "seen_okuda_guard_alerted"
 )
 
 // One-shot XP award markers (awardOnce / dialogue.AwardOnce).
@@ -48,4 +63,6 @@ const (
 	flagXPLaptop       = "xp_laptop"
 	flagXPHum          = "xp_hum"
 	flagXPHoundLure    = "xp_hound_lure"
+	flagXPLobbyFlyer   = "xp_lobby_flyer"
+	flagXPOkudaConsole = "xp_okuda_console"
 )

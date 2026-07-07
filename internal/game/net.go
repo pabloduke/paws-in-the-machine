@@ -90,6 +90,39 @@ func starterNet() map[string]*hacking.Host {
 				),
 			),
 		},
+		// The terminal half of issue #16: port 22 scans filtered until
+		// the records-office console in the overworld throws the port
+		// switch (okuda.go) — the closed-ports loop.
+		"okuda.grid": {
+			Name:   "okuda.grid",
+			Home:   "/",
+			Banner: "(Placeholder) OKUDA GRID NODE — asset 410. this node was removed from inventory. it did not notice.",
+			Services: []*hacking.Service{
+				{Port: 22, Protocol: hacking.ProtocolSSH, State: hacking.StateOpen,
+					OpenWhen: flagOkudaPortOpen},
+			},
+			Root: hacking.Dir("/",
+				hacking.Dir("var",
+					hacking.Dir("log",
+						hacking.File("decommission.log",
+							"(Placeholder) 09:00 asset 410 scheduled for erasure\n"+
+								"09:41 records office cleared. physical port disabled.\n"+
+								"09:42 erasure marked complete. nobody unplugged anything."),
+					),
+				),
+				hacking.Dir("srv",
+					hacking.Dir("vault",
+						&hacking.Node{
+							Name:   "410.txt",
+							OnRead: flagReadOkuda410,
+							Text: "(Placeholder) OKUDA INTERNAL — DO NOT MIGRATE\n" +
+								"Asset 410 holds the records Okuda was paid to lose.\n" +
+								"(What those records say is a story decision — content TBD.)",
+						},
+					),
+				),
+			),
+		},
 		"sunfarm.arc": {
 			Name:   "sunfarm.arc",
 			Home:   "/",
@@ -136,6 +169,7 @@ func netJournal() []engine.Entry {
 		{Flag: flagMicroslopRouteOpen, Text: "The coffee shop rack puts the deck somewhere Microslop can hear it."},
 		{Flag: flagReadSunNotice, Text: "Microslop buried old sun liability under grid asset `SUNFARM-ARC`."},
 		{Flag: flagGotSunNotice, Text: "Copied Microslop's sunlight liability notice onto the deck."},
+		{Flag: flagReadOkuda410, Text: "(Placeholder) okuda.grid is asset 410: records Okuda was paid to lose, still humming in their own records office."},
 	}
 }
 

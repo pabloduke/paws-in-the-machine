@@ -84,6 +84,19 @@ beat is the first Microslop Corp terminal puzzle.
   whole checks system (fail → `hound_alerted` −2 → mug distraction +4
   consumed → clears; or barista lures the hound, `hound_lured`,
   unwatched +10). `internal/game/checks_demo_test.go` walks it.
+- **#16 closed-ports loop is built** (`internal/game/okuda.go` +
+  `net.go`): Okuda HQ, the first infiltration building, two ways in —
+  front-desk charm (fail forks to `receptionist_suspicious` −2; the
+  missing-cat flyer angle, `played_lost_cat` +6, recovers) or
+  fire-escape parkour + corridor sneak (breaker panel: lights-out +6,
+  consumed). Both converge on the records-office console, which sets
+  `okuda_port_open`; `okuda.grid`'s SSH service reads it via
+  `OpenWhen`, so scan flips filtered→open and ssh connects. First
+  overworld↔terminal handshake, flag referenced only in
+  `internal/game/` per BOUNDARIES. `okuda_demo_test.go` walks both
+  routes and the handshake on the pinned seed. Companion ruling in
+  `docs/systems/hubs.md`: buildings deepen later (interior security
+  doors, terminal-openable locks); Okuda stays tutorial-sized.
 
 ### Rulings to preserve (agreed with the user; don't regress)
 
@@ -117,6 +130,31 @@ beat is the first Microslop Corp terminal puzzle.
 - **#14 NPC memory** — cheapest next step: it's flag conventions over
   dialogue/events/checks that already exist, not a new system.
 - **#15 UI growth: status bar** — independent, any time.
-- **#16 closed-ports loop** — now UNBLOCKED by the terminal merge:
-  the first overworld↔terminal crossover beat (scan shows a closed
-  port → backroom rack action in the overworld → port opens).
+- **#16 closed-ports loop** — BUILT (see Implemented above). By user
+  ruling it grew past the issue's rack sketch: opening the port is a
+  full infiltration of Okuda HQ, not a switch in the coffee shop back
+  room. Still owed: what okuda.grid's vault actually holds —
+  `/srv/vault/410.txt` is a marked story stub.
+
+## Road to the real game (issues filed 2026-07-07)
+
+The remaining gap between "systems demo" and "content production can
+start" is fully issue-tracked; design intent lives in each issue:
+
+- **#22 ICE** — the last big undesigned mechanism (puzzle, never a
+  check; spec first).
+- **#23 richer credential gates** — keyfiles, cracking, alternate
+  Microslop password paths.
+- **#24 hacking XP payouts** — content-valued, via the flag hooks.
+- **#25 flag-gated doors/exits** — the small engine piece "buildings
+  deepen" needs; the terminal-openable variant is the #16 contract
+  reversed.
+- **#26 dialogue headless dead end** — known Talkable.Handle flaw.
+- **#27 difficulty calibration + unpin seed 3** — gates content
+  authoring at scale; release blocker.
+- **#28 terminal rulings** — history persistence, right-panel content.
+- **#29 Towers of Hanoi** — the backup-rotation shrine. It wouldn't
+  be a puzzle game without it (user ruling).
+
+After those: content production — the city map, act one, and
+replacing every `(Placeholder)` — which the user writes.
