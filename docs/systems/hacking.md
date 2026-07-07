@@ -120,6 +120,24 @@ hack: social engineering, stealth, and physically bridging local
 hardware (a rack's maintenance jack, a patched cable) onto the lair's
 uplink. The deck itself never leaves the lair — hacking starts at home.
 
+## The PDA
+
+Buddy carries a PDA into the overworld: a salvaged pocket slab that
+mirrors the deck's storage over the collar link and sniffs ports. It is
+**read-only by design and menu-driven, never a shell** (user ruling
+2026-07-07): a main menu offers *Check notes* (every `.md`/`.txt` on
+the deck, opened in a reader) and *Scan ports* (every known host, each
+showing the same report as `scan`). Nothing can be hacked, written, or
+logged into from it.
+
+Its job is field intel: after an overworld action that should open a
+port (the Okuda console, the coffee-shop rack), the PDA shows the state
+flip from anywhere — so Buddy knows the trip home to the deck is worth
+it. Seeing is portable; touching happens at home. Mechanically it is
+the `hacking.PDA` component sharing the deck's net map, with read paths
+(`TextFiles`, `PortReport`, `KnownHosts`) exposed sessionless; reading
+a file fires `OnRead` exactly like `cat`.
+
 For hardened corpo targets, it is valid for every externally visible port
 to be closed or filtered at first. Buddy does not run a magic "firewall
 breacher" program to force ports open. Instead, overworld actions create
