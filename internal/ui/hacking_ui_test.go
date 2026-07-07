@@ -29,8 +29,8 @@ func TestHackingScreenSwapsAndRestores(t *testing.T) {
 		t.Fatalf("terminal title missing: %q", view)
 	}
 	for _, section := range []string{"OBJECTIVE", "LOCATION", "DISCOVERIES", "STATUS"} {
-		if strings.Contains(view, section) {
-			t.Fatalf("terminal right panel should stay blank, found %s", section)
+		if !strings.Contains(view, section) {
+			t.Fatalf("terminal right panel should show %s: %q", section, view)
 		}
 	}
 	if strings.Contains(view, "THE CITY") || strings.Contains(view, "LOG") {
@@ -78,8 +78,8 @@ func TestTerminalPromptInsidePanelAndScrollbackBottomAnchored(t *testing.T) {
 	mod := newSized(w)
 	mod = typeLine(mod, "use deck")
 	mm := mod.(Model)
-	if mm.shellInput.TextStyle.GetForeground() != crtGreen {
-		t.Fatalf("typed terminal text should use CRT green")
+	if mm.shellInput.TextStyle.GetForeground() != termPromptStyle.GetForeground() {
+		t.Fatalf("typed terminal text should use terminal prompt style")
 	}
 
 	scrollLines := strings.Split(stripANSI(mm.shellVP.View()), "\n")
@@ -89,7 +89,7 @@ func TestTerminalPromptInsidePanelAndScrollbackBottomAnchored(t *testing.T) {
 	if strings.TrimSpace(scrollLines[0]) != "" {
 		t.Fatalf("short scrollback should be bottom-anchored, first viewport line=%q", scrollLines[0])
 	}
-	if !strings.Contains(scrollLines[len(scrollLines)-1], "CantOS") {
+	if !strings.Contains(scrollLines[len(scrollLines)-1], "PAWS/OS") {
 		t.Fatalf("newest short scrollback should sit at the bottom, viewport=%q", strings.Join(scrollLines, "\n"))
 	}
 

@@ -99,6 +99,109 @@ func TestApproachMatrix(t *testing.T) {
 	}
 }
 
+// modWorld builds a fixture around one configurable sneak attempt.
+func modWorld(attempt checks.Attempt) (*engine.World, *engine.Engine) {
+	w := engine.NewWorld()
+	w.Seed = 3
+	w.Stats = engine.Stats{Stealth: 10}
+	front := engine.NewEntity("front", "Front").With(engine.Exits{})
+	back := engine.NewEntity("back", "Back").With(engine.Exits{})
+	guard := engine.NewEntity("guard", "a guard").With(checks.Guarded{
+		Dest:       "back",
+		Approaches: map[checks.Approach]checks.Attempt{checks.Sneak: attempt},
+	})
+	w.Root.Add(front, back)
+	front.Add(guard, w.Player)
+	return w, engine.New(w)
+}
+
+// Mods shift the roll: a big enough circumstance flips a guaranteed
+// failure into a pass, is spent on use, and shrinks the XP payout.
+func TestModsShiftTheRoll(t *testing.T) {
+	attempt := checks.Attempt{
+		Difficulty: 22, Success: "in", Failure: "no",
+		Mods: []checks.Mod{{If: []string{"distracted"}, Delta: 25, Consume: "distracted"}},
+	}
+
+	// Without the circumstance: seed 3, Stealth 10 fails (see TestXCOMRule).
+	w, eng := modWorld(attempt)
+	if out := eng.Execute("sneak past guard"); !strings.Contains(out, "no") {
+		t.Fatalf("baseline should fail: %q", out)
+	}
+
+	// With it: +25 clears any roll, the flag is consumed, and the
+	// stacked deck pays the floor award.
+	w, eng = modWorld(attempt)
+	w.Flags["distracted"] = true
+	out := eng.Execute("sneak past guard")
+	if !strings.Contains(out, "in") || w.Room().ID != "back" {
+		t.Fatalf("modded sneak should pass: %q (room %s)", out, w.Room().ID)
+	}
+	if !strings.Contains(out, "+1 XP") {
+		t.Fatalf("a cheesed check should pay the floor: %q", out)
+	}
+	if w.Flags["distracted"] {
+		t.Fatalf("the distraction must be consumed by the roll")
+	}
+}
+
+// A distraction is spent even when the attempt still fails.
+func TestConsumeSpentOnFailure(t *testing.T) {
+	w, eng := modWorld(checks.Attempt{
+		Difficulty: 22, Success: "in", Failure: "no",
+		Mods: []checks.Mod{{If: []string{"distracted"}, Delta: -25, Consume: "distracted"}},
+	})
+	w.Flags["distracted"] = true
+	if out := eng.Execute("sneak past guard"); !strings.Contains(out, "no") {
+		t.Fatalf("-25 must fail: %q", out)
+	}
+	if w.Flags["distracted"] {
+		t.Fatalf("a spent distraction stays spent, pass or fail")
+	}
+}
+
+// Failure writes to the blackboard (OnFail); success does not.
+func TestOnFailForks(t *testing.T) {
+	attempt := checks.Attempt{
+		Difficulty: 22, Success: "in", Failure: "no",
+		OnFail: []string{"alerted"},
+		Mods:   []checks.Mod{{If: []string{"boost"}, Delta: 25}},
+	}
+
+	w, eng := modWorld(attempt)
+	eng.Execute("sneak past guard") // seed 3: fails
+	if !w.Flags["alerted"] {
+		t.Fatalf("failure should set its OnFail flags")
+	}
+
+	w, eng = modWorld(attempt)
+	w.Flags["boost"] = true
+	eng.Execute("sneak past guard") // +25: passes
+	if w.Flags["alerted"] {
+		t.Fatalf("success must not set OnFail flags")
+	}
+}
+
+// A sealed approach refuses outright: no roll, no XP, no flags.
+func TestSealedApproach(t *testing.T) {
+	w, eng := modWorld(checks.Attempt{
+		Difficulty: 22, Success: "in", Failure: "no",
+		Mods:       []checks.Mod{{If: []string{"boost"}, Delta: 25, Consume: "boost"}},
+		Seals:      "burned",
+		SealedText: "that route is gone",
+	})
+	w.Flags["burned"] = true
+	w.Flags["boost"] = true // would guarantee a pass if it rolled
+
+	out := eng.Execute("sneak past guard")
+	if !strings.Contains(out, "that route is gone") {
+		t.Fatalf("sealed approach should refuse with its prose: %q", out)
+	}
+	if w.Room().ID != "front" || w.XP != 0 || !w.Flags["boost"] {
+		t.Fatalf("sealed refusal must not roll, move, pay, or consume")
+	}
+}
+
 // TestAwardFloor: a check you outclass still pays 1 XP, never 0 or
 // negative.
 func TestAwardFloor(t *testing.T) {

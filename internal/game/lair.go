@@ -29,6 +29,10 @@ func buildLair() (*engine.Entity, *engine.Entity) {
 		hacking.Deck{
 			Net:  starterNet(),
 			Host: "deck",
+			Objectives: []hacking.Objective{
+				{Flag: flagHeardWhisper, Text: "trace the whisper in the dead code"},
+				{Flag: flagGotSunFragment, Text: "pull whatever 'sun' data is still out there"},
+			},
 		},
 	)
 

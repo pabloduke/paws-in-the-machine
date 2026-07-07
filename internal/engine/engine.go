@@ -238,6 +238,8 @@ const helpText = `Commands:
   charm <thing>         weaponized cuteness (also: purr)
   talk <person>         start a conversation
   stats                 your numbers
-  train <stat>          spend a stat point (earned by leveling up)
-  inventory (i)         what you're carrying
-  quit (q)              end the session`
+	train <stat>          spend a stat point (earned by leveling up)
+	inventory (i)         what you're carrying
+	journal (j)           what you've learned
+	save / load           keep your place / pick it back up
+	quit (q)              end the session`

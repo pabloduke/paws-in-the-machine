@@ -266,6 +266,23 @@ func (s *Session) Prompt() string {
 	return login + "@" + s.host.Name + ":" + path + " $ "
 }
 
+// Discoveries lists files that have been copied onto the deck.
+func (s *Session) Discoveries() []string {
+	var out []string
+	var walk func(n *Node)
+	walk = func(n *Node) {
+		if n.Copied && !n.Dir {
+			out = append(out, n.Name)
+		}
+		for _, c := range n.Children {
+			walk(c)
+		}
+	}
+	walk(s.deck.Root)
+	sort.Strings(out)
+	return out
+}
+
 // Exec runs one typed line against the session. done reports that the
 // session ended — `exit`/`logout` popped all the way back off the deck.
 func (s *Session) Exec(line string) (out string, done bool) {
@@ -1062,13 +1079,30 @@ const helpText = `deck shell:
 // screen. Engine dispatch declines every verb — the UI owns the
 // interactive session.
 type Deck struct {
-	Net  map[string]*Host
-	Host string // local host name on the net
+	Net        map[string]*Host
+	Host       string // local host name on the net
+	Objectives []Objective
 }
 
 // Handle declines every command; see the type comment.
 func (Deck) Handle(*engine.World, *engine.Entity, engine.Command) (string, bool) {
 	return "", false
+}
+
+// Objective is one quest-panel hint: Text shows while Flag is unset.
+type Objective struct {
+	Flag string
+	Text string
+}
+
+// CurrentObjective picks the first unmet hint, or a placeholder.
+func (d Deck) CurrentObjective(w *engine.World) string {
+	for _, o := range d.Objectives {
+		if !w.Flags[o.Flag] {
+			return o.Text
+		}
+	}
+	return "signal searching..."
 }
 
 // DecksInScope returns entities the player can currently reach that

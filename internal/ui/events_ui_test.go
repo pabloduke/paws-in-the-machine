@@ -39,7 +39,7 @@ func TestWhisperEventBeat(t *testing.T) {
 		t.Fatalf("logout should fire the whisper rule: %v", w.Pending)
 	}
 	view := mod.View()
-	if !strings.Contains(view, "* * *") || !strings.Contains(view, "fans spin down") {
+	if !strings.Contains(view, "░▒▓") || !strings.Contains(view, "fans spin down") {
 		t.Fatalf("event modal missing:\n%s", view)
 	}
 

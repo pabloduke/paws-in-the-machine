@@ -38,28 +38,31 @@ one package under `internal/systems/<name>/` — see Architecture in the readme.
 
 ### Headline systems
 
-6. ✅ **Stats/checks/obstacles** (skeleton; XP earn/spend, failure
-   consequences, and modifiers still open) — the core mechanic: nobody
-   suspects a
+6. ✅ **Stats/checks/obstacles** (difficulty calibration is a later
+   tuning pass) — the core mechanic: nobody suspects a
    cat. Three stats, each a verb (Stealth=sneak past, Agility=parkour
    around, Charm=charm); XP is the growth currency spent to raise them.
    Obstacles declare an approach matrix (per-approach difficulty, or
    impossible). Hidden seeded rolls, XCOM rule (identical attempt,
-   identical result), prose-telegraphed circumstances. The only dice in
-   the game. See `systems/stealth.md`.
+   identical result). Circumstances are declarative flag-conditioned
+   modifiers (consumable distractions included); failure is a fork,
+   not a wall — `OnFail` flags the world reacts to, `Seals` for
+   burned routes. The only dice in the game. See `systems/stealth.md`.
 7. 📝 **NPCs/dialogue** — first dialogue slice is built: `talk <npc>`
    enters a numbered node graph with visible-choice requirements and
-   flag/XP effects. NPC presence and broader memory are still open.
-   Positions are a function of game state (flags), never simulated
-   movement. A dog = NPC component + observer configuration on one
-   entity. See `systems/dialogue.md`.
+   flag/XP effects. Presence is built: positions are a function of
+   game state (`engine.Placed`, see `systems/presence.md`), never
+   simulated movement. Broader NPC memory still open. A dog = NPC
+   component + observer configuration on one entity.
+   See `systems/dialogue.md`.
 8. 📝 **Hacking** — first slice built: logging into the deck opens a full-screen
    terminal (shell over in-memory hosts/files/processes: ls, cd, cat,
    grep, cp, scan, ssh, curl, ps, kill, run) with a status panel. Buddy stays
    at the deck the whole time — it's a terminal session. Hooks set flags.
-   No Hacking stat, no rolls: the player performs the hack through
-   play; ICE is puzzle, not check — ICE, credential gates, and XP
-   payouts still open. See `systems/hacking.md`.
+   No Hacking stat, no rolls, ever (design rule in the spec): stats
+   are character skill, the terminal is player skill; ICE is puzzle,
+   not check — ICE, credential gates, and XP payouts still open.
+   See `systems/hacking.md`.
 9. ✅ **Hubs & travel** — city topology: hubs (districts) containing
    explorable rooms, all known/travelable from the start (Buddy's lived
    here all his life); game state gates relevance, not access. Travel
@@ -71,7 +74,9 @@ one package under `internal/systems/<name>/` — see Architecture in the readme.
     from flags: derived, never stored, and written as what Buddy has learned
     or found rather than what to do next.
     See `systems/events.md`.
-11. ⬜ **Save/load** — serialize entity positions + flags (components hold
-    config only, so nothing else needs persisting).
+11. ✅ **Save/load** — serialize entity positions + flags (components
+    hold config only; Placed entities re-derive). One slot,
+    `save`/`load` verbs, versioned JSON in the user config dir.
+    See `systems/saveload.md`.
 12. ⬜ **UI growth** — status bar, story/system text styling, command
     history.

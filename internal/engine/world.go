@@ -58,6 +58,13 @@ type World struct {
 	// Pending queues fired event output until the UI presents it
 	// (one modal per beat) and drains it into the transcript.
 	Pending []string
+	// Offstage holds Placed entities whose function returns "" —
+	// out of every room, invisible (docs/systems/presence.md).
+	Offstage *Entity
+	// HoldPlacements defers applyPlacements while a conversation is
+	// open, so an interlocutor can't vanish mid-sentence. Flags and
+	// rules stay live; only the stage waits for the scene to end.
+	HoldPlacements bool
 	// prevRoom lets CheckEvents detect arrival (Enter conditions).
 	prevRoom *Entity
 
@@ -80,14 +87,17 @@ type World struct {
 // NewWorld returns a world containing only the root and the player.
 // Content must place the player into a room.
 func NewWorld() *World {
-	return &World{
+	w := &World{
 		Root:     NewEntity("root", "root"),
 		Player:   NewEntity("player", "yourself", "self", "me", "buddy"),
 		Flags:    map[string]bool{},
 		Rewrites: map[string]string{},
 		Seed:     rand.Int64(),
 		Level:    1,
+		Offstage: NewEntity("offstage", "offstage"),
 	}
+	w.Root.Add(w.Offstage)
+	return w
 }
 
 // Rewrite applies any whole-phrase idiom rewrite to input. Execute
