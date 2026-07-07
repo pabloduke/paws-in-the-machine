@@ -20,6 +20,15 @@ If a place must be physically inaccessible (Microslop HQ interior),
 that is a Guarded obstacle or blocked exit *inside* the hub — never a
 lock on the travel panel.
 
+**Buildings deepen as the game does** (agreed 2026-07-07). Okuda HQ,
+the first infiltration building, teaches "two ways in": getting inside
+*is* the whole puzzle. Later buildings keep both doors but layer the
+interior — badge-locked security doors, patrolled floors, keycards
+lifted off desks — and the best of those locks live on the building's
+own network, so a door can be opened from the terminal side (the
+closed-ports flag contract, pointed the other direction). Getting in
+is the early game; "in is only the start" is the late game.
+
 ## Travel UX: the side panel
 
 A persistent side panel next to the transcript lists all hubs, marking

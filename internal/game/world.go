@@ -16,6 +16,7 @@ func NewWorld() *engine.World {
 	coffeeshop := buildCoffeeshop()
 	backroom := buildBackroom()
 	plazaSquare, arcade := buildPlaza()
+	okudaStreet, okudaLobby, okudaAlley, okudaCorridor, okudaOffice := buildOkuda()
 
 	neighborhood := engine.NewEntity("neighborhood", "The Neighborhood").With(
 		hubs.Hub{Entry: "lair"},
@@ -23,10 +24,14 @@ func NewWorld() *engine.World {
 	plaza := engine.NewEntity("plaza", "The Plaza").With(
 		hubs.Hub{Entry: "plaza_square"},
 	)
+	okuda := engine.NewEntity("okuda", "Okuda HQ").With(
+		hubs.Hub{Entry: "okuda_street"},
+	)
 
-	w.Root.Add(neighborhood, plaza)
+	w.Root.Add(neighborhood, plaza, okuda)
 	neighborhood.Add(lair, coffeeshop, backroom)
 	plaza.Add(plazaSquare, arcade)
+	okuda.Add(okudaStreet, okudaLobby, okudaAlley, okudaCorridor, okudaOffice)
 	lair.Add(w.Player)
 	w.Player.Add(deck)
 
@@ -41,9 +46,11 @@ func NewWorld() *engine.World {
 	// Event rules and journal content, per area (docs/systems/events.md).
 	w.Rules = append(w.Rules, lairEvents()...)
 	w.Rules = append(w.Rules, coffeeshopEvents()...)
+	w.Rules = append(w.Rules, okudaEvents()...)
 	w.Journal = append(w.Journal, lairJournal()...)
 	w.Journal = append(w.Journal, netJournal()...)
 	w.Journal = append(w.Journal, coffeeshopJournal()...)
+	w.Journal = append(w.Journal, okudaJournal()...)
 
 	// Idioms a player will reach for that the generic parser can't guess.
 	w.Rewrites["log in"] = "use deck"
