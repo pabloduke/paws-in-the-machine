@@ -145,6 +145,7 @@ func (shellSurface) Screen(m *Model) string {
 	prompt := lipgloss.NewStyle().
 		Width(m.shellVP.Width).
 		MaxWidth(m.shellVP.Width).
+		Background(termDark).
 		Render(m.shellInput.View())
 	content := lipgloss.JoinVertical(lipgloss.Left, title, m.shellVP.View(), prompt)
 	termStyle := termPanelFocusStyle
@@ -273,7 +274,7 @@ func (m *Model) resizeShellInput() {
 
 // refreshShell re-renders the terminal scrollback, pinned to newest.
 func (m *Model) refreshShell() {
-	wrapped := lipgloss.NewStyle().Width(m.shellVP.Width).
+	wrapped := termOutputStyle.Width(m.shellVP.Width).
 		Render(strings.Join(m.shellEntries, "\n"))
 	if missing := m.shellVP.Height - lipgloss.Height(wrapped); missing > 0 {
 		wrapped = strings.Repeat("\n", missing) + wrapped
@@ -290,7 +291,7 @@ func (m *Model) refreshShellReader() {
 	if m.readerMD != "" {
 		rendered = hacking.RenderMarkdown(m.readerMD, m.shellReader.Width)
 	} else {
-		rendered = lipgloss.NewStyle().Width(m.shellReader.Width).Render(m.readerText)
+		rendered = termOutputStyle.Width(m.shellReader.Width).Render(m.readerText)
 	}
 	m.shellReader.SetContent(rendered)
 }

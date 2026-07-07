@@ -7,15 +7,22 @@ import "github.com/charmbracelet/lipgloss"
 // two worlds can diverge without stepping on each other. Consumed
 // only by hacking_ui.go.
 var (
-	termEchoStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Bold(true)
-	termPromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("5"))
-	termDimStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+	termGreen = lipgloss.Color("#7CFF7C")
+	termDim   = lipgloss.Color("#2E7D32")
+	termDark  = lipgloss.Color("#020802")
+
+	termEchoStyle   = lipgloss.NewStyle().Foreground(termGreen).Background(termDark).Bold(true)
+	termPromptStyle = lipgloss.NewStyle().Foreground(termGreen).Background(termDark)
+	termDimStyle    = lipgloss.NewStyle().Foreground(termDim).Background(termDark)
+	termOutputStyle = lipgloss.NewStyle().Foreground(termGreen).Background(termDark)
 
 	termPanelStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("8")).
+			Border(lipgloss.ThickBorder()).
+			BorderForeground(termDim).
+			Background(termDark).
+			Foreground(termGreen).
 			Padding(0, 1)
-	termPanelFocusStyle = termPanelStyle.BorderForeground(lipgloss.Color("5"))
-	termPanelTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("5"))
-	termTitleStyle      = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("3"))
+	termPanelFocusStyle = termPanelStyle.BorderForeground(termGreen)
+	termPanelTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(termGreen).Background(termDark)
+	termTitleStyle      = lipgloss.NewStyle().Bold(true).Foreground(termGreen).Background(termDark)
 )
