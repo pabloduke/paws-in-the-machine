@@ -74,7 +74,17 @@ one.
 - `Aspect{Fn}` — state-dependent display name; `DisplayName(w, e)`
   resolves it.
 
+## Observer-side perception (built)
+
+What OBSERVERS can see — the stealth-modifier side of visibility —
+lives in the checks system: a `Guarded` obstacle names a `Watcher`
+whose blindness (absent from Buddy's room via presence, or declared
+`Oblivious` flag circumstances) applies the `Unwatched` delta to
+every attempt. Perception stays a pure function of world state and
+never mutates — see docs/systems/stealth.md, "Observers have
+perception".
+
 ## Later (not built)
 
-- Darkness/light, hiding spots, smell-based perception for dogs, and
-  what OBSERVERS can see (the stealth modifier side of visibility).
+- Darkness/light, hiding spots, and smell-based perception for dogs
+  (an observer type that ignores visual circumstances).

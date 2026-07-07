@@ -51,3 +51,38 @@ func TestHoundFailureFork(t *testing.T) {
 		t.Fatalf("the distraction should be spent by the roll")
 	}
 }
+
+// The perception loop against real content: the lured hound stops
+// watching the back door (docs/systems/stealth.md, observers), the
+// prose and journal telegraph it, and the sneak rolls with the
+// unwatched bonus. Perception reads flags — the lure is not spent.
+func TestHoundLure(t *testing.T) {
+	w := game.NewWorld()
+	eng := engine.New(w)
+	eng.Execute("north") // coffee shop
+	w.Pending = nil
+
+	// The lure lands via the barista's dialogue effects; here the flag
+	// stands in for having asked her (dialogue mechanics have their
+	// own tests).
+	w.Flags["hound_lured"] = true
+
+	if out := eng.Execute("examine hound"); !strings.Contains(out, "jerky") {
+		t.Fatalf("the hound's prose should telegraph snack time: %q", out)
+	}
+	if j := engine.JournalText(w); !strings.Contains(j, "barely watched") {
+		t.Fatalf("the lure should surface in the journal: %q", j)
+	}
+
+	// Unwatched +10: Stealth 10 rolls as 20 against difficulty 22.
+	out := eng.Execute("sneak past hound")
+	if !strings.Contains(out, "skirting board") || w.Room().ID != "backroom" {
+		t.Fatalf("sneaking past the lured hound should clear: %q (room %s)", out, w.Room().ID)
+	}
+	if !strings.Contains(out, "+2 XP") {
+		t.Fatalf("an unwatched pass should pay difficulty minus effective: %q", out)
+	}
+	if !w.Flags["hound_lured"] {
+		t.Fatalf("perception must not consume the lure flag")
+	}
+}

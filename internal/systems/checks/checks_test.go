@@ -202,6 +202,90 @@ func TestSealedApproach(t *testing.T) {
 	}
 }
 
+// watchedWorld builds a fixture where the gate and the eyes differ:
+// a back door guarded by a sneak attempt, watched by a separate dog
+// entity that starts in the room with the player.
+func watchedWorld(g checks.Guarded) (*engine.World, *engine.Engine) {
+	w := engine.NewWorld()
+	w.Seed = 3
+	w.Stats = engine.Stats{Stealth: 10}
+	front := engine.NewEntity("front", "Front").With(engine.Exits{})
+	back := engine.NewEntity("back", "Back").With(engine.Exits{})
+	dog := engine.NewEntity("dog", "a dog")
+	door := engine.NewEntity("door", "the back door").With(g)
+	w.Root.Add(front, back)
+	front.Add(door, dog, w.Player)
+	return w, engine.New(w)
+}
+
+// An absent watcher cannot observe: moving the dog out of the room
+// applies the Unwatched delta and flips a guaranteed failure.
+func TestUnwatchedWhenWatcherAbsent(t *testing.T) {
+	gate := checks.Guarded{
+		Dest:      "back",
+		Watcher:   "dog",
+		Unwatched: 25,
+		Approaches: map[checks.Approach]checks.Attempt{
+			checks.Sneak: {Difficulty: 31, Success: "in", Failure: "no"},
+		},
+	}
+
+	// Dog in the room: difficulty 31 is out of reach at Stealth 10.
+	w, eng := watchedWorld(gate)
+	if out := eng.Execute("sneak past door"); !strings.Contains(out, "no") {
+		t.Fatalf("watched door should fail: %q", out)
+	}
+
+	// Dog elsewhere: unwatched, +25 clears any roll.
+	w, eng = watchedWorld(gate)
+	w.FindID("back").Add(w.FindID("dog"))
+	out := eng.Execute("sneak past door")
+	if !strings.Contains(out, "in") || w.Room().ID != "back" {
+		t.Fatalf("unwatched door should pass: %q (room %s)", out, w.Room().ID)
+	}
+}
+
+// An Oblivious circumstance blinds a present watcher; perception only
+// reads flags, so the circumstance is not consumed by the roll.
+func TestObliviousBlindsPresentWatcher(t *testing.T) {
+	gate := checks.Guarded{
+		Dest:      "back",
+		Watcher:   "dog",
+		Oblivious: []checks.Cond{{If: []string{"lured"}}},
+		Unwatched: 25,
+		Approaches: map[checks.Approach]checks.Attempt{
+			checks.Sneak: {Difficulty: 31, Success: "in", Failure: "no"},
+		},
+	}
+
+	w, eng := watchedWorld(gate)
+	w.Flags["lured"] = true
+	out := eng.Execute("sneak past door")
+	if !strings.Contains(out, "in") || w.Room().ID != "back" {
+		t.Fatalf("oblivious watcher should not stop the sneak: %q", out)
+	}
+	if !w.Flags["lured"] {
+		t.Fatalf("perception must not consume flags — observing never mutates")
+	}
+}
+
+// Unwatched zero means perception doesn't participate: an absent
+// watcher changes nothing.
+func TestUnwatchedZeroIgnoresPerception(t *testing.T) {
+	gate := checks.Guarded{
+		Dest:    "back",
+		Watcher: "dog",
+		Approaches: map[checks.Approach]checks.Attempt{
+			checks.Sneak: {Difficulty: 31, Success: "in", Failure: "no"},
+		},
+	}
+	w, eng := watchedWorld(gate)
+	w.FindID("back").Add(w.FindID("dog"))
+	if out := eng.Execute("sneak past door"); !strings.Contains(out, "no") {
+		t.Fatalf("with Unwatched 0 an absent watcher must change nothing: %q", out)
+	}
+}
+
 // TestAwardFloor: a check you outclass still pays 1 XP, never 0 or
 // negative.
 func TestAwardFloor(t *testing.T) {

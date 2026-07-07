@@ -26,11 +26,14 @@ one package under `internal/systems/<name>/` — see Architecture in the readme.
 3. ✅ **Turns & time** — spec'd, nothing to build: pure state machine, no
    clock, no ticks, no counters. Only player actions change state.
    See `systems/turns.md`.
-4. ✅ **Visibility & scope** (player side; observer-side perception for
-   stealth modifiers still later) — invisible means physically enclosed:
+4. ✅ **Visibility & scope** — invisible means physically enclosed:
    scope stops at closed containers (Openable); labels always reflect
    true state (Aspect); observer verbs never mutate. YOU SEE panel +
-   `World.Visible()`. See `systems/visibility.md`.
+   `World.Visible()`. Observer-side perception is built into checks:
+   a `Guarded` obstacle names a `Watcher` whose blindness (absent
+   from the room via presence, or declared `Oblivious` circumstances)
+   is one big roll modifier (`Unwatched`). Darkness/light and hiding
+   spots still later. See `systems/visibility.md`.
 5. ✅ **Events/triggers** — conditional events ("when flag X and Buddy
    enters Y"), all state-based per turns.md: `When` rules polled at
    the end of every player action, presented as story-beat modals.
@@ -47,7 +50,9 @@ one package under `internal/systems/<name>/` — see Architecture in the readme.
    identical result). Circumstances are declarative flag-conditioned
    modifiers (consumable distractions included); failure is a fork,
    not a wall — `OnFail` flags the world reacts to, `Seals` for
-   burned routes. The only dice in the game. See `systems/stealth.md`.
+   burned routes. Observers have perception: an unwatched obstacle
+   (watcher absent or oblivious) rolls with a big bonus. The only
+   dice in the game. See `systems/stealth.md`.
 7. 📝 **NPCs/dialogue** — first dialogue slice is built: `talk <npc>`
    enters a numbered node graph with visible-choice requirements and
    flag/XP effects. Presence is built: positions are a function of

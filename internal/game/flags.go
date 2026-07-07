@@ -28,6 +28,10 @@ const (
 	// Set by knocking the espresso machine; consumed by the sneak
 	// roll it distracts for.
 	flagMugShattered = "mug_shattered"
+	// Set by asking the softened barista to call the hound over for
+	// scraps: the hound stops watching the back door (perception,
+	// docs/systems/stealth.md) until something ends snack time.
+	flagHoundLured = "hound_lured"
 
 	// Once-markers for event rules (docs/systems/events.md).
 	flagSeenWhisperReaction = "seen_whisper_reaction"
@@ -43,4 +47,5 @@ const (
 	flagXPBaristaShard = "xp_barista_shard"
 	flagXPLaptop       = "xp_laptop"
 	flagXPHum          = "xp_hum"
+	flagXPHoundLure    = "xp_hound_lure"
 )
