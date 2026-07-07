@@ -47,6 +47,7 @@ type World struct {
 	Flags map[string]bool
 	// Rewrites maps whole input phrases to replacement commands,
 	// letting content define idioms ("log in" -> "use deck").
+	// Single-word synonyms belong in the parser's verbAliases.
 	Rewrites map[string]string
 
 	// Rules are the event rules (docs/systems/events.md), polled by
