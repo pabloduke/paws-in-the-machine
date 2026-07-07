@@ -12,7 +12,7 @@ import (
 func NewWorld() *engine.World {
 	w := engine.NewWorld()
 
-	lair := buildLair()
+	lair, pda := buildLair()
 	coffeeshop := buildCoffeeshop()
 	backroom := buildBackroom()
 	plazaSquare, arcade := buildPlaza()
@@ -33,6 +33,7 @@ func NewWorld() *engine.World {
 	plaza.Add(plazaSquare, arcade)
 	okuda.Add(okudaStreet, okudaLobby, okudaAlley, okudaCorridor, okudaOffice)
 	lair.Add(w.Player)
+	w.Player.Add(pda)
 
 	// Starting numbers. With the pinned seed below, the hound demos the
 	// full loop: sneak fails at Stealth 10 (and would pass at 12 —

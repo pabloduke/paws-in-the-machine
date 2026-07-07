@@ -9,7 +9,12 @@ import (
 // window — and the deck, which lives here and nowhere else. Hacking
 // starts at home (user ruling 2026-07-07): the lair is the base you
 // scan from and return to, or there's no point to having one.
-func buildLair() *engine.Entity {
+//
+// It also returns Buddy's carried PDA: a read-only mirror of the same
+// net (menus only, no shell) so the field can be scouted without the
+// lair losing its point. The net map is built once and shared, so the
+// PDA sees exactly what the deck sees — including files copied home.
+func buildLair() (*engine.Entity, *engine.Entity) {
 	lair := engine.NewEntity("lair", "Buddy's Lair").With(
 		engine.Description{Text: "(Placeholder) The lair. Rain on the window, " +
 			"neon through the blinds."},
@@ -18,6 +23,8 @@ func buildLair() *engine.Entity {
 			Blocked: "(Placeholder) The only way out is north, past the noodle bar.",
 		},
 	)
+
+	net := starterNet()
 
 	deck := engine.NewEntity("deck", "the deck", "rig", "computer", "terminal").With(
 		engine.Description{Fn: func(w *engine.World) string {
@@ -28,7 +35,7 @@ func buildLair() *engine.Entity {
 			return "(Placeholder) The deck. Scavenged, soldered, faithful."
 		}},
 		hacking.Deck{
-			Net:  starterNet(),
+			Net:  net,
 			Host: "deck",
 			Objectives: []hacking.Objective{
 				{Flag: flagHeardWhisper, Text: "trace the whisper in the dead code"},
@@ -74,9 +81,18 @@ func buildLair() *engine.Entity {
 		engine.Portable{},
 	)
 
+	pda := engine.NewEntity("pda", "the PDA", "pda", "slab", "handheld").With(
+		engine.Description{Text: "(Placeholder) A salvaged pocket slab riding " +
+			"in your harness. It mirrors the deck's storage over the " +
+			"collar link and sniffs ports, and that's all it does — " +
+			"reading glasses, not claws."},
+		engine.Portable{},
+		hacking.PDA{Net: net, Host: "deck"},
+	)
+
 	lair.Add(deck, shelf, shard, window)
 	shelf.Add(mug)
-	return lair
+	return lair, pda
 }
 
 // lairEvents are the lair's event rules (docs/systems/events.md).

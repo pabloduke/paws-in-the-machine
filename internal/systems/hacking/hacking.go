@@ -823,6 +823,12 @@ func (h *Host) configuredServices() []*Service {
 }
 
 func (s *Session) serviceState(host *Host, svc *Service) string {
+	return serviceState(s.w, host, svc)
+}
+
+// serviceState resolves what a scan shows for one port right now: a
+// pure function of flags, shared by the shell and the PDA sniffer.
+func serviceState(w *engine.World, host *Host, svc *Service) string {
 	state := svc.State
 	if state == "" {
 		state = StateOpen
@@ -830,10 +836,10 @@ func (s *Session) serviceState(host *Host, svc *Service) string {
 	if state == StateHidden {
 		return StateHidden
 	}
-	if host.Require != "" && !s.w.Flags[host.Require] {
+	if host.Require != "" && !w.Flags[host.Require] {
 		return StateFiltered
 	}
-	if svc.OpenWhen != "" && !s.w.Flags[svc.OpenWhen] {
+	if svc.OpenWhen != "" && !w.Flags[svc.OpenWhen] {
 		return StateFiltered
 	}
 	return state
@@ -869,14 +875,19 @@ func (s *Session) scan(args []string) string {
 	if !ok {
 		return "scan: Could not resolve hostname " + args[0]
 	}
+	return portReport(s.w, host)
+}
 
+// portReport renders the scan table for a host — shared by the shell
+// and the PDA sniffer (PortReport).
+func portReport(w *engine.World, host *Host) string {
 	services := host.configuredServices()
 	sort.Slice(services, func(i, j int) bool { return services[i].Port < services[j].Port })
 
 	var rows []string
 	allFiltered := len(services) > 0
 	for _, svc := range services {
-		state := s.serviceState(host, svc)
+		state := serviceState(w, host, svc)
 		if state == StateHidden {
 			continue
 		}

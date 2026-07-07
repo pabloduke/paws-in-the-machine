@@ -68,6 +68,7 @@ var surfaces = []surface{
 	eventsSurface{},
 	modalSurface{},
 	dialogueSurface{},
+	pdaSurface{},
 	journalSurface{},
 	saveSurface{},
 	citySurface{},
@@ -95,6 +96,15 @@ type Model struct {
 	invOff int // scroll offset into the inventory modal
 
 	journalOpen bool // the journal modal (docs/systems/events.md)
+
+	// PDA menus (pda_ui.go): the carried read-only field device.
+	pdaMode     pdaMode
+	pdaCfg      hacking.PDA
+	pdaSel      int
+	pdaFiles    []hacking.TextFile
+	pdaHosts    []string
+	pdaDocTitle string
+	pdaDocText  string
 
 	// SavePath is the one save slot (docs/systems/saveload.md);
 	// defaults to the user config dir, overridable (tests, flags).
