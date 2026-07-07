@@ -86,6 +86,26 @@ func buildCoffeeshop() *engine.Entity {
 							},
 							End: true,
 						},
+						{
+							Text: "Stare at the hound, then at the barista. " +
+								"Your meaning is clear: that dog has too much " +
+								"free time.",
+							Require: []dialogue.Requirement{
+								dialogue.Flag(flagBaristaSoftened),
+								dialogue.MissingFlag(flagHoundLured),
+							},
+							Effects: []dialogue.Effect{
+								dialogue.SetFlag(flagHoundLured),
+								dialogue.Say("(Placeholder) The barista sighs, " +
+									"digs a strip of jerky from under the " +
+									"counter, and whistles. The hound's " +
+									"professionalism lasts half a second. It " +
+									"parks itself at the counter, nose down, " +
+									"the back door forgotten."),
+								dialogue.AwardOnce(flagXPHoundLure, 2),
+							},
+							End: true,
+						},
 						{Text: "Mrow.", Next: "mrow"},
 						{Text: "Leave.", End: true},
 					},
@@ -138,11 +158,25 @@ func buildCoffeeshop() *engine.Entity {
 
 	hound := engine.NewEntity("hound", "a corpo hound", "hound", "dog", "guard").With(
 		engine.Notable{},
-		engine.Description{Text: "(Placeholder) A corpo security hound parked in " +
-			"front of the back room door. Ears up. Dogs take this job " +
-			"personally."},
+		// Prose telegraphs perception state; the numbers stay hidden
+		// (docs/systems/stealth.md).
+		engine.Description{Fn: func(w *engine.World) string {
+			if w.Flags[flagHoundLured] {
+				return "(Placeholder) The corpo hound is parked at the " +
+					"counter, nose deep in a strip of jerky. The back " +
+					"door has never been less interesting to anyone."
+			}
+			return "(Placeholder) A corpo security hound parked in " +
+				"front of the back room door. Ears up. Dogs take this job " +
+				"personally."
+		}},
 		checks.Guarded{
 			Dest: "backroom",
+			// Snack time blinds the watcher: attempts roll with the
+			// unwatched bonus while the lure holds (perception reads
+			// flags, never spends them).
+			Oblivious: []checks.Cond{{If: []string{flagHoundLured}}},
+			Unwatched: 10,
 			Approaches: map[checks.Approach]checks.Attempt{
 				checks.Sneak: {
 					Difficulty: 22,
@@ -226,5 +260,8 @@ func coffeeshopJournal() []engine.Entry {
 		{Flag: flagHoundAlerted, Text: "(Placeholder) The corpo hound at " +
 			"the coffee shop has my scent. A distraction might reset " +
 			"the odds."},
+		{Flag: flagHoundLured, Text: "(Placeholder) The barista can call " +
+			"the hound off with jerky. While it's at the counter, the " +
+			"back door is barely watched."},
 	}
 }

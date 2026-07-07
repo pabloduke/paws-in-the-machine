@@ -41,6 +41,28 @@ func Check(w *engine.World, id string, stat, difficulty int) bool {
 	return roll+stat >= difficulty
 }
 
+// Cond is a flag condition — the same shape event rules use: every
+// If flag true, every Unless flag false.
+type Cond struct {
+	If     []string
+	Unless []string
+}
+
+// applies reports whether the condition currently holds.
+func (c Cond) applies(w *engine.World) bool {
+	for _, f := range c.If {
+		if !w.Flags[f] {
+			return false
+		}
+	}
+	for _, f := range c.Unless {
+		if w.Flags[f] {
+			return false
+		}
+	}
+	return true
+}
+
 // Mod is a situational modifier: a circumstance, read from flags,
 // that shifts an attempt (docs/systems/stealth.md). Circumstances
 // are telegraphed in prose by content; the numbers stay hidden.
@@ -55,17 +77,7 @@ type Mod struct {
 
 // applies reports whether the circumstance currently holds.
 func (m Mod) applies(w *engine.World) bool {
-	for _, f := range m.If {
-		if !w.Flags[f] {
-			return false
-		}
-	}
-	for _, f := range m.Unless {
-		if w.Flags[f] {
-			return false
-		}
-	}
-	return true
+	return Cond{If: m.If, Unless: m.Unless}.applies(w)
 }
 
 // Attempt is one open door through an obstacle: a difficulty, the
@@ -101,6 +113,50 @@ type Guarded struct {
 	Approaches map[Approach]Attempt
 	// Refusals overrides the default text for impossible approaches.
 	Refusals map[Approach]string
+
+	// Watcher names the observer whose perception gates this obstacle.
+	// Empty means the entity itself is the observer; naming another
+	// entity lets the gate and the eyes differ (a back door watched by
+	// a hound) — and composes with presence: a watcher Placed out of
+	// the room cannot observe (docs/systems/presence.md).
+	Watcher string
+	// Oblivious lists circumstances under which the watcher, though
+	// present, cannot see (asleep, lured to a scrap bowl). Perception
+	// only reads flags — observing never mutates.
+	Oblivious []Cond
+	// Unwatched is the delta every attempt gains while the watcher
+	// can't see. Zero means perception doesn't matter here.
+	Unwatched int
+}
+
+// Watched reports whether the obstacle's observer can currently see
+// Buddy: the watcher is in Buddy's room and no Oblivious circumstance
+// holds. A pure function of world state — dice never enter into what
+// an observer perceives (docs/systems/visibility.md).
+func (g Guarded) Watched(w *engine.World, self *engine.Entity) bool {
+	watcher := self
+	if g.Watcher != "" {
+		watcher = w.FindID(g.Watcher)
+	}
+	if watcher == nil || !inRoom(w, watcher) {
+		return false
+	}
+	for _, c := range g.Oblivious {
+		if c.applies(w) {
+			return false
+		}
+	}
+	return true
+}
+
+// inRoom reports whether e is in the player's room subtree.
+func inRoom(w *engine.World, e *engine.Entity) bool {
+	for p := e; p != nil; p = p.Parent {
+		if p == w.Room() {
+			return true
+		}
+	}
+	return false
 }
 
 func (g Guarded) Handle(w *engine.World, self *engine.Entity, cmd engine.Command) (string, bool) {
@@ -142,6 +198,14 @@ func (g Guarded) Handle(w *engine.World, self *engine.Entity, cmd engine.Command
 		if mod.Consume != "" {
 			delete(w.Flags, mod.Consume)
 		}
+	}
+
+	// Perception gates the odds, not the verb: an unwatched obstacle
+	// still rolls, with the observer's blindness as one big modifier.
+	// The effective stat feeds the hash, so a lapsed watcher is a
+	// genuinely new roll (XCOM rule).
+	if g.Unwatched != 0 && !g.Watched(w, self) {
+		effective += g.Unwatched
 	}
 
 	id := self.ID + "." + string(approach)

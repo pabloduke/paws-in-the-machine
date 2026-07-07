@@ -1,8 +1,8 @@
 # Stats, Checks & Obstacles
 
-Status: agreed; built (modifiers and failure consequences included).
-Remaining: difficulty-scale calibration (a tuning pass, not a
-mechanism).
+Status: agreed; built (modifiers, failure consequences, and
+observer-side perception included). Remaining: difficulty-scale
+calibration (a tuning pass, not a mechanism).
 
 ## The stat rule: a stat must be a verb
 
@@ -120,6 +120,36 @@ Examples:
 - `internal/systems/checks/` package, one exposed surface: a `Check`
   function plus a `Guarded` component content attaches to obstacle
   entities (the approach matrix as configuration).
+
+## Observers have perception
+
+The other half of visibility (docs/systems/visibility.md): what the
+*observer* can see. Perception is a pure function of world state —
+observing never mutates, and no dice decide what an observer
+perceives (the roll stays on Buddy's side).
+
+- A `Guarded` obstacle may name a `Watcher` — the entity whose eyes
+  gate it. Empty means the obstacle watches for itself (the hound is
+  its own gate); naming another entity splits the gate from the eyes
+  (a back door watched by a hound), which composes with presence: a
+  watcher `Placed` out of Buddy's room cannot observe.
+- `Oblivious` lists flag circumstances (If/Unless, the event-rule
+  shape) under which a present watcher cannot see — asleep, lured to
+  a scrap bowl. Perception only reads flags; nothing is consumed
+  (a consumable distraction is a `Mod`, not perception).
+- **Unwatched is a modifier, not a bypass** (ruling): while the
+  watcher can't see, every attempt rolls with the `Unwatched` delta
+  on top. One mechanism — perception feeds the same effective stat
+  as Mods, so the XCOM rule re-rolls when the watcher lapses, and
+  the XP payout shrinks by the help. `Unwatched: 0` opts out.
+- `Guarded.Watched(w, self)` is exported so events and journal prose
+  can telegraph the state without duplicating the logic.
+
+Demo beat (placeholder content): once softened, the barista can be
+asked to whistle the hound to the counter (`hound_lured`); the lured
+hound's prose and a journal entry telegraph it, and sneaking past
+rolls at +10 — Stealth 10 rolls as 20 against difficulty 22 and
+clears, paying only the 2 XP the stacked deck deserves.
 
 ## Failure is a fork, not a wall
 
