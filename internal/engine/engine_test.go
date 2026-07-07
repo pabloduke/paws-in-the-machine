@@ -223,3 +223,27 @@ func TestDispatchOrder(t *testing.T) {
 		t.Fatalf("unhandled verb should fall through to default: %q", out)
 	}
 }
+
+// The room view re-renders Look every UI frame; with multiple exits,
+// unsorted map iteration made the exits line shuffle between frames.
+// Look must be a pure, stable function of world state.
+func TestLookExitsStable(t *testing.T) {
+	w := engine.NewWorld()
+	crossroads := engine.NewEntity("crossroads", "The Crossroads").With(
+		engine.Exits{Dirs: map[string]string{
+			"north": "a", "south": "b", "east": "c", "west": "d",
+		}},
+	)
+	w.Root.Add(crossroads)
+	crossroads.Add(w.Player)
+
+	first := engine.Look(w)
+	if !strings.Contains(first, "Exits: east, north, south, west") {
+		t.Fatalf("exits should render in sorted order: %q", first)
+	}
+	for i := 0; i < 100; i++ {
+		if got := engine.Look(w); got != first {
+			t.Fatalf("Look must be stable across renders:\nfirst: %q\ngot:   %q", first, got)
+		}
+	}
+}
