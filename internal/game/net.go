@@ -10,6 +10,23 @@ import (
 // starterNet is the net behind Buddy's deck: the hosts, files, and
 // processes of the first hacking beat (docs/systems/hacking.md).
 // Declared here like rooms are; the hooks set flags only.
+// defaultAliases seeds the deck's ~/.aliases: friendlier verbs so a
+// player who has never touched a shell can still play (list, look,
+// search), while the real commands keep working. A pro reads the file
+// (ls -a) and edits it — the comments show how. Plain `alias` syntax,
+// the way anyone off Linux would expect.
+const defaultAliases = `# Your shell aliases: friendlier names for the built-in commands.
+# The real commands (ls, cat, grep...) always work too.
+# Add your own, plain shell syntax:  alias name=command
+#   e.g.  alias deep='grep -ir'
+alias list=ls
+alias look=cat
+alias read=cat
+alias search=grep
+alias copy=cp
+alias connect=ssh
+`
+
 func starterNet() map[string]*hacking.Host {
 	return map[string]*hacking.Host{
 		"deck": {
@@ -21,6 +38,7 @@ func starterNet() map[string]*hacking.Host {
 						hacking.Dir("notes",
 							hacking.DynamicFile("notes.md", buddyNotes),
 						),
+						hacking.File(".aliases", defaultAliases),
 					),
 				),
 				hacking.Dir("bin"),

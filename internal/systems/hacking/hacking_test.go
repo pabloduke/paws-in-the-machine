@@ -31,6 +31,7 @@ func testNet() map[string]*hacking.Host {
 								return "# Notes\n\nNothing solid yet."
 							}),
 						),
+						hacking.File(".aliases", "# aliases\nalias list=ls\nalias look=cat\n"),
 					),
 				),
 			),
@@ -273,6 +274,58 @@ func TestEditErrors(t *testing.T) {
 	exec(t, s, "touch data.log")
 	if out := s.ExecDetailed("edit data.log").Output; out != "edit: data.log: only .txt and .md files are editable" {
 		t.Fatalf("edit extension: %q", out)
+	}
+}
+
+// Friendly aliases from ~/.aliases expand to the real command (list→ls),
+// so newbs and pros hit the same code path.
+func TestAliasExpandsToRealCommand(t *testing.T) {
+	_, s := newShell(t)
+	if aliased, real := exec(t, s, "list"), exec(t, s, "ls"); aliased != real {
+		t.Fatalf("list should expand to ls: list=%q ls=%q", aliased, real)
+	}
+}
+
+// Editing ~/.aliases takes effect on the next command — no source needed
+// — and a full-string expansion (alias with its own args) works.
+func TestAliasEditTakesEffectAndCarriesArgs(t *testing.T) {
+	_, s := newShell(t)
+	res := s.ExecDetailed("edit .aliases")
+	if res.Edit == nil {
+		t.Fatalf(".aliases should be editable: %#v", res)
+	}
+	// `ll` expands to `ls -a`, revealing the (hidden) .aliases itself.
+	s.SaveEdit(res.Edit.Path, "alias ll='ls -a'\n")
+	if out := exec(t, s, "ll"); !strings.Contains(out, ".aliases") {
+		t.Fatalf("ll should expand to `ls -a` and show dotfiles: %q", out)
+	}
+}
+
+// A cyclic alias must terminate rather than expand forever.
+func TestAliasLoopTerminates(t *testing.T) {
+	_, s := newShell(t)
+	res := s.ExecDetailed("edit .aliases")
+	s.SaveEdit(res.Edit.Path, "alias a=b\nalias b=a\n")
+	if out := exec(t, s, "a"); !strings.Contains(out, "command not found") {
+		t.Fatalf("a cyclic alias should terminate at a real dispatch: %q", out)
+	}
+}
+
+// ls hides dotfiles unless -a — the real-shell behavior, and the puzzle
+// surface it enables (a clue in a .file is only found by looking).
+func TestLsHidesDotfilesUnlessAll(t *testing.T) {
+	_, s := newShell(t)
+	exec(t, s, "touch .secret")
+
+	if out := exec(t, s, "ls"); strings.Contains(out, ".secret") {
+		t.Fatalf("plain ls should hide the dotfile: %q", out)
+	}
+	if out := exec(t, s, "ls -a"); !strings.Contains(out, ".secret") {
+		t.Fatalf("ls -a should reveal the dotfile: %q", out)
+	}
+	// The path can follow the flag.
+	if out := exec(t, s, "ls -a ."); !strings.Contains(out, ".secret") {
+		t.Fatalf("ls -a <path> should reveal the dotfile: %q", out)
 	}
 }
 

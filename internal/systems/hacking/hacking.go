@@ -300,6 +300,7 @@ func (s *Session) ExecDetailed(line string) ExecResult {
 	if len(args) == 0 {
 		return ExecResult{}
 	}
+	args = s.expandAliases(args)
 	cmd := args[0]
 	args = args[1:]
 	switch cmd {
@@ -427,8 +428,85 @@ func (s *Session) resolvedPath(p string) string {
 	return path
 }
 
+// aliasFileName is the player's shell config: a hidden dotfile in the
+// deck home holding `alias name=command` lines. Newbs get friendlier
+// verbs out of the box (list, look, search); pros edit it to add their
+// own. It is session-scoped for now — edits hold within a play session
+// but reset from the authored defaults on load (the deck filesystem
+// rebuilds from code; persisting it wants a generic save store).
+const aliasFileName = ".aliases"
+
 func editableTextName(name string) bool {
-	return strings.HasSuffix(name, ".txt") || strings.HasSuffix(name, ".md")
+	return name == aliasFileName ||
+		strings.HasSuffix(name, ".txt") || strings.HasSuffix(name, ".md")
+}
+
+// aliasTable parses the deck's ~/.aliases into a name->expansion map.
+// Read fresh each command (from the deck, so it follows you onto remote
+// hosts) so an `edit .aliases` takes effect at once — no `source`
+// needed. Blank lines and `#` comments are ignored; malformed lines are
+// skipped rather than erroring, the way a shell shrugs off a bad rc line.
+func (s *Session) aliasTable() map[string]string {
+	node := find(s.deck.Root, append(splitPath(s.deck.Home), aliasFileName))
+	if node == nil || node.Dir {
+		return nil
+	}
+	text := node.Text
+	if node.TextFn != nil {
+		text = node.TextFn(s.w)
+	}
+	table := map[string]string{}
+	for _, line := range strings.Split(text, "\n") {
+		line = strings.TrimSpace(line)
+		rest, ok := strings.CutPrefix(line, "alias ")
+		if !ok {
+			continue
+		}
+		name, value, ok := strings.Cut(rest, "=")
+		if !ok {
+			continue
+		}
+		name = strings.TrimSpace(name)
+		value = unquote(strings.TrimSpace(value))
+		if name != "" && value != "" {
+			table[name] = value
+		}
+	}
+	return table
+}
+
+// expandAliases rewrites the leading command word through ~/.aliases the
+// way a real shell does: the first token is replaced by its expansion
+// (which may carry its own args, e.g. `alias ll='ls -la'`), repeated
+// while the new leading word is itself an alias. A seen-set breaks
+// alias loops (alias a=b / alias b=a) so expansion always terminates.
+func (s *Session) expandAliases(args []string) []string {
+	table := s.aliasTable()
+	if len(table) == 0 {
+		return args
+	}
+	seen := map[string]bool{}
+	for len(args) > 0 {
+		head := args[0]
+		expansion, ok := table[head]
+		if !ok || seen[head] {
+			break
+		}
+		seen[head] = true
+		args = append(strings.Fields(expansion), args[1:]...)
+	}
+	return args
+}
+
+// unquote strips one layer of matching surrounding quotes, so
+// `alias ll='ls -la'` stores `ls -la`, not `'ls -la'`.
+func unquote(v string) string {
+	if len(v) >= 2 {
+		if q := v[0]; (q == '\'' || q == '"') && v[len(v)-1] == q {
+			return v[1 : len(v)-1]
+		}
+	}
+	return v
 }
 
 func documentKind(name string) (DocumentKind, bool) {
@@ -445,9 +523,20 @@ func documentKind(name string) (DocumentKind, bool) {
 // --- fake file commands -----------------------------------------------
 
 func (s *Session) ls(args []string) string {
+	// Dotfiles hide unless -a, the way a real shell does — which is also
+	// a puzzle surface: a clue tucked in a .file is only found by the
+	// player who thinks to look. Flags and the optional path can arrive
+	// in either order (ls -a, ls -a /path, ls /path).
+	all := false
 	target := "."
-	if len(args) > 0 {
-		target = args[0]
+	for _, a := range args {
+		if len(a) > 1 && strings.HasPrefix(a, "-") {
+			if strings.Contains(a, "a") {
+				all = true
+			}
+			continue
+		}
+		target = a
 	}
 	n := s.node(target)
 	if n == nil {
@@ -456,16 +545,19 @@ func (s *Session) ls(args []string) string {
 	if !n.Dir {
 		return n.Name
 	}
-	if len(n.Children) == 0 {
-		return ""
-	}
 	names := make([]string, 0, len(n.Children))
 	for _, c := range n.Children {
+		if !all && strings.HasPrefix(c.Name, ".") {
+			continue // hidden unless -a
+		}
 		name := c.Name
 		if c.Dir {
 			name += "/"
 		}
 		names = append(names, name)
+	}
+	if len(names) == 0 {
+		return ""
 	}
 	sort.Strings(names)
 	return strings.Join(names, "  ")
@@ -1070,7 +1162,7 @@ func (s *Session) setFlag(name string) {
 }
 
 const helpText = `deck shell:
-  ls [path]           list directory
+  ls [-a] [path]      list directory (-a shows hidden dotfiles)
   cd <path> / pwd     move around / where am I
   cat <file>          read a file (.md/.txt open in reader)
   edit <file>         edit .md/.txt files, autosave on tab
@@ -1083,7 +1175,11 @@ const helpText = `deck shell:
   curl <host>[/path]  poke a host without logging in
   ps / kill <pid>     list / stop processes
   run <file>          execute something
-  exit / logout       close the connection (or the deck, to leave)`
+  exit / logout       close the connection (or the deck, to leave)
+
+friendly names (list, look, search…) are aliases in ~/.aliases — a
+hidden file (ls -a to see it). edit .aliases to add your own:
+alias name=command`
 
 // Deck is the data-only marker component (the dialogue.Talkable
 // pattern) attached to the deck entity: using it opens the Deck Shell

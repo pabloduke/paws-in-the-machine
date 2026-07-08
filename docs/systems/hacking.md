@@ -72,7 +72,7 @@ panel.
 
 | command | behavior |
 |---|---|
-| `ls [path]` | list a directory; dirs get a `/` suffix |
+| `ls [-a] [path]` | list a directory; dirs get a `/` suffix. Dotfiles (names starting with `.`) are hidden unless `-a` — the real-shell behavior, and a puzzle surface: a clue authored into a `.file` is only found by a player who thinks to look. Flag and path may appear in either order |
 | `cd <path>` | change directory (within the current host) |
 | `pwd` | print the working directory |
 | `cat <file>` | print file text; `.md` and `.txt` files open in the reader panel; fires `OnRead` |
@@ -117,6 +117,39 @@ player later `cat`s the file. Dynamic generated files like
 flags. Files created with `touch` save directly. Any other editable text
 file gets a one-time sibling backup before the first save, using
 `<name>.bak`, then `.bak.1`, `.bak.2`, and so on if needed.
+
+## Aliases (`~/.aliases`)
+
+The shell has one accessibility affordance: the deck's home holds a
+hidden `~/.aliases` file of `alias name=command` lines. It ships with
+friendlier verbs — `list`→`ls`, `look`/`read`→`cat`, `search`→`grep`,
+`copy`→`cp`, `connect`→`ssh` — so a player who has never touched a shell
+can still play, while the real commands always work. This lowers the
+floor without a menu; it does not replace the terminal.
+
+Design line held deliberately (see the conversation that shaped it):
+
+- **Real `alias` syntax**, because anyone off Linux expects it. The
+  leading command word is expanded, repeatedly while the new head is
+  itself an alias, with a seen-set to break `a=b`/`b=a` loops. Full
+  expansion means `alias ll='ls -la'` and `alias deep='grep -ir'` just
+  work. Not env vars, functions, or `$PATH` — the filename is `.aliases`,
+  not `.bashrc`, precisely so it doesn't promise the whole init surface.
+- **Discovery is a dotfile.** `.aliases` is hidden; `ls -a` reveals it,
+  `edit .aliases` changes it, and the change takes effect on the next
+  command (no `source`). `help` names the file for terminal users;
+  newbs skim past it and just use the defaults.
+- **Pipes are deliberately out** for now: with `grep` the only consumer,
+  the useful cases (`ls`/`ps`/`scan` `| grep`) are thin and serve no
+  newb — add them when a puzzle wants a real filter and a second
+  consumer exists.
+- **Session-scoped for now.** Edits hold within a play session but reset
+  to the authored defaults on load, because the deck filesystem rebuilds
+  from code and is not in the save (`docs/systems/saveload.md`).
+  Persisting player edits wants a generic saved-text store rather than a
+  shell-specific field on `engine.World` (which would breach the
+  engine/game boundary); that is a deliberate follow-up, tracked with
+  the terminal-persistence work in #28.
 
 Some hosts can require a story route before they answer. If the route
 flag is missing, `ssh microslop` prints a fake network-unreachable error
