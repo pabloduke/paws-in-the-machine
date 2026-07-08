@@ -33,10 +33,11 @@ func TestWhisperEventBeat(t *testing.T) {
 		t.Fatalf("rules must not evaluate while the shell is open: %v", w.Pending)
 	}
 
-	// Logout: the world reacts.
+	// Logout: the world reacts — the lair beat plus the hacking XP
+	// payout (#24), one modal each.
 	mod, _ = mod.Update(spec(tea.KeyEsc))
-	if len(w.Pending) != 1 {
-		t.Fatalf("logout should fire the whisper rule: %v", w.Pending)
+	if len(w.Pending) != 2 {
+		t.Fatalf("logout should fire the whisper rule and the XP payout: %v", w.Pending)
 	}
 	view := mod.View()
 	if !strings.Contains(view, "░▒▓") || !strings.Contains(view, "fans spin down") {
@@ -50,14 +51,16 @@ func TestWhisperEventBeat(t *testing.T) {
 		t.Fatalf("typing leaked past the event modal: %q", v)
 	}
 
-	// Enter dismisses; the beat lands in the LOG.
+	// Enter dismisses one beat at a time; both land in the LOG.
+	mod, _ = mod.Update(spec(tea.KeyEnter))
 	mod, _ = mod.Update(spec(tea.KeyEnter))
 	mm := mod.(Model)
 	if len(w.Pending) != 0 {
-		t.Fatalf("dismissal should drain the beat")
+		t.Fatalf("dismissal should drain the beats: %v", w.Pending)
 	}
-	if !strings.Contains(strings.Join(mm.entries, "\n"), "fans spin down") {
-		t.Fatalf("dismissed beat should be in the LOG")
+	joined := strings.Join(mm.entries, "\n")
+	if !strings.Contains(joined, "fans spin down") || !strings.Contains(joined, "+3 XP") {
+		t.Fatalf("dismissed beats should be in the LOG")
 	}
 
 	// Once: logging in and out again stays quiet.

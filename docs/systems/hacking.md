@@ -1,7 +1,12 @@
 # Hacking
 
-Status: first playable slice built; ICE, richer credential gates, and XP
-payouts still open.
+Status: first playable slice built; ICE and richer credential gates
+still open. XP payouts are built (#24): terminal beats pay
+content-valued XP through event rules over the hook flags
+(`netEvents()` in `internal/game/net.go`) — no rolls, no formula, the
+amounts are content. Rules don't run while the terminal is open, so
+the payout lands at logout: the session's haul, tallied at the door.
+Amounts are tuning data for the calibration pass (#27).
 
 Buddy is a cat sitting at a scavenged deck. He doesn't go anywhere: he
 logs into the deck — his powerful box — and works from a terminal,

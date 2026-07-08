@@ -69,4 +69,13 @@ const (
 	flagXPHoundLure    = "xp_hound_lure"
 	flagXPLobbyFlyer   = "xp_lobby_flyer"
 	flagXPOkudaConsole = "xp_okuda_console"
+	// Hacking payouts (netEvents, issue #24): once-markers for the
+	// terminal beats that pay content-valued XP at logout.
+	flagXPWhisper         = "xp_whisper"
+	flagXPSunFragment     = "xp_sun_fragment"
+	flagXPRanDig          = "xp_ran_dig"
+	flagXPWhisperQuiet    = "xp_whisper_quiet"
+	flagXPSunNoticeRead   = "xp_sun_notice_read"
+	flagXPSunNoticeCopied = "xp_sun_notice_copied"
+	flagXPOkuda410        = "xp_okuda_410"
 )
