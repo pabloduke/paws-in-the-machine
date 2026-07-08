@@ -33,6 +33,7 @@ func deckSession(t *testing.T, w *engine.World) *hacking.Session {
 // terminal handshake, driven from both sides.
 func TestOkudaClosedPortsLoop(t *testing.T) {
 	w := game.NewWorld()
+	w.Seed = 3 // pin the demo tuning; NewWorld randomizes for real play
 	eng := engine.New(w)
 
 	// The terminal side first: okuda.grid answers scans but its one
@@ -112,6 +113,7 @@ func TestOkudaClosedPortsLoop(t *testing.T) {
 // the heavily-guarded way in rewards the cat who took it.
 func TestOkudaStealthRoute(t *testing.T) {
 	w := game.NewWorld()
+	w.Seed = 3 // pin the demo tuning; NewWorld randomizes for real play
 	eng := engine.New(w)
 	hubs.Travel(w, "okuda")
 	eng.Execute("east") // service alley
@@ -145,6 +147,7 @@ func TestOkudaStealthRoute(t *testing.T) {
 // circumstance the sneak roll consumes (the guard resets the panel).
 func TestOkudaBreakerIsConsumed(t *testing.T) {
 	w := game.NewWorld()
+	w.Seed = 3 // pin the demo tuning; NewWorld randomizes for real play
 	eng := engine.New(w)
 	hubs.Travel(w, "okuda")
 	eng.Execute("east")
@@ -171,6 +174,7 @@ func TestOkudaBreakerIsConsumed(t *testing.T) {
 // overworld door that was shut is now a doorway.
 func TestOkudaArchiveDoorOpensFromTheNet(t *testing.T) {
 	w := game.NewWorld()
+	w.Seed = 3 // pin the demo tuning; NewWorld randomizes for real play
 	eng := engine.New(w)
 	hubs.Travel(w, "okuda")
 	eng.Execute("east")

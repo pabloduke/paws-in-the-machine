@@ -355,6 +355,7 @@ func TestHackingBeatSetsFlags(t *testing.T) {
 
 func TestMicroslopPasswordPuzzle(t *testing.T) {
 	w := game.NewWorld()
+	w.Seed = 3 // drives the hound check (parkour); pin the demo tuning
 	mod := newSized(w)
 	mod = typeLine(mod, "use deck")
 	mod = typeLine(mod, "ssh microslop")
