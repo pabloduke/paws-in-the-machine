@@ -32,9 +32,23 @@ func (Talkable) Handle(_ *engine.World, self *engine.Entity, cmd engine.Command)
 }
 
 // Node is one line of NPC text plus the player choices available from it.
+// TextFn, when set, overrides Text and derives the line from world state
+// — the greeting that runs warm or cold on what an NPC remembers about
+// Buddy (NPC memory, #14; docs/systems/dialogue.md). It mirrors
+// engine.Description{Fn}: memory is ordinary flags, read at render time.
 type Node struct {
 	Text    string
+	TextFn  func(*engine.World) string
 	Choices []Choice
+}
+
+// line resolves a node's NPC text: TextFn wins when present, so a
+// memory-aware greeting is a pure function of flags at render time.
+func (n Node) line(w *engine.World) string {
+	if n.TextFn != nil {
+		return n.TextFn(w)
+	}
+	return n.Text
 }
 
 // Choice is a player response. Requirements hide unavailable choices;
@@ -146,7 +160,7 @@ func (s *Session) Text() string {
 	if !ok {
 		return ""
 	}
-	return node.Text
+	return node.line(s.w)
 }
 
 // Options returns the currently visible choices with their lock state.
@@ -202,7 +216,7 @@ func (s *Session) Render() string {
 	}
 	var b strings.Builder
 	b.WriteString(engine.DisplayName(s.w, s.npc) + ":\n")
-	b.WriteString(node.Text)
+	b.WriteString(node.line(s.w))
 	options := s.Options()
 	if len(options) == 0 {
 		b.WriteString("\n\n[No responses available.]")

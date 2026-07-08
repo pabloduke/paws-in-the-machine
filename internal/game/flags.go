@@ -15,9 +15,17 @@ const (
 	flagGotSunNotice    = "got_microslop_notice"
 
 	// Set by verb hooks and dialogue effects.
-	flagMugDown                = "mug_down"
-	flagDrawerOpen             = "drawer_open"
-	flagBaristaSoftened        = "barista_softened"
+	flagMugDown         = "mug_down"
+	flagDrawerOpen      = "drawer_open"
+	flagBaristaSoftened = "barista_softened"
+	// NPC memory (#14): a per-NPC fact the barista carries about how
+	// Buddy treated her at first contact. Warm memory is the existing
+	// flagBaristaSoftened; this is its cold twin. Read by her greeting
+	// (cold line), her description, and the hound-lure favor she won't
+	// do for a cruel stray. Kept off the critical path on purpose:
+	// burning her never walls the apple reveal (failure is a fork, not
+	// a wall — docs/systems/stealth.md).
+	flagBaristaBurned          = "barista_burned"
 	flagBaristaSawShard        = "barista_saw_shard"
 	flagKnowsMicroslopPassword = "knows_microslop_password"
 	flagMicroslopRouteOpen     = "microslop_route_open"

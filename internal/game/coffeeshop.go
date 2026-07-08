@@ -34,14 +34,43 @@ func buildCoffeeshop() *engine.Entity {
 			}
 			return "coffeeshop"
 		}},
-		engine.Description{Text: "(Placeholder) The barista has the hollow-eyed " +
-			"look of someone who has seen too many loyalty apps and not " +
-			"enough sunlight."},
+		// Her body language remembers first contact (NPC memory, #14):
+		// cold if Buddy was cruel, easy once she's been won over.
+		engine.Description{Fn: func(w *engine.World) string {
+			switch {
+			case w.Flags[flagBaristaBurned]:
+				return "(Placeholder) The barista keeps the counter between you " +
+					"and her, wiping the same spot she already wiped. She " +
+					"remembers the stray who knocked her tips to the floor."
+			case w.Flags[flagBaristaSoftened]:
+				return "(Placeholder) The barista's shoulders drop a notch when " +
+					"she clocks the orange. Not a smile — but the closest thing " +
+					"she keeps in stock."
+			default:
+				return "(Placeholder) The barista has the hollow-eyed " +
+					"look of someone who has seen too many loyalty apps and not " +
+					"enough sunlight."
+			}
+		}},
 		dialogue.Talkable{
 			Start: "greeting",
 			Nodes: map[string]dialogue.Node{
 				"greeting": {
-					Text: "(Placeholder) \"That cat again. You lost, orange?\"",
+					// NPC memory (#14): the opening line runs warm, cold, or
+					// neutral on what she remembers — a pure function of flags
+					// (docs/systems/dialogue.md).
+					TextFn: func(w *engine.World) string {
+						switch {
+						case w.Flags[flagBaristaBurned]:
+							return "(Placeholder) \"You. Order something or get out, " +
+								"orange. I've got a broom with your name on it.\""
+						case w.Flags[flagBaristaSoftened]:
+							return "(Placeholder) \"Back again? Counter's yours, I " +
+								"guess. What now.\""
+						default:
+							return "(Placeholder) \"That cat again. You lost, orange?\""
+						}
+					},
 					Choices: []dialogue.Choice{
 						{
 							Text: "Purr and make the counter your kingdom.",
@@ -54,6 +83,26 @@ func buildCoffeeshop() *engine.Entity {
 								dialogue.AwardOnce(flagXPBaristaCharm, 3),
 							},
 							Next: "softened",
+						},
+						{
+							// The cruel fork (NPC memory, #14): a petty cat move
+							// she remembers. Only reachable at first contact —
+							// once she's warmed to you, or already soured, this
+							// is gone. It never touches the apple reveal below,
+							// so being cruel costs a favor and her goodwill, not
+							// the critical path (failure is a fork, not a wall).
+							Text: "Hook a claw under her tip jar and send it to the floor. Because you can.",
+							Require: []dialogue.Requirement{
+								dialogue.MissingFlag(flagBaristaSoftened),
+								dialogue.MissingFlag(flagBaristaBurned),
+							},
+							Effects: []dialogue.Effect{
+								dialogue.SetFlag(flagBaristaBurned),
+								dialogue.Say("(Placeholder) Coins ring across the tile. " +
+									"The barista doesn't chase them. She just looks at " +
+									"you the way you'd look at a stain, and files it away."),
+							},
+							End: true,
 						},
 						{
 							Text: "Nudge the data-shard into view.",
@@ -92,6 +141,10 @@ func buildCoffeeshop() *engine.Entity {
 								"free time.",
 							Require: []dialogue.Requirement{
 								dialogue.Flag(flagBaristaSoftened),
+								// She won't do a cruel stray any favors — the lure
+								// closes if she's burned. A fork, not a wall: the
+								// hound still yields to sneak or parkour.
+								dialogue.MissingFlag(flagBaristaBurned),
 								dialogue.MissingFlag(flagHoundLured),
 							},
 							Effects: []dialogue.Effect{
@@ -263,5 +316,8 @@ func coffeeshopJournal() []engine.Entry {
 		{Flag: flagHoundLured, Text: "(Placeholder) The barista can call " +
 			"the hound off with jerky. While it's at the counter, the " +
 			"back door is barely watched."},
+		{Flag: flagBaristaBurned, Text: "(Placeholder) The barista won't " +
+			"forget the tip jar. No favors coming from that counter — " +
+			"the hound's mine to handle the hard way."},
 	}
 }
