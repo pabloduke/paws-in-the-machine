@@ -161,8 +161,20 @@ beat is the first Microslop Corp terminal puzzle.
 
 ### Open overworld issues (design intent in each issue)
 
-- **#14 NPC memory** — cheapest next step: it's flag conventions over
-  dialogue/events/checks that already exist, not a new system.
+- **#14 NPC memory** — PATTERN BUILT (worked example, not yet stamped
+  across every NPC). It's flag conventions over dialogue/description
+  that already exist, not a new system. The barista now remembers first
+  contact on two per-NPC flags — `barista_softened` (warm) and
+  `barista_burned` (cold, from knocking her tip jar over) — read by her
+  greeting (via the new `dialogue.Node.TextFn`, the memory-aware line),
+  her `Description{Fn}`, and the hound-lure favor she won't do for a
+  cruel stray. Kept off the critical path: burning her never walls the
+  `apple` reveal (failure is a fork, not a wall). Presence-withdrawal is
+  the pattern's fourth lever but is for non-critical NPCs only — moving
+  a critical NPC offstage would wall progression. Spec:
+  `docs/systems/dialogue.md` "State And Memory"; tests:
+  `coffeeshop_memory_test.go` (game). Replicating it across NPCs is
+  content (user-owned).
 - **#15 UI growth: status bar** — independent, any time.
 - **#16 closed-ports loop** — BUILT (see Implemented above). By user
   ruling it grew past the issue's rack sketch: opening the port is a
@@ -173,22 +185,35 @@ beat is the first Microslop Corp terminal puzzle.
 ## Road to the real game (issues filed 2026-07-07)
 
 The remaining gap between "systems demo" and "content production can
-start" is fully issue-tracked; design intent lives in each issue:
+start" is fully issue-tracked; design intent lives in each issue.
+
+Still open:
 
 - **#22 ICE** — the last big undesigned mechanism (puzzle, never a
   check; spec first).
-- **#23 richer credential gates** — keyfiles, cracking, alternate
-  Microslop password paths.
-- **#24 hacking XP payouts** — content-valued, via the flag hooks.
-- **#25 flag-gated doors/exits** — the small engine piece "buildings
-  deepen" needs; the terminal-openable variant is the #16 contract
-  reversed.
-- **#26 dialogue headless dead end** — known Talkable.Handle flaw.
+- **#38 AI sentinels** — the high tier that sits on top of #22:
+  traced intrusion + a prompt-injection exploit line, pretend-AI voice
+  over a deterministic state machine (no runtime model). Design #22 and
+  #38 together; spec first.
+- **#23 richer credential gates** — keyfiles, chains, alternate
+  Microslop password paths (crack.bin rejected as gamey).
 - **#27 difficulty calibration + unpin seed 3** — gates content
   authoring at scale; release blocker.
 - **#28 terminal rulings** — history persistence, right-panel content.
 - **#29 Towers of Hanoi** — the backup-rotation shrine. It wouldn't
   be a puzzle game without it (user ruling).
+- **#34 Resistance: quests, ranks, deck mail** — parked design; a
+  scope question (decide in-or-out before it balloons the first
+  content push).
 
-After those: content production — the city map, act one, and
+Closed since this list was filed:
+
+- **#24 hacking XP payouts** — BUILT (netEvents, `flags.go` XP markers).
+- **#25 flag-gated doors/exits** — BUILT (see Overworld Implemented:
+  `engine.Exits.Gated` + the Okuda archive door).
+- **#26 dialogue headless dead end** — FIXED: `Talkable.Handle` now
+  refuses honestly and points at `dialogue.Start`; headless drivers use
+  the `Session` API.
+
+After the open ones: content production — the city map, act one, and
 replacing every `(Placeholder)` — which the user writes.
