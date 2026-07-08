@@ -14,6 +14,7 @@ import (
 // the situation; changed circumstances re-roll (the XCOM rule).
 func TestHoundFailureFork(t *testing.T) {
 	w := game.NewWorld()
+	w.Seed = 3 // pin the demo tuning; NewWorld randomizes for real play
 	eng := engine.New(w)
 	eng.Execute("north") // coffee shop
 	w.Pending = nil      // not testing arrival beats here
@@ -58,6 +59,7 @@ func TestHoundFailureFork(t *testing.T) {
 // unwatched bonus. Perception reads flags — the lure is not spent.
 func TestHoundLure(t *testing.T) {
 	w := game.NewWorld()
+	w.Seed = 3 // pin the demo tuning; NewWorld randomizes for real play
 	eng := engine.New(w)
 	eng.Execute("north") // coffee shop
 	w.Pending = nil

@@ -35,13 +35,14 @@ func NewWorld() *engine.World {
 	lair.Add(w.Player)
 	w.Player.Add(pda)
 
-	// Starting numbers. With the pinned seed below, the hound demos the
-	// full loop: sneak fails at Stealth 10 (and would pass at 12 —
-	// growth flips it), parkour clears, charm is refused outright.
+	// Starting numbers for a new game. The seed is randomized by
+	// engine.NewWorld (rand.Int64), so every playthrough rolls its own
+	// table — the XCOM rule stays honest and save-scumming stays
+	// useless (the seed persists through save/load). Demo and content
+	// tests pin w.Seed = 3 to assert specific tuned outcomes; see
+	// checks_demo_test.go and okuda_demo_test.go.
 	w.Stats = engine.Stats{Stealth: 10, Agility: 12, Charm: 8}
 	w.XP = 0
-	// Pinned while tuning the feel; remove to randomize per new game.
-	w.Seed = 3
 
 	// Event rules and journal content, per area (docs/systems/events.md).
 	w.Rules = append(w.Rules, lairEvents()...)

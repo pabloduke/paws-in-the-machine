@@ -152,10 +152,18 @@ beat is the first Microslop Corp terminal puzzle.
 - **Flags**: declared once in `internal/game/flags.go`, one
   writer-owner each, raw flag strings nowhere else
   (`docs/BOUNDARIES.md`).
-- **Pinned seed**: `w.Seed = 3` in `internal/game/world.go` tunes the
-  hound demo numbers. Changing seed, starting stats, difficulties, or
-  deltas will fail `checks_demo_test.go` — that's the test doing its
-  job; retune them together (and remove the pin for release).
+- **Seed policy (unpinned 2026-07-08)**: production seed is random —
+  `engine.NewWorld` sets `Seed = rand.Int64()` and `game.NewWorld` no
+  longer overrides it, so every playthrough rolls its own table and the
+  seed persists through save/load (the XCOM rule stays honest,
+  save-scumming stays useless). The demo *tuning* now lives in the
+  tests that assert it: `checks_demo_test.go`, `okuda_demo_test.go`,
+  and `TestMicroslopPasswordPuzzle` each set `w.Seed = 3` after
+  `NewWorld`. **Any test asserting a check outcome must pin the seed**
+  — an unpinned check test is flaky by construction. Starting stats
+  (Stealth 10 / Agility 12 / Charm 8) and difficulties are still the
+  demo-tuned values; recalibrating them for the real game is the
+  remaining half of #27.
 - **Systems never import each other**; `internal/game` is the
   composition root and the only cross-system wiring point.
 
@@ -197,8 +205,9 @@ Still open:
   #38 together; spec first.
 - **#23 richer credential gates** — keyfiles, chains, alternate
   Microslop password paths (crack.bin rejected as gamey).
-- **#27 difficulty calibration + unpin seed 3** — gates content
-  authoring at scale; release blocker.
+- **#27 difficulty calibration + unpin seed 3** — seed UNPINNED
+  (2026-07-08): production randomizes, tests pin. Remaining half is
+  difficulty/starting-stat calibration; release blocker.
 - **#28 terminal rulings** — history persistence, right-panel content.
 - **#29 Towers of Hanoi** — the backup-rotation shrine. It wouldn't
   be a puzzle game without it (user ruling).
