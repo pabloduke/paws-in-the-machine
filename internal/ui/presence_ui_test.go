@@ -24,8 +24,9 @@ func TestBaristaPresenceBeat(t *testing.T) {
 		t.Fatalf("talk should open the conversation")
 	}
 
-	// Pick "Nudge the data-shard into view" (row 2: charm, shard, mrow, leave).
-	mod, _ = mod.Update(kr('2'))
+	// Pick "Nudge the data-shard into view" (row 3: charm, tip-jar, shard,
+	// mrow, leave).
+	mod, _ = mod.Update(kr('3'))
 	mod, _ = mod.Update(spec(tea.KeyEnter))
 	if !w.Flags["barista_saw_shard"] {
 		t.Fatalf("flag should be set live by the pick")

@@ -31,8 +31,10 @@ func TestDialogueMenuFlow(t *testing.T) {
 	}
 	mod, _ = mod.Update(spec(tea.KeyEnter))
 
-	mod, _ = mod.Update(kr('3'))
-	if mm := mod.(Model); mm.dlgSel != 2 {
+	// Menu at first contact (charm 5, no shard): charm / tip-jar / mrow /
+	// leave. Highlight the last row, then wrap past it.
+	mod, _ = mod.Update(kr('4'))
+	if mm := mod.(Model); mm.dlgSel != 3 {
 		t.Fatalf("number should highlight: dlgSel=%d", mm.dlgSel)
 	}
 	if !strings.Contains(mod.View(), "\x1b[7m") {
@@ -51,7 +53,7 @@ func TestDialogueMenuFlow(t *testing.T) {
 	if !strings.Contains(joined, "isn't up to that yet") {
 		t.Fatalf("expected locked refusal in log")
 	}
-	mod, _ = mod.Update(kr('3'))
+	mod, _ = mod.Update(kr('4'))
 	mod, _ = mod.Update(spec(tea.KeyEnter)) // Leave.
 	if mm := mod.(Model); mm.dialogue != nil {
 		t.Fatalf("Leave should end dialogue")
