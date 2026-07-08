@@ -218,3 +218,23 @@ func TestStartRequiresTalkable(t *testing.T) {
 		t.Fatalf("expected no-dialogue error, got %v", err)
 	}
 }
+
+// Headless "talk" through engine dispatch must refuse honestly (#26):
+// a Talkable NPC has plenty to say, so the engine's default "nothing
+// to say" would be a lie. The refusal names the real driver; other
+// verbs still fall through to normal dispatch.
+func TestHeadlessTalkRefusesHonestly(t *testing.T) {
+	w, _ := dialogueWorld()
+	eng := engine.New(w)
+
+	out := eng.Execute("talk barista")
+	if strings.Contains(out, "nothing to say") {
+		t.Fatalf("a Talkable NPC must not claim to have nothing to say: %q", out)
+	}
+	if !strings.Contains(out, "dialogue.Start") {
+		t.Fatalf("the refusal should point at the real driver: %q", out)
+	}
+	if out := eng.Execute("examine barista"); strings.Contains(out, "dialogue.Start") {
+		t.Fatalf("only talk should trigger the refusal: %q", out)
+	}
+}

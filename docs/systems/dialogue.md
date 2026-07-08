@@ -68,7 +68,11 @@ the conversation ends.
 - `dialogue.Talkable` — component attached to an NPC or terminal. It is
   data only: conversations are interactive, so they run through
   `Start`/`Session` (the UI intercepts `talk` after applying
-  `World.Rewrite`), never through engine command dispatch.
+  `World.Rewrite`), never through engine command dispatch. The one verb
+  `Handle` claims is `talk`, and only to refuse honestly — without it
+  the engine default would claim the NPC "has nothing to say", a lie
+  when a graph is attached (#26). Headless drivers (tests, tools) must
+  use `Start`/`Session` like the UI does.
 - `dialogue.Node` and `dialogue.Choice` — declarative graph data.
 - `dialogue.Start` — opens a `Session` for UI/headless callers.
 - `Session.Render`, `Session.Options`, `Session.Choose`, `Session.Done`
