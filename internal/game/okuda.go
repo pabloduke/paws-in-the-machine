@@ -13,7 +13,7 @@ import (
 // corridor. Both converge on the records office, whose maintenance
 // console opens okuda.grid's port for the deck (issue #16, the first
 // overworld↔terminal handshake).
-func buildOkuda() (street, lobby, alley, corridor, office *engine.Entity) {
+func buildOkuda() (street, lobby, alley, corridor, office, annex *engine.Entity) {
 	street = engine.NewEntity("okuda_street", "Okuda HQ — Street").With(
 		engine.Description{Text: "(Placeholder) Okuda HQ. A tower with its " +
 			"name pried off the facade, which never works: the ghost of " +
@@ -275,11 +275,43 @@ func buildOkuda() (street, lobby, alley, corridor, office *engine.Entity) {
 		engine.Description{Text: "(Placeholder) A records office nobody " +
 			"visits: shelves of dead paper, a desk, and a maintenance " +
 			"console still humming — the building's grid node, forgotten " +
-			"but powered. Service stairs lead down toward the lobby."},
+			"but powered. Service stairs lead down toward the lobby; a " +
+			"heavy archive door, badge reader long dead, seals the east " +
+			"wall."},
 		engine.Exits{
-			Dirs:    map[string]string{"down": "okuda_lobby"},
-			Blocked: "(Placeholder) Paper, dust, and one way out: the stairs down.",
+			Dirs:    map[string]string{"down": "okuda_lobby", "east": "okuda_annex"},
+			Blocked: "(Placeholder) Paper, dust, the stairs down, and the archive door east.",
+			// The first flag-gated door: no badge exists anymore — the
+			// lock answers only to okuda.grid (run unlock.bin, net.go).
+			// The closed-ports contract pointed the other way: hack the
+			// net to open a physical door.
+			Gated: map[string]engine.Gate{
+				"east": {
+					Flag: flagOkudaAnnexUnlocked,
+					Shut: "(Placeholder) The archive door doesn't budge. No " +
+						"handle, no keyhole — just a dead badge reader and a " +
+						"maglock wired into the building's grid node. If the " +
+						"node still answers, something on it holds this lock.",
+				},
+			},
 		},
+	)
+
+	annex = engine.NewEntity("okuda_annex", "Okuda HQ — Deep Archive").With(
+		engine.Description{Text: "(Placeholder) The deep archive: the shelves " +
+			"they sealed instead of shredding. Asset tags run 3xx, 4xx — " +
+			"and one aisle's label has been unscrewed and taken. The " +
+			"records office is back west."},
+		engine.Exits{
+			Dirs:    map[string]string{"west": "okuda_office"},
+			Blocked: "(Placeholder) Sealed stacks in every direction but west.",
+		},
+	)
+
+	stacks := engine.NewEntity("stacks", "the sealed stacks", "stacks", "shelves", "aisle").With(
+		engine.Description{Text: "(Placeholder) Row after row of what Okuda " +
+			"was paid to lose. The unscrewed label sat between 409 and " +
+			"411. (What was here is a story decision — content TBD.)"},
 	)
 
 	console := engine.NewEntity("console", "the maintenance console", "console", "computer", "terminal", "node").With(
@@ -311,7 +343,8 @@ func buildOkuda() (street, lobby, alley, corridor, office *engine.Entity) {
 	alley.Add(fireEscape)
 	corridor.Add(guard, breaker, camera)
 	office.Add(console)
-	return street, lobby, alley, corridor, office
+	annex.Add(stacks)
+	return street, lobby, alley, corridor, office, annex
 }
 
 // okudaEvents narrates the blackboard forks (docs/systems/events.md).
@@ -349,5 +382,8 @@ func okudaJournal() []engine.Entry {
 			"there was a breaker panel in that corridor."},
 		{Flag: flagOkudaPortOpen, Text: "Threw the port switch on Okuda's " +
 			"forgotten grid node. okuda.grid should answer the deck now."},
+		{Flag: flagOkudaAnnexUnlocked, Text: "(Placeholder) Ran the maglock " +
+			"release on okuda.grid. The archive door in the records " +
+			"office is holding nothing back now."},
 	}
 }

@@ -115,10 +115,22 @@ func DisplayName(w *World, e *Entity) string {
 
 // Exits makes an entity a room: Dirs maps directions to destination
 // entity IDs. Blocked, if set, replaces the stock "you can't go that
-// way" message.
+// way" message. Gated marks directions that are shut until a story
+// flag is true — a lock, not an obstacle: no dice, no attempt verbs
+// (checks.Guarded is for things you attempt). Content sets the gate
+// flag from anywhere — a found badge, a hacked door controller — the
+// closed-ports flag contract pointed at a door.
 type Exits struct {
 	Dirs    map[string]string
 	Blocked string
+	Gated   map[string]Gate
+}
+
+// Gate is one locked direction: the flag that opens it and the prose
+// shown while it's shut.
+type Gate struct {
+	Flag string
+	Shut string
 }
 
 func (Exits) Handle(*World, *Entity, Command) (string, bool) { return "", false }

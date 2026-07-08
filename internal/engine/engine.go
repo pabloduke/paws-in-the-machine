@@ -178,6 +178,12 @@ func Go(w *World, dir string) string {
 	if !ok || x.Dirs[dir] == "" {
 		return blocked
 	}
+	if g, gated := x.Gated[dir]; gated && !w.Flags[g.Flag] {
+		if g.Shut != "" {
+			return g.Shut
+		}
+		return "It's locked."
+	}
 	dest := w.FindID(x.Dirs[dir])
 	if dest == nil {
 		return blocked

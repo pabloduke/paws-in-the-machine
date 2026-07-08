@@ -16,7 +16,7 @@ func NewWorld() *engine.World {
 	coffeeshop := buildCoffeeshop()
 	backroom := buildBackroom()
 	plazaSquare, arcade := buildPlaza()
-	okudaStreet, okudaLobby, okudaAlley, okudaCorridor, okudaOffice := buildOkuda()
+	okudaStreet, okudaLobby, okudaAlley, okudaCorridor, okudaOffice, okudaAnnex := buildOkuda()
 
 	neighborhood := engine.NewEntity("neighborhood", "The Neighborhood").With(
 		hubs.Hub{Entry: "lair"},
@@ -31,7 +31,7 @@ func NewWorld() *engine.World {
 	w.Root.Add(neighborhood, plaza, okuda)
 	neighborhood.Add(lair, coffeeshop, backroom)
 	plaza.Add(plazaSquare, arcade)
-	okuda.Add(okudaStreet, okudaLobby, okudaAlley, okudaCorridor, okudaOffice)
+	okuda.Add(okudaStreet, okudaLobby, okudaAlley, okudaCorridor, okudaOffice, okudaAnnex)
 	lair.Add(w.Player)
 	w.Player.Add(pda)
 

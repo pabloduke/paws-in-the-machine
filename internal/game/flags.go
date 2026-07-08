@@ -30,6 +30,10 @@ const (
 	flagPlayedLostCat     = "played_lost_cat"
 	flagCorridorLightsOut = "corridor_lights_out"
 	flagReadOkuda410      = "read_okuda_410"
+	// Set by running unlock.bin on okuda.grid (net.go); read by the
+	// records office's gated archive door (okuda.go) — the first door
+	// opened from inside the net.
+	flagOkudaAnnexUnlocked = "okuda_annex_unlocked"
 
 	// Set by check failures and read back as modifiers/events
 	// (docs/systems/stealth.md: failure is a story state).
