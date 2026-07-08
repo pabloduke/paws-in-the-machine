@@ -18,9 +18,17 @@ type Talkable struct {
 	Nodes map[string]Node
 }
 
-// Handle declines every command; see the type comment.
-func (Talkable) Handle(*engine.World, *engine.Entity, engine.Command) (string, bool) {
-	return "", false
+// Handle claims only "talk", and only to refuse honestly: the engine's
+// default would say the NPC has nothing to say, which is a lie when a
+// dialogue graph is attached. Conversations are interactive by ruling
+// (the ME1/FNV modal), so the headless path points at the real driver
+// instead of pretending to be one. Every other verb declines.
+func (Talkable) Handle(_ *engine.World, self *engine.Entity, cmd engine.Command) (string, bool) {
+	if cmd.Verb != "talk" {
+		return "", false
+	}
+	return fmt.Sprintf("(%s has things to say — conversations are interactive; drive them with dialogue.Start, the way the UI's talk intercept does.)",
+		engine.Capitalize(self.Name)), true
 }
 
 // Node is one line of NPC text plus the player choices available from it.
