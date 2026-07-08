@@ -1,15 +1,27 @@
 # Project State
 
-Current branch: `terminal`
+Current branch: `main`
 
-> **Lane handoff (2026-07-06).** Until now the repo ran two lanes:
-> Codex on the terminal/hacking lane, Claude on the overworld lane
-> (engine, checks, dialogue/presence/events content, room UI). Claude
-> is off the project; Codex owns both lanes. The overworld's state,
-> and the rulings it must keep, are in "Overworld lane" below. Design
-> truth lives in `docs/systems/*.md` (each system's spec, statuses
-> current), `docs/SYSTEMS.md` (the build-order index), and
-> `docs/BOUNDARIES.md` (ownership and import rules).
+> **Lane handoff (2026-07-06, amended 2026-07-07).** Until now the
+> repo ran two lanes: Codex on the terminal/hacking lane, Claude on
+> the overworld lane (engine, checks, dialogue/presence/events
+> content, room UI). Claude is off the project; Codex owns both
+> lanes. The overworld's state, and the rulings it must keep, are in
+> "Overworld lane" below. Design truth lives in `docs/systems/*.md`
+> (each system's spec, statuses current), `docs/SYSTEMS.md` (the
+> build-order index), and `docs/BOUNDARIES.md` (ownership and import
+> rules).
+>
+> **Bonus Claude day (2026-07-07), all merged to main:** #16
+> closed-ports loop built as Okuda HQ, the first infiltration
+> building and the first overworld↔terminal handshake (PR #21);
+> exits-line flicker fix (PR #30); the deck now lives in the lair —
+> hacking starts at home (PR #31); the PDA, a read-only menu-driven
+> field device — check notes + scan ports, never a shell (PR #32);
+> parser learned jump/climb/hide. New rulings are marked "user
+> ruling 2026-07-07" where they live (hubs.md: buildings deepen;
+> hacking.md: deck-at-home + PDA). The road to the real game is
+> issue-tracked as #22–#29 (see "Road to the real game" below).
 
 ## Current Focus
 
