@@ -247,3 +247,31 @@ func TestLookExitsStable(t *testing.T) {
 		}
 	}
 }
+
+// A gated exit is a lock, not an obstacle: shut prose until its flag
+// is true, normal movement after — no dice anywhere (contrast
+// checks.Guarded, which is for things you attempt).
+func TestGatedExit(t *testing.T) {
+	w := engine.NewWorld()
+	vault := engine.NewEntity("vault", "The Vault")
+	foyer := engine.NewEntity("foyer", "The Foyer").With(
+		engine.Exits{
+			Dirs: map[string]string{"north": "vault"},
+			Gated: map[string]engine.Gate{
+				"north": {Flag: "vault_unlocked", Shut: "The vault door stays shut."},
+			},
+		},
+	)
+	w.Root.Add(foyer, vault)
+	foyer.Add(w.Player)
+	eng := engine.New(w)
+
+	if out := eng.Execute("north"); out != "The vault door stays shut." || w.Room().ID != "foyer" {
+		t.Fatalf("gated exit should refuse with its prose: %q (room %s)", out, w.Room().ID)
+	}
+	w.Flags["vault_unlocked"] = true
+	eng.Execute("north")
+	if w.Room().ID != "vault" {
+		t.Fatalf("open gate should move normally, got room %s", w.Room().ID)
+	}
+}

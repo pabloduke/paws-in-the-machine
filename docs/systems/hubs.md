@@ -29,6 +29,12 @@ own network, so a door can be opened from the terminal side (the
 closed-ports flag contract, pointed the other direction). Getting in
 is the early game; "in is only the start" is the late game.
 
+The mechanism for those locks is built (`engine.Exits.Gated`): a gated
+direction shows its `Shut` prose until its flag is true, then moves
+normally. No dice — a lock is state, not an attempt; `checks.Guarded`
+remains the tool for obstacles you try approaches against. First use:
+Okuda's archive door, released by `run unlock.bin` on `okuda.grid`.
+
 ## Travel UX: the side panel
 
 A persistent side panel next to the transcript lists all hubs, marking

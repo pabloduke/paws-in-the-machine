@@ -121,6 +121,16 @@ beat is the first Microslop Corp terminal puzzle.
   routes and the handshake on the pinned seed. Companion ruling in
   `docs/systems/hubs.md`: buildings deepen later (interior security
   doors, terminal-openable locks); Okuda stays tutorial-sized.
+- **#25 flag-gated doors are built** (`engine.Exits.Gated` +
+  `engine.Gate{Flag, Shut}`): a locked direction is a lock, not an
+  obstacle — no dice, shut prose until its flag is true (`Guarded`
+  stays for things you attempt). First use: the Okuda records office's
+  archive door, opened only by `run /srv/ctl/unlock.bin` on
+  `okuda.grid` — the closed-ports contract pointed the other way
+  (hack the net, open a physical door), leading to the Deep Archive
+  annex (story stub: the missing aisle between 409 and 411).
+  `TestGatedExit` (engine) + `TestOkudaArchiveDoorOpensFromTheNet`
+  (full loop) pin it.
 
 ### Rulings to preserve (agreed with the user; don't regress)
 

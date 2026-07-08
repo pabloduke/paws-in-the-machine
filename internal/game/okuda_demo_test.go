@@ -164,3 +164,45 @@ func TestOkudaBreakerIsConsumed(t *testing.T) {
 		t.Fatalf("the darkness should be spent by the roll")
 	}
 }
+
+// The door contract, pointed the other way (#25): the archive door in
+// the records office answers only okuda.grid. Walk the whole loop —
+// console opens the port, ssh in, run the maglock release, and the
+// overworld door that was shut is now a doorway.
+func TestOkudaArchiveDoorOpensFromTheNet(t *testing.T) {
+	w := game.NewWorld()
+	eng := engine.New(w)
+	hubs.Travel(w, "okuda")
+	eng.Execute("east")
+	eng.Execute("climb fire escape")
+	eng.Execute("sneak past guard")
+	if w.Room().ID != "okuda_office" {
+		t.Fatalf("setup should reach the office, got %s", w.Room().ID)
+	}
+	w.Pending = nil
+
+	// Shut until the net says otherwise.
+	if out := eng.Execute("east"); !strings.Contains(out, "maglock") || w.Room().ID != "okuda_office" {
+		t.Fatalf("the archive door should hold: %q (room %s)", out, w.Room().ID)
+	}
+
+	eng.Execute("use console")
+	s := deckSession(t, w)
+	if out, _ := s.Exec("ssh okuda.grid"); !strings.Contains(out, "OKUDA GRID") {
+		t.Fatalf("ssh should connect with the port open: %q", out)
+	}
+	if out, _ := s.Exec("run /srv/ctl/unlock.bin"); !strings.Contains(out, "release... ok") {
+		t.Fatalf("unlock.bin should release the maglock: %q", out)
+	}
+	if !w.Flags["okuda_annex_unlocked"] {
+		t.Fatalf("running unlock.bin should set the door flag")
+	}
+
+	eng.Execute("east")
+	if w.Room().ID != "okuda_annex" {
+		t.Fatalf("the archive door should be open now, got room %s", w.Room().ID)
+	}
+	if j := engine.JournalText(w); !strings.Contains(j, "maglock") {
+		t.Fatalf("the release should surface in the journal: %q", j)
+	}
+}

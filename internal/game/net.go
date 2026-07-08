@@ -107,7 +107,8 @@ func starterNet() map[string]*hacking.Host {
 						hacking.File("decommission.log",
 							"(Placeholder) 09:00 asset 410 scheduled for erasure\n"+
 								"09:41 records office cleared. physical port disabled.\n"+
-								"09:42 erasure marked complete. nobody unplugged anything."),
+								"09:42 archive door maglock engaged. badge table dropped.\n"+
+								"09:43 erasure marked complete. nobody unplugged anything."),
 					),
 				),
 				hacking.Dir("srv",
@@ -118,6 +119,18 @@ func starterNet() map[string]*hacking.Host {
 							Text: "(Placeholder) OKUDA INTERNAL — DO NOT MIGRATE\n" +
 								"Asset 410 holds the records Okuda was paid to lose.\n" +
 								"(What those records say is a story decision — content TBD.)",
+						},
+					),
+					// The first door opened from inside the net: the
+					// archive maglock answers this node and nothing else
+					// (the badge table is gone). Gated exit in okuda.go.
+					hacking.Dir("ctl",
+						&hacking.Node{
+							Name:  "unlock.bin",
+							OnRun: flagOkudaAnnexUnlocked,
+							RunText: "(Placeholder) maglock 02 [ARCHIVE] release... ok\n" +
+								"badge table missing. lock will not re-arm.\n" +
+								"somewhere above you, a door stops holding its breath.",
 						},
 					),
 				),
