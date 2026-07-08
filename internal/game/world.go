@@ -47,6 +47,7 @@ func NewWorld() *engine.World {
 	w.Rules = append(w.Rules, lairEvents()...)
 	w.Rules = append(w.Rules, coffeeshopEvents()...)
 	w.Rules = append(w.Rules, okudaEvents()...)
+	w.Rules = append(w.Rules, netEvents()...)
 	w.Journal = append(w.Journal, lairJournal()...)
 	w.Journal = append(w.Journal, netJournal()...)
 	w.Journal = append(w.Journal, coffeeshopJournal()...)

@@ -176,6 +176,47 @@ func starterNet() map[string]*hacking.Host {
 	}
 }
 
+// netEvents pays XP for terminal beats (issue #24): hacks are worth
+// what content says they're worth (docs/systems/hacking.md — no rolls,
+// no formula). The rules poll at the checkpoint, and rules don't run
+// while the terminal is open, so the payout lands when Buddy logs out
+// — the session's haul, tallied at the door. Amounts echo the
+// overworld's scale and are tuning data for #27.
+func netEvents() []engine.When {
+	beat := func(flag, once string, xp int, text string) engine.When {
+		return engine.When{
+			Flags: []string{flag},
+			Once:  once,
+			Do: func(w *engine.World) string {
+				return text + "\n\n" + engine.AwardXP(w, xp)
+			},
+		}
+	}
+	return []engine.When{
+		beat(flagHeardWhisper, flagXPWhisper, 3,
+			"(Placeholder) The whisper in the dead code follows you off "+
+				"the deck. Worth knowing. Worth more, later."),
+		beat(flagGotSunFragment, flagXPSunFragment, 5,
+			"(Placeholder) A fragment of the sun sits on your deck now, "+
+				"warm in the way data shouldn't be."),
+		beat(flagRanDig, flagXPRanDig, 2,
+			"(Placeholder) dig.bin got further than anything has in "+
+				"years before the archive cut it off."),
+		beat(flagWhisperSilenced, flagXPWhisperQuiet, 2,
+			"(Placeholder) whisperd is quiet. The archive feels less "+
+				"haunted, and somehow that's worse."),
+		beat(flagReadSunNotice, flagXPSunNoticeRead, 3,
+			"(Placeholder) Microslop's lawyers knew about the sun. It's "+
+				"in writing. You read the writing."),
+		beat(flagGotSunNotice, flagXPSunNoticeCopied, 5,
+			"(Placeholder) The liability notice is on your deck now — "+
+				"corp ink, cat claws."),
+		beat(flagReadOkuda410, flagXPOkuda410, 5,
+			"(Placeholder) Asset 410, read at the source. Whatever Okuda "+
+				"was paid to lose, you found the receipt."),
+	}
+}
+
 func netJournal() []engine.Entry {
 	return []engine.Entry{
 		{Flag: flagKnowsMicroslopPassword, Text: "The barista said Microslop contractor boxes were reset to `apple`."},
