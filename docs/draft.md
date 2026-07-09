@@ -84,9 +84,9 @@ marked **[new]** don't exist yet; unmarked steps are built and tested.
    network" stays one host for mission 1; if a later mission wants
    depth behind it, that's the #42 net-depth question waking up.
 9. Retrieve (copy home) the layoff document.
-10. **[new]** Return the document to the Resistance — the delivery
-    mechanic Resistance-lite exists for. Payoff beat: the Resistance
-    recruits the affected engineers.
+10. **[new]** Return the document to the Resistance — over the
+    messenger (section 4), no meetup location needed. Payoff beat:
+    the Resistance recruits the affected engineers.
 
 ## 2. City map
 
@@ -123,6 +123,20 @@ three mechanisms that exist** — deck `Objectives` (quest-panel hints
 that clear on flags), the generated `~/notes/notes.md`, and the
 event journal. No new quest system in the draft; where these creak
 is exactly the data #34 needs.
+
+**Messenger (declared 2026-07-09):** an instant messenger on the
+terminal's right panel — the panel that's been reserved-but-blank
+since #28, and the Resistance-lite mission-giver's voice. Command
+`messenger` (or `open messenger`) toggles it; `alias talk=messenger`
+for the Unix equivalent. **One contact (the Resistance) for the
+draft**, but messages are keyed by contact so future senders (a
+sentinel taunting mid-hack, corp spam) slot in without a rewrite.
+Constraints: no timers — messages arrive as flag-driven consequences
+at the end-of-turn checkpoint, like every other event; replies reuse
+the dialogue system (a tree rendered as chat, so the contact gets
+NPC memory for free); unread badge on the panel header. Mission
+delivery happens here: mission 1 closes by handing the layoff
+document over the wire.
 
 **Hint-fade rule (declared 2026-07-09):** missions 1–3 are the
 tutorial ramp; there is no separate tutorial content. Mission 1's
