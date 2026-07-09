@@ -215,6 +215,67 @@ Buddy's notes already read flags, so `cat`-ing the right log can change
 what the barista says. Discovery texture comes from reading: hostnames are
 found inside files and `curl` indexes, not given away.
 
+## Ingress — how a host falls (#23, design skeleton)
+
+The net must not be a one-trick pony: a single skeleton key is boring
+the second time. Instead, *how* a host falls tells you who runs it, and
+which door is open to you depends on the character you built. Hosts are
+either **sloppy** or **hardened**, and the four ingress types split
+cleanly along the game's central axis — deck is player-skill, body is
+character-skill (see the top-of-file rule).
+
+**Sloppy hosts fall at the keyboard (player skill, no roll):**
+
+- **Known** — a person tells you a password; you type it (barista →
+  `apple`). Knowledge moves through the player's head.
+- **Leaked** — you *find* the credential the owner left lying around:
+  in a shell's environment (`env`), a config, a committed secret in a
+  repo mirror. Rewards `ls -a` / `grep` / `env` recon. This is the easy
+  pivot and it is *supposed* to stop at the door of anyone competent.
+
+**Hardened hosts do not leak. Their lock lives in meatspace, and there
+are two doors — the two stat builds (character skill, seeded checks in
+the overworld, never in the terminal):**
+
+- **Insider (Charm)** — an NPC who remembers you warmly opens the
+  route. Gated on NPC-memory flags: soften them and the route just
+  opens; burn them and this door shuts. (Ties the NPC-memory system to
+  network access; see docs/systems/dialogue.md.)
+- **Heist (Stealth + Agility)** — you throw the physical switch
+  yourself in the overworld (the records-office switch / maglock shape
+  already built for Okuda). The no-friends-needed hard path.
+
+**Failure is a fork, per the ruling.** Burning an insider does not wall
+a hardened host — it *demotes* you from the Charm door to the heist. A
+player who dumped both stats *and* burned the insider is the one
+self-inflicted dead end we allow (same license as any XCOM build).
+
+**Soft-lock discipline:** a hardened host on the **critical path** must
+keep *both* doors reachable, so no build is stranded. Off-critical-path
+hosts may be single-door and punish a narrow build; that is fair.
+
+**Characterization for free:** Microslop is careless (secrets in env,
+committed keys) → falls to scavenging. Okuda was paid to lose records
+and assumes it is being hacked → its core does not leak, so `env` is
+useless there and you must come through a person or a heist.
+
+Everything above runs on existing machinery — `OnRead`/`OnCopy` flags,
+overworld checks under the XCOM rule, NPC-memory flags, `Host.Require`
+route gating. The one net-shape decision this implies is **depth**:
+`env`-style leaks only matter as a *pivot* — you stand on a reachable
+box (a bastion) to reach an interior host you could not touch from
+outside. A flat hub-and-spoke net needs none of this; a layered net
+does. Depth is the open call (flat vs bastion layer); the taxonomy
+above holds either way. Content (which hosts, which NPCs, an `env`
+command + per-host var table) is TBD and declared by the author.
+
+The **net map** is a requirement, not a nicety, the moment the net
+gains a second layer: even the author cannot hold the graph in his
+head, so a player has no chance. It renders as a discovered-hosts tree
+in `~/notes/notes.md` (already Markdown through Glamour) — branches
+fill in as you snoop, an empty branch reads as a to-do. Recon becomes
+cartography; no diagram renderer needed.
+
 ## Buddy's notes
 
 The player-facing notes surface is a file on the deck, not a menu. Buddy keeps
