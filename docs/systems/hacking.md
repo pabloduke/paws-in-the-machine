@@ -53,8 +53,13 @@ panel.
   is a host (the local one). The set of hosts is a **net**, declared by
   game content the same way rooms are.
 - **Service** — one fake port on a host: port number, protocol (`ssh`,
-  `ftp`, `telnet`, `http`), state (`open`, `closed`, `filtered`, `hidden`),
-  optional open-when flag, and optional password.
+  `ftp`, `telnet`, `http`), state (`open`, `closed`, `hidden`),
+  optional open-when flag, and optional password. Port states are
+  binary on purpose (user ruling 2026-07-09): a port is open or
+  closed, never `filtered` — one less word between a newb and the
+  puzzle. An unmet route flag or open-when flag reads as `closed`;
+  `hidden` is authoring-only (a hidden standard port scans as
+  `closed`, the disguise; a hidden extra port is omitted).
 - **Process** — `{PID, name, state}` plus an optional `OnKill` hook.
 - **Session** — `{current host, cwd, ssh stack}` — the state behind
   the screen. Created on login, discarded when the terminal closes; the
@@ -72,26 +77,28 @@ panel.
 
 | command | behavior |
 |---|---|
-| `ls [-a] [path]` | list a directory; dirs get a `/` suffix. Dotfiles (names starting with `.`) are hidden unless `-a` — the real-shell behavior, and a puzzle surface: a clue authored into a `.file` is only found by a player who thinks to look. Flag and path may appear in either order |
+| `ls [-a] [path]` | list a directory; dirs get a `/` suffix. Dotfiles (names starting with `.`) are hidden unless `-a` — the real-shell behavior, and a puzzle surface: a clue authored into a `.file` is only found by a player who thinks to look. Flag and path may appear in either order. The bare word `hidden` also means `-a`, so the friendly `list hidden` works |
 | `cd <path>` | change directory (within the current host) |
 | `pwd` | print the working directory |
 | `cat <file>` | print file text; `.md` and `.txt` files open in the reader panel; fires `OnRead` |
 | `edit <file>` | open a static `.md` or `.txt` file in the right-panel editor; autosaves on Tab |
+| `vi` / `vim` / `nvim <file>` | the same editor, run modal: opens in normal mode, `i` inserts, Esc returns to normal, `h/j/k/l` and arrows move, `:w` writes, `:q` quits without saving, `:wq`/`:x` both. The easter egg behind the help table's `edit → vim` Linux-equivalent column |
 | `grep [-ir] <pat> [path...]` | case-insensitive recursive substring search; a match fires `OnRead` |
 | `cp <src> <dst>` | copy a file; copying to the deck fires `OnCopy`. `~` always resolves to the deck's home from any host — no scp needed |
 | `mkdir <dir...>` | create fake directories; parent directories must already exist |
 | `touch <file...>` | create empty fake files; existing files are unchanged |
-| `scan <host>` | list configured ports and states for a host |
+| `scan <host>` | port table for a host: `PORT SERVICE \| STATE`, state binary open/closed. The standard four (21 FTP, 22 SSH, 23 TELNET, 80 HTTP) always appear — a bare host still reads like a real machine — with configured services overlaid and extra ports appended |
 | `ssh <host> [-p port]` | connect to SSH, defaulting to port 22 |
 | `exit` / `logout` | pop back one connection; at the deck, closes the terminal and returns to the room |
 | `curl <host>[/path]` | print a served resource — the recon tool |
 | `ps` | list the current host's processes |
 | `kill <pid>` | stop a process; fires `OnKill` |
 | `run <path>` | execute a binary: prints its `RunText`, fires `OnRun` |
-| `help` | list commands |
+| `help` | the simple commands as a three-column table — Command / Purpose / Linux Equivalent — friendly names first; the full Linux reference is deliberately not listed (terminal folk already know it, and `.aliases` documents the mapping) |
 
 Esc closes the terminal outright from any connection depth — the
-"shut the window" affordance.
+"shut the window" affordance. Exception: while a vim buffer is open,
+Esc belongs to the editor (mode switch); `:q` first, then Esc.
 
 Output stays realistic: `cp` and `kill` are silent on success, errors
 read like the real strings (`cat: x: No such file or directory`,
@@ -124,7 +131,9 @@ The shell has one accessibility affordance: the deck's home holds a
 hidden `~/.aliases` file of `alias name=command` lines. It ships with
 friendlier verbs — `list`→`ls`, `look`/`read`→`cat`, `search`→`grep`,
 `copy`→`cp`, `connect`→`ssh` — so a player who has never touched a shell
-can still play, while the real commands always work. This lowers the
+can still play, while the real commands always work. One alias runs the
+other way: `nmap`→`scan` gives pros the real-world name for the game
+command, same trick in reverse. This lowers the
 floor without a menu; it does not replace the terminal.
 
 Design line held deliberately (see the conversation that shaped it):
@@ -177,7 +186,7 @@ the `hacking.PDA` component sharing the deck's net map, with read paths
 a file fires `OnRead` exactly like `cat`.
 
 For hardened corpo targets, it is valid for every externally visible port
-to be closed or filtered at first. Buddy does not run a magic "firewall
+to be closed at first. Buddy does not run a magic "firewall
 breacher" program to force ports open. Instead, overworld actions create
 legitimate-looking holes: starting diagnostics, plugging into an internal
 maintenance VLAN, tricking someone into remote support, or physically

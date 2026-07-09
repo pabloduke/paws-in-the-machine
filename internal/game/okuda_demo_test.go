@@ -26,7 +26,7 @@ func deckSession(t *testing.T, w *engine.World) *hacking.Session {
 }
 
 // The closed-ports loop (issue #16), charm route, end to end: the scan
-// shows okuda.grid filtered → the front-desk charm fails and forks
+// shows okuda.grid closed → the front-desk charm fails and forks
 // (suspicious, −2) → the flyer trick changes the circumstances (+6) →
 // the retry clears → the records-office console opens the port → the
 // same scan shows it open and ssh connects. The first overworld↔
@@ -37,13 +37,13 @@ func TestOkudaClosedPortsLoop(t *testing.T) {
 	eng := engine.New(w)
 
 	// The terminal side first: okuda.grid answers scans but its one
-	// port is filtered, and ssh times out against it.
+	// port reads closed, and ssh is refused against it.
 	s := deckSession(t, w)
-	if out, _ := s.Exec("scan okuda.grid"); !strings.Contains(out, "all scanned ports filtered") {
-		t.Fatalf("okuda.grid should scan filtered before the console: %q", out)
+	if out, _ := s.Exec("scan okuda.grid"); !strings.Contains(out, "22    SSH      | closed") {
+		t.Fatalf("okuda.grid should scan closed before the console: %q", out)
 	}
-	if out, _ := s.Exec("ssh okuda.grid"); !strings.Contains(out, "timed out") {
-		t.Fatalf("ssh should time out against the filtered port: %q", out)
+	if out, _ := s.Exec("ssh okuda.grid"); !strings.Contains(out, "Connection refused") {
+		t.Fatalf("ssh should be refused against the closed port: %q", out)
 	}
 
 	// Overworld: to the lobby.

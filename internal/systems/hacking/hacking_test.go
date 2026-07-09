@@ -327,6 +327,11 @@ func TestLsHidesDotfilesUnlessAll(t *testing.T) {
 	if out := exec(t, s, "ls -a ."); !strings.Contains(out, ".secret") {
 		t.Fatalf("ls -a <path> should reveal the dotfile: %q", out)
 	}
+	// The friendly form: `hidden` as a bare word means -a, so the
+	// help table's `list hidden` works.
+	if out := exec(t, s, "list hidden"); !strings.Contains(out, ".secret") {
+		t.Fatalf("list hidden should reveal the dotfile: %q", out)
+	}
 }
 
 func TestCreateDirectoriesAndFiles(t *testing.T) {
@@ -455,15 +460,15 @@ func TestPasswordGatedSSH(t *testing.T) {
 	if out := exec(t, s, "ssh microslop"); !strings.Contains(out, "Network is unreachable") {
 		t.Fatalf("ssh without local route: %q", out)
 	}
-	if out := exec(t, s, "scan microslop"); !strings.Contains(out, "all scanned ports filtered") {
-		t.Fatalf("scan route-gated host: %q", out)
+	if out := exec(t, s, "scan microslop"); !strings.Contains(out, "22    SSH      | closed") {
+		t.Fatalf("scan route-gated host should read closed: %q", out)
 	}
 	if got := s.Prompt(); got != "paws_in_the_machine@deck:~ $ " {
 		t.Fatalf("unreachable host should keep shell prompt, got %q", got)
 	}
 
 	w.Flags["microslop_route_open"] = true
-	if out := exec(t, s, "scan microslop"); !strings.Contains(out, "22  ssh") || !strings.Contains(out, "open") {
+	if out := exec(t, s, "scan microslop"); !strings.Contains(out, "22    SSH      | open") {
 		t.Fatalf("scan open route: %q", out)
 	}
 	if out := exec(t, s, "ssh microslop"); !strings.Contains(out, "password required") {

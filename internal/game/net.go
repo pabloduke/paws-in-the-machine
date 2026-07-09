@@ -25,6 +25,7 @@ alias read=cat
 alias search=grep
 alias copy=cp
 alias connect=ssh
+alias nmap=scan
 `
 
 func starterNet() map[string]*hacking.Host {
@@ -108,7 +109,7 @@ func starterNet() map[string]*hacking.Host {
 				),
 			),
 		},
-		// The terminal half of issue #16: port 22 scans filtered until
+		// The terminal half of issue #16: port 22 scans closed until
 		// the records-office console in the overworld throws the port
 		// switch (okuda.go) — the closed-ports loop.
 		"okuda.grid": {

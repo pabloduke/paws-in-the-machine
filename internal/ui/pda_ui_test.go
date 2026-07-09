@@ -45,7 +45,7 @@ func TestPDAMenusInTheField(t *testing.T) {
 	mod, _ = mod.Update(spec(tea.KeyEsc)) // reader → list
 	mod, _ = mod.Update(spec(tea.KeyEsc)) // list → menu
 
-	// Scan ports → okuda.grid reads filtered; after the console flag,
+	// Scan ports → okuda.grid reads closed; after the console flag,
 	// the same screen reads open.
 	mod, _ = mod.Update(spec(tea.KeyDown))
 	mod, _ = mod.Update(spec(tea.KeyEnter))
@@ -58,14 +58,14 @@ func TestPDAMenusInTheField(t *testing.T) {
 	}
 	mod, _ = mod.Update(spec(tea.KeyDown)) // microslop → okuda.grid
 	mod, _ = mod.Update(spec(tea.KeyEnter))
-	if view := mod.(Model).View(); !strings.Contains(view, "all scanned ports filtered") {
-		t.Fatalf("okuda.grid should report filtered before the console:\n%s", view)
+	if view := mod.(Model).View(); !strings.Contains(view, "SSH      | closed") {
+		t.Fatalf("okuda.grid should report closed before the console:\n%s", view)
 	}
 
 	w.Flags["okuda_port_open"] = true     // the records-office console
 	mod, _ = mod.Update(spec(tea.KeyEsc)) // report → hosts
 	mod, _ = mod.Update(spec(tea.KeyEnter))
-	if view := mod.(Model).View(); !strings.Contains(view, "open") || strings.Contains(view, "filtered") {
+	if view := mod.(Model).View(); !strings.Contains(view, "SSH      | open") {
 		t.Fatalf("okuda.grid should report open after the console:\n%s", view)
 	}
 

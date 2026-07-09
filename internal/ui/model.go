@@ -125,6 +125,11 @@ type Model struct {
 	readerText   string
 	readerFocus  bool
 	editorPath   string
+	// vim-mode editor state (vi/vim/nvim): modal instead of autosave.
+	editorVim bool   // the open buffer came from vim, not edit
+	vimInsert bool   // insert mode (i); false = normal mode (esc)
+	vimCmd    string // pending :-command line, ":" prefix included
+	vimMsg    string // one-key status flash (bad :cmd, esc hint)
 
 	entries  []string // transcript lines shown in the LOG
 	commands []string // executed commands, oldest first

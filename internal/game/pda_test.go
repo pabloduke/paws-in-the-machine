@@ -37,7 +37,7 @@ func TestPDACarriedEverywhere(t *testing.T) {
 }
 
 // The field-intel loop the PDA exists for: notes are readable, the
-// sniffer sees okuda.grid filtered, the office console flips it open —
+// sniffer sees okuda.grid closed, the office console flips it open —
 // and the PDA can see that from anywhere, but can never act on it.
 func TestPDAFieldIntelLoop(t *testing.T) {
 	w := game.NewWorld()
@@ -57,11 +57,11 @@ func TestPDAFieldIntelLoop(t *testing.T) {
 		t.Fatalf("known hosts should be every net host but the deck: %v", hosts)
 	}
 
-	if out := hacking.PortReport(w, p.Net, "okuda.grid"); !strings.Contains(out, "all scanned ports filtered") {
-		t.Fatalf("okuda.grid should sniff filtered before the console: %q", out)
+	if out := hacking.PortReport(w, p.Net, "okuda.grid"); !strings.Contains(out, "22    SSH      | closed") {
+		t.Fatalf("okuda.grid should sniff closed before the console: %q", out)
 	}
 	w.Flags["okuda_port_open"] = true // the records-office console (okuda.go)
-	if out := hacking.PortReport(w, p.Net, "okuda.grid"); !strings.Contains(out, "open") {
+	if out := hacking.PortReport(w, p.Net, "okuda.grid"); !strings.Contains(out, "22    SSH      | open") {
 		t.Fatalf("okuda.grid should sniff open after the console: %q", out)
 	}
 }

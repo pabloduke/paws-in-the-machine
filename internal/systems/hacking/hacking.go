@@ -149,14 +149,18 @@ const (
 	ProtocolTelnet = "telnet"
 	ProtocolHTTP   = "http"
 
-	StateOpen     = "open"
-	StateClosed   = "closed"
-	StateFiltered = "filtered"
-	StateHidden   = "hidden"
+	// Port states are binary on purpose (user ruling 2026-07-09): a
+	// port is open or closed, no `filtered` — one less word between a
+	// newb and the puzzle. Hidden is authoring-only: a hidden standard
+	// port scans as closed (the perfect disguise), a hidden extra port
+	// is omitted.
+	StateOpen   = "open"
+	StateClosed = "closed"
+	StateHidden = "hidden"
 )
 
 // Service is one configured port on a fake host. OpenWhen is a story
-// flag that exposes an otherwise-filtered service.
+// flag that opens an otherwise-closed service.
 type Service struct {
 	Port     int
 	Protocol string
@@ -223,9 +227,12 @@ const (
 )
 
 // EditBuffer is a text file opened by edit for the UI editor panel.
+// Vim marks a buffer opened as vi/vim/nvim: same editor, but the UI
+// runs it modal (normal/insert, :w/:q/:wq) instead of autosave.
 type EditBuffer struct {
 	Path string
 	Text string
+	Vim  bool
 }
 
 // NewSession opens the shell on the deck's local host.
@@ -313,7 +320,11 @@ func (s *Session) ExecDetailed(line string) ExecResult {
 	case "cat":
 		return s.cat(args)
 	case "edit":
-		return s.edit(args)
+		return s.edit("edit", args, false)
+	case "vi", "vim", "nvim":
+		// The gag: the Linux-equivalent column of `edit` is real. Same
+		// editor panel, but the UI runs it modal.
+		return s.edit(cmd, args, true)
 	case "grep":
 		return ExecResult{Output: s.grep(args)}
 	case "cp":
@@ -526,10 +537,15 @@ func (s *Session) ls(args []string) string {
 	// Dotfiles hide unless -a, the way a real shell does — which is also
 	// a puzzle surface: a clue tucked in a .file is only found by the
 	// player who thinks to look. Flags and the optional path can arrive
-	// in either order (ls -a, ls -a /path, ls /path).
+	// in either order (ls -a, ls -a /path, ls /path). The bare word
+	// `hidden` also means -a, so the friendly form `list hidden` works.
 	all := false
 	target := "."
 	for _, a := range args {
+		if a == "hidden" {
+			all = true
+			continue
+		}
 		if len(a) > 1 && strings.HasPrefix(a, "-") {
 			if strings.Contains(a, "a") {
 				all = true
@@ -623,25 +639,25 @@ func (s *Session) cat(args []string) ExecResult {
 	return ExecResult{Output: strings.Join(out, "\n"), Document: doc}
 }
 
-func (s *Session) edit(args []string) ExecResult {
+func (s *Session) edit(cmd string, args []string, vim bool) ExecResult {
 	if len(args) != 1 {
-		return ExecResult{Output: "usage: edit <file>"}
+		return ExecResult{Output: "usage: " + cmd + " <file>"}
 	}
 	n := s.node(args[0])
 	switch {
 	case n == nil:
-		return ExecResult{Output: "edit: " + args[0] + ": No such file or directory"}
+		return ExecResult{Output: cmd + ": " + args[0] + ": No such file or directory"}
 	case n.Dir:
-		return ExecResult{Output: "edit: " + args[0] + ": Is a directory"}
+		return ExecResult{Output: cmd + ": " + args[0] + ": Is a directory"}
 	case n.TextFn != nil:
-		return ExecResult{Output: "edit: " + args[0] + ": generated file is read-only"}
+		return ExecResult{Output: cmd + ": " + args[0] + ": generated file is read-only"}
 	case !editableTextName(n.Name):
-		return ExecResult{Output: "edit: " + args[0] + ": only .txt and .md files are editable"}
+		return ExecResult{Output: cmd + ": " + args[0] + ": only .txt and .md files are editable"}
 	}
 	path := s.resolvedPath(args[0])
 	return ExecResult{
 		Output: "editing " + path + " in right panel",
-		Edit:   &EditBuffer{Path: path, Text: n.Text},
+		Edit:   &EditBuffer{Path: path, Text: n.Text, Vim: vim},
 	}
 }
 
@@ -929,10 +945,10 @@ func serviceState(w *engine.World, host *Host, svc *Service) string {
 		return StateHidden
 	}
 	if host.Require != "" && !w.Flags[host.Require] {
-		return StateFiltered
+		return StateClosed
 	}
 	if svc.OpenWhen != "" && !w.Flags[svc.OpenWhen] {
-		return StateFiltered
+		return StateClosed
 	}
 	return state
 }
@@ -970,31 +986,61 @@ func (s *Session) scan(args []string) string {
 	return portReport(s.w, host)
 }
 
-// portReport renders the scan table for a host — shared by the shell
-// and the PDA sniffer (PortReport).
-func portReport(w *engine.World, host *Host) string {
-	services := host.configuredServices()
-	sort.Slice(services, func(i, j int) bool { return services[i].Port < services[j].Port })
+// standardPorts is what every scan reports — the classic four, so even
+// a bare host reads like a real machine on the wire. A host's
+// configured services overlay these; a standard port with no service
+// (or one still shut by its gate) reads closed.
+var standardPorts = []struct {
+	port     int
+	protocol string
+}{
+	{21, ProtocolFTP},
+	{22, ProtocolSSH},
+	{23, ProtocolTelnet},
+	{80, ProtocolHTTP},
+}
 
-	var rows []string
-	allFiltered := len(services) > 0
-	for _, svc := range services {
+// portReport renders the scan table for a host — shared by the shell
+// and the PDA sniffer (PortReport). Standard ports always appear;
+// extra configured ports follow in port order; hidden extras are
+// omitted (hidden standard ports scan as closed — the disguise).
+func portReport(w *engine.World, host *Host) string {
+	byPort := map[int]*Service{}
+	for _, svc := range host.configuredServices() {
+		byPort[svc.Port] = svc
+	}
+
+	scanned := func(svc *Service) string {
 		state := serviceState(w, host, svc)
 		if state == StateHidden {
+			return StateClosed
+		}
+		return state
+	}
+
+	rows := []string{host.Name, "PORT  SERVICE  | STATE"}
+	row := func(port int, protocol, state string) {
+		rows = append(rows, fmt.Sprintf("%-5d %-8s | %s", port, strings.ToUpper(protocol), state))
+	}
+	for _, std := range standardPorts {
+		if svc, ok := byPort[std.port]; ok {
+			delete(byPort, std.port)
+			row(std.port, svc.Protocol, scanned(svc))
 			continue
 		}
-		if state != StateFiltered {
-			allFiltered = false
+		row(std.port, std.protocol, StateClosed)
+	}
+	extras := make([]*Service, 0, len(byPort))
+	for _, svc := range byPort {
+		if serviceState(w, host, svc) != StateHidden {
+			extras = append(extras, svc)
 		}
-		rows = append(rows, fmt.Sprintf("%-10s %5d  %-8s %s", host.Name, svc.Port, svc.Protocol, state))
 	}
-	if len(rows) == 0 {
-		return host.Name + ": no configured ports"
+	sort.Slice(extras, func(i, j int) bool { return extras[i].Port < extras[j].Port })
+	for _, svc := range extras {
+		row(svc.Port, svc.Protocol, scanned(svc))
 	}
-	if allFiltered {
-		return host.Name + ": all scanned ports filtered"
-	}
-	return "HOST        PORT  SERVICE  STATE\n" + strings.Join(rows, "\n")
+	return strings.Join(rows, "\n")
 }
 
 func (s *Session) ssh(args []string) string {
@@ -1031,12 +1077,7 @@ func (s *Session) ssh(args []string) string {
 		return fmt.Sprintf("ssh: connect to host %s port %d: Connection refused", host.Name, port)
 	}
 	state := s.serviceState(host, svc)
-	switch state {
-	case StateClosed:
-		return fmt.Sprintf("ssh: connect to host %s port %d: Connection refused", host.Name, port)
-	case StateFiltered:
-		return fmt.Sprintf("ssh: connect to host %s port %d: Operation timed out", host.Name, port)
-	case StateHidden:
+	if state == StateClosed || state == StateHidden {
 		return fmt.Sprintf("ssh: connect to host %s port %d: Connection refused", host.Name, port)
 	}
 	if svc.Protocol != ProtocolSSH {
@@ -1162,23 +1203,22 @@ func (s *Session) setFlag(name string) {
 }
 
 const helpText = `deck shell:
-  ls [-a] [path]      list directory (-a shows hidden dotfiles)
-  cd <path> / pwd     move around / where am I
-  cat <file>          read a file (.md/.txt open in reader)
-  edit <file>         edit .md/.txt files, autosave on tab
-  grep -ir <pat> [path] recursively search file lines
-  cp <src> <dst>      copy (~ is always the deck's home)
-  mkdir <dir>         create fake directories
-  touch <file>        create empty fake files
-  scan <host>         list configured ports
-  ssh <host> [-p n]   connect to ssh, default port 22
-  curl <host>[/path]  poke a host without logging in
-  ps / kill <pid>     list / stop processes
-  run <file>          execute something
-  exit / logout       close the connection (or the deck, to leave)
+  Command              | Purpose                        | Linux Equivalent
+  list [path]          | what's here                    | ls
+  list hidden          | lists hidden dotfiles too      | ls -a
+  read <file>          | read a file (.md/.txt: reader) | cat
+  look <file>          | same as read                   | cat
+  search <word> [path] | hunt through files for a word  | grep
+  copy <src> <dst>     | copy (~ is the deck's home)    | cp
+  edit <file>          | edit .md/.txt, autosave on tab | vim
+  cd <path> / pwd      | move around / where am I       |
+  scan <host>          | list a host's ports            | nmap
+  connect <host>       | jack into a host               | ssh
+  run <file>           | execute something              |
+  exit / logout        | hang up (or leave the deck)    |
 
-friendly names (list, look, search…) are aliases in ~/.aliases — a
-hidden file (ls -a to see it). edit .aliases to add your own:
+Linux equivalent commands also work. The simple names are aliases
+in ~/.aliases — a hidden file. edit .aliases to add your own:
 alias name=command`
 
 // Deck is the data-only marker component (the dialogue.Talkable

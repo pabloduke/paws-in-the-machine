@@ -426,6 +426,84 @@ func TestMicroslopPasswordPuzzle(t *testing.T) {
 	}
 }
 
+// vim opens the same editor modal: normal mode swallows text, i
+// inserts, esc returns to normal, :wq saves, and esc never closes the
+// terminal out from under the buffer.
+func TestVimEditorModalFlow(t *testing.T) {
+	w := game.NewWorld()
+	mod := newSized(w)
+	mod = typeLine(mod, "use deck")
+	mod = typeLine(mod, "touch plan.md")
+	mod = typeLine(mod, "vim plan.md")
+	mm := mod.(Model)
+	if mm.editorPath != "~/plan.md" || !mm.editorVim || mm.vimInsert {
+		t.Fatalf("vim should open a modal buffer in normal mode: path=%q vim=%v insert=%v",
+			mm.editorPath, mm.editorVim, mm.vimInsert)
+	}
+	// Normal mode: typing is not inserting.
+	mod = typeRunes(mod, "junk")
+	if v := mod.(Model).shellEditor.Value(); v != "" {
+		t.Fatalf("normal mode must not insert text: %q", v)
+	}
+	// Esc in normal mode hints instead of closing the terminal.
+	mod, _ = mod.Update(spec(tea.KeyEsc))
+	mm = mod.(Model)
+	if mm.shell == nil || mm.editorPath == "" {
+		t.Fatal("esc in normal mode must not close the buffer or terminal")
+	}
+	if !strings.Contains(mm.vimMsg, ":q") {
+		t.Fatalf("esc in normal mode should hint :q, got %q", mm.vimMsg)
+	}
+	// i enters insert mode; esc leaves it.
+	mod = typeRunes(mod, "i")
+	if !mod.(Model).vimInsert {
+		t.Fatal("i should enter insert mode")
+	}
+	mod = typeRunes(mod, "nine lives")
+	mod, _ = mod.Update(spec(tea.KeyEsc))
+	mm = mod.(Model)
+	if mm.vimInsert || mm.shellEditor.Value() != "nine lives" {
+		t.Fatalf("esc should return to normal with text kept: insert=%v value=%q",
+			mm.vimInsert, mm.shellEditor.Value())
+	}
+	// :wq saves and closes.
+	mod = typeRunes(mod, ":wq")
+	if cmd := mod.(Model).vimCmd; cmd != ":wq" {
+		t.Fatalf("pending command line should show :wq, got %q", cmd)
+	}
+	mod, _ = mod.Update(spec(tea.KeyEnter))
+	mm = mod.(Model)
+	if mm.editorPath != "" || mm.editorVim {
+		t.Fatalf(":wq should close the buffer: path=%q vim=%v", mm.editorPath, mm.editorVim)
+	}
+	mod = typeLine(mod, "cat plan.md")
+	if reader := readerText(mod); !strings.Contains(reader, "nine lives") {
+		t.Fatalf(":wq should have saved the file: %q", reader)
+	}
+}
+
+// :q abandons the buffer: the file keeps its saved content.
+func TestVimQuitDiscardsChanges(t *testing.T) {
+	w := game.NewWorld()
+	mod := newSized(w)
+	mod = typeLine(mod, "use deck")
+	mod = typeLine(mod, "touch plan.md")
+	mod = typeLine(mod, "vim plan.md")
+	mod = typeRunes(mod, "i")
+	mod = typeRunes(mod, "doomed draft")
+	mod, _ = mod.Update(spec(tea.KeyEsc))
+	mod = typeRunes(mod, ":q")
+	mod, _ = mod.Update(spec(tea.KeyEnter))
+	mm := mod.(Model)
+	if mm.editorPath != "" {
+		t.Fatalf(":q should close the buffer, path=%q", mm.editorPath)
+	}
+	mod = typeLine(mod, "cat plan.md")
+	if reader := readerText(mod); strings.Contains(reader, "doomed draft") {
+		t.Fatalf(":q must not save: %q", reader)
+	}
+}
+
 func readerText(mod tea.Model) string {
 	return stripANSI(mod.(Model).shellReader.View())
 }

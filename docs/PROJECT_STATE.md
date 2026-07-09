@@ -115,7 +115,7 @@ beat is the first Microslop Corp terminal puzzle.
   fire-escape parkour + corridor sneak (breaker panel: lights-out +6,
   consumed). Both converge on the records-office console, which sets
   `okuda_port_open`; `okuda.grid`'s SSH service reads it via
-  `OpenWhen`, so scan flips filtered→open and ssh connects. First
+  `OpenWhen`, so scan flips closed→open and ssh connects. First
   overworld↔terminal handshake, flag referenced only in
   `internal/game/` per BOUNDARIES. `okuda_demo_test.go` walks both
   routes and the handshake on the pinned seed. Companion ruling in

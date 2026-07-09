@@ -43,6 +43,11 @@ func (shellSurface) Intercept(m *Model, cmd engine.Command) bool {
 // HandleKey drives the terminal: enter executes a command, esc closes
 // the terminal outright, PgUp/PgDn scroll, everything else types.
 func (shellSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
+	if m.editorPath != "" && m.editorVim && msg.Type != tea.KeyCtrlC {
+		// A vim buffer owns every key until :q or :wq — including esc,
+		// which switches modes instead of closing the terminal.
+		return m.vimEditorKey(msg)
+	}
 	switch msg.Type {
 	case tea.KeyCtrlC:
 		return tea.Quit
@@ -339,6 +344,10 @@ func (m *Model) openShellEditor(edit *hacking.EditBuffer) {
 	m.readerText = ""
 	m.readerFocus = true
 	m.editorPath = edit.Path
+	m.editorVim = edit.Vim // vim buffers start in normal mode
+	m.vimInsert = false
+	m.vimCmd = ""
+	m.vimMsg = ""
 	if m.shellEditor.Width() == 0 {
 		m.shellEditor = textarea.New()
 		m.shellEditor.Prompt = ""
@@ -370,26 +379,129 @@ func (m *Model) saveShellEditor() {
 	if out != "" {
 		m.shellEntries = append(m.shellEntries, termDimStyle.Render(out))
 	}
+	m.closeShellEditor("saved " + m.editorPath)
+}
+
+// closeShellEditor puts the buffer away without touching the file —
+// the tail shared by every way out of the editor (:q discards; save
+// paths write first, then land here).
+func (m *Model) closeShellEditor(note string) {
 	m.readerTitle = m.editorPath
 	m.readerMD = ""
-	m.readerText = "saved " + m.editorPath
+	m.readerText = note
 	m.editorPath = ""
+	m.editorVim = false
+	m.vimInsert = false
+	m.vimCmd = ""
+	m.vimMsg = ""
 	m.readerFocus = false
 	m.refreshShellReader()
 }
 
+// vimEditorKey drives a vim buffer: normal mode moves and takes
+// :-commands, i enters insert, esc leaves it. The dialect is tiny on
+// purpose — enough that vim hands work on autopilot, nothing a newb
+// can get trapped by without the hint line showing the way out.
+func (m *Model) vimEditorKey(msg tea.KeyMsg) tea.Cmd {
+	m.vimMsg = ""
+	if m.vimCmd != "" { // typing a :-command on the hint line
+		switch msg.Type {
+		case tea.KeyEsc:
+			m.vimCmd = ""
+		case tea.KeyEnter:
+			m.vimExec()
+		case tea.KeyBackspace:
+			m.vimCmd = m.vimCmd[:len(m.vimCmd)-1]
+		case tea.KeyRunes:
+			m.vimCmd += string(msg.Runes)
+		}
+		return nil
+	}
+	if m.vimInsert {
+		if msg.Type == tea.KeyEsc {
+			m.vimInsert = false
+			return nil
+		}
+		var cmd tea.Cmd
+		m.shellEditor, cmd = m.shellEditor.Update(msg)
+		return cmd
+	}
+	// normal mode
+	switch msg.Type {
+	case tea.KeyEsc:
+		m.vimMsg = "type :q to quit" // the classic
+		return nil
+	case tea.KeyRunes:
+		switch string(msg.Runes) {
+		case "i":
+			m.vimInsert = true
+		case ":":
+			m.vimCmd = ":"
+		case "h", "j", "k", "l":
+			arrows := map[string]tea.KeyType{
+				"h": tea.KeyLeft, "j": tea.KeyDown,
+				"k": tea.KeyUp, "l": tea.KeyRight,
+			}
+			var cmd tea.Cmd
+			m.shellEditor, cmd = m.shellEditor.Update(
+				tea.KeyMsg{Type: arrows[string(msg.Runes)]})
+			return cmd
+		}
+		return nil
+	case tea.KeyUp, tea.KeyDown, tea.KeyLeft, tea.KeyRight,
+		tea.KeyPgUp, tea.KeyPgDown, tea.KeyHome, tea.KeyEnd:
+		var cmd tea.Cmd
+		m.shellEditor, cmd = m.shellEditor.Update(msg)
+		return cmd
+	}
+	return nil
+}
+
+// vimExec runs a finished :-command: the small dialect (:w, :q, :wq/:x).
+func (m *Model) vimExec() {
+	cmd := m.vimCmd
+	m.vimCmd = ""
+	switch cmd {
+	case ":w":
+		out := m.shell.SaveEdit(m.editorPath, m.shellEditor.Value())
+		m.vimMsg = out
+	case ":q":
+		m.closeShellEditor("closed " + m.editorPath + " without saving")
+	case ":wq", ":x":
+		m.saveShellEditor()
+	default:
+		m.vimMsg = "not an editor command: " + strings.TrimPrefix(cmd, ":")
+	}
+}
+
 func (m Model) editorPanel() string {
-	titleText := ansi.Truncate("EDITOR // "+m.editorPath, m.shellReader.Width, "")
+	name, hint := "EDITOR", "tab: save · esc: save+close"
+	if m.editorVim {
+		// The hint line doubles as vim's bottom row: pending :-command,
+		// status flash, or the mode indicator.
+		name = "VIM"
+		switch {
+		case m.vimCmd != "":
+			hint = m.vimCmd
+		case m.vimMsg != "":
+			hint = m.vimMsg
+		case m.vimInsert:
+			hint = "-- INSERT -- · esc: normal mode"
+		default:
+			hint = "i: insert · :wq save+quit · :q quit"
+		}
+	}
+	titleText := ansi.Truncate(name+" // "+m.editorPath, m.shellReader.Width, "")
 	title := termTitleStyle.
 		Width(m.shellReader.Width).
 		MaxWidth(m.shellReader.Width).
 		Render(titleText)
-	hintText := ansi.Truncate("tab: save · esc: save+close", m.shellReader.Width, "")
-	hint := termDimStyle.
+	hintText := ansi.Truncate(hint, m.shellReader.Width, "")
+	hintRow := termDimStyle.
 		Width(m.shellReader.Width).
 		MaxWidth(m.shellReader.Width).
 		Render(hintText)
-	return lipgloss.JoinVertical(lipgloss.Left, title, m.shellEditor.View(), hint)
+	return lipgloss.JoinVertical(lipgloss.Left, title, m.shellEditor.View(), hintRow)
 }
 
 // closeShell tears the session down and restores the room UI. Rules
