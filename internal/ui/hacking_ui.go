@@ -213,7 +213,7 @@ func (m *Model) openShell(d hacking.Deck) {
 	m.shell = s
 	m.deckCfg = d
 	m.shellEntries = []string{termDimStyle.Render(
-		"PAWS/OS — 'help' lists commands · 'exit' (or esc) leaves the terminal")}
+		"CantOS — 'help' lists commands · 'exit' (or esc) leaves the terminal")}
 	m.readerTitle = ""
 	m.readerMD = ""
 	m.readerText = ""

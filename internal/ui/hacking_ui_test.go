@@ -89,7 +89,7 @@ func TestTerminalPromptInsidePanelAndScrollbackBottomAnchored(t *testing.T) {
 	if strings.TrimSpace(scrollLines[0]) != "" {
 		t.Fatalf("short scrollback should be bottom-anchored, first viewport line=%q", scrollLines[0])
 	}
-	if !strings.Contains(scrollLines[len(scrollLines)-1], "PAWS/OS") {
+	if !strings.Contains(scrollLines[len(scrollLines)-1], "CantOS") {
 		t.Fatalf("newest short scrollback should sit at the bottom, viewport=%q", strings.Join(scrollLines, "\n"))
 	}
 
