@@ -94,6 +94,7 @@ panel.
 | `ps` | list the current host's processes |
 | `kill <pid>` | stop a process; fires `OnKill` |
 | `run <path>` | execute a binary: prints its `RunText`, fires `OnRun` |
+| `messenger` | toggle the messenger in the right panel (see "The messenger" below); `talk` is its alias |
 | `help` | the simple commands as a three-column table — Command / Purpose / Linux Equivalent — friendly names first; the full Linux reference is deliberately not listed (terminal folk already know it, and `.aliases` documents the mapping) |
 
 Esc closes the terminal outright from any connection depth — the
@@ -130,10 +131,11 @@ file gets a one-time sibling backup before the first save, using
 The shell has one accessibility affordance: the deck's home holds a
 hidden `~/.aliases` file of `alias name=command` lines. It ships with
 friendlier verbs — `list`→`ls`, `look`/`read`→`cat`, `search`→`grep`,
-`copy`→`cp`, `connect`→`ssh` — so a player who has never touched a shell
-can still play, while the real commands always work. One alias runs the
-other way: `nmap`→`scan` gives pros the real-world name for the game
-command, same trick in reverse. This lowers the
+`copy`→`cp`, `connect`→`ssh`, `talk`→`messenger` — so a player who has
+never touched a shell can still play, while the real commands always
+work. One alias runs the other way: `nmap`→`scan` gives pros the
+real-world name for the game command, same trick in reverse (`talk` is
+also a nod to the old Unix chat command). This lowers the
 floor without a menu; it does not replace the terminal.
 
 Design line held deliberately (see the conversation that shaped it):
@@ -285,6 +287,33 @@ in `~/notes/notes.md` (already Markdown through Glamour) — branches
 fill in as you snoop, an empty branch reads as a to-do. Recon becomes
 cartography; no diagram renderer needed.
 
+## The messenger
+
+The deck runs an instant messenger (user ruling 2026-07-09,
+docs/draft.md): the Resistance-lite mission-giver's voice, and the
+answer to what the terminal's right panel is for. `messenger` (alias
+`talk`) toggles it in the right panel.
+
+- **One contact for the draft** — `resistance` — but messages are
+  authored per contact (`hacking.Messenger` on the `Deck` component),
+  so later senders (a sentinel taunting mid-hack, corp spam) slot in
+  without a rewrite.
+- **The thread is derived, never stored** (the journal pattern): a
+  message has arrived exactly when its `When` flag is true. Arrival is
+  a consequence of play — copy the notice, and the channel lights up —
+  never a timer (`turns.md`); save/load reconstructs the thread for
+  free. The only stored state is a per-message read marker
+  (`msg_read_<id>`, system-owned).
+- **Unread surfaces twice**: a dim `[messenger] N unread` line in the
+  scrollback when a message lands (including at login), and a
+  `msgs: N unread` row in the quest panel's STATUS block. Opening the
+  panel reads the whole thread. Flags set mid-session deliver
+  immediately — the messenger is the one place the world talks back
+  before logout.
+- **Replies come later**: the plan (docs/draft.md) is to reuse the
+  dialogue system — a tree rendered as chat — so the contact gets NPC
+  memory for free. Not built yet; the panel is read-only today.
+
 ## Buddy's notes
 
 The player-facing notes surface is a file on the deck, not a menu. Buddy keeps
@@ -314,6 +343,11 @@ exactly):
 - **Terminal** (~60% width when the reader is active, otherwise dominant):
   bordered, titled `CYBERDECK // <host>`, with scrollback bottom-anchored above the in-panel prompt —
   `paws_in_the_machine@host:path $` — where all typing lands in CRT green.
+The right panel is modal: the quest/status panel by default, swapped
+wholesale for the reader, the editor, or the messenger — whichever
+claimed it last (opening a document closes the messenger and vice
+versa).
+
 - **Reader/editor panel** (~40% width when active): opens when `cat`
   reads a Markdown or text file, rendering Markdown with Glamour and text
   as wrapped plain output. `edit` opens the same panel as a multiline text

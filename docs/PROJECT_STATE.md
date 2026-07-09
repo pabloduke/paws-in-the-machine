@@ -55,7 +55,10 @@ beat is the first Microslop Corp terminal puzzle.
 - `grep -ir` searches recursively and case-insensitively through fake host
   filesystems.
 - The hacking terminal has a terminal-only green phosphor CRT look.
-- The terminal right panel is intentionally reserved but blank for now.
+- The terminal right panel is modal: quest/status by default, swapped
+  for the reader, the editor, or the messenger — the deck's IM
+  (`messenger`/`talk`), the Resistance-lite mission channel. Messages
+  arrive on flags, never timers (docs/systems/hacking.md).
 - Buddy's notes live at `~/notes/notes.md`, generated from discovered flags
   and readable/searchable with shell commands instead of a journal menu.
 - Microslop is currently gated by:
@@ -208,7 +211,8 @@ Still open:
 - **#27 difficulty calibration + unpin seed 3** — seed UNPINNED
   (2026-07-08): production randomizes, tests pin. Remaining half is
   difficulty/starting-stat calibration; release blocker.
-- **#28 terminal rulings** — history persistence, right-panel content.
+- **#28 terminal rulings** — history persistence still open;
+  right-panel content answered by the messenger (2026-07-09).
 - **#29 Towers of Hanoi** — the backup-rotation shrine. It wouldn't
   be a puzzle game without it (user ruling).
 - **#34 Resistance: quests, ranks, deck mail** — parked design; a

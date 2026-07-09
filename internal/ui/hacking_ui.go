@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -84,6 +85,11 @@ func (shellSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 			m.shellReader, cmd = m.shellReader.Update(msg)
 			return cmd
 		}
+		if m.msgOpen {
+			var cmd tea.Cmd
+			m.msgVP, cmd = m.msgVP.Update(msg)
+			return cmd
+		}
 	case tea.KeyEnter:
 		if m.editorPath != "" {
 			var cmd tea.Cmd
@@ -112,6 +118,8 @@ func (shellSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 			m.refreshShellReader()
 			m.shellEntries = append(m.shellEntries,
 				termDimStyle.Render("opened "+result.Document.Path+" in reader"))
+		} else if result.Messenger {
+			m.toggleMessenger()
 		} else if result.Output != "" {
 			m.shellEntries = append(m.shellEntries, result.Output)
 		}
@@ -119,6 +127,7 @@ func (shellSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 			m.closeShell()
 			return nil
 		}
+		m.syncMessenger()
 		m.shellInput.Prompt = termPromptStyle.Render(m.shell.Prompt())
 		m.resizeShellInput()
 		m.refreshShell()
@@ -164,6 +173,9 @@ func (shellSurface) Screen(m *Model) string {
 		statusStyle = termPanelFocusStyle
 	}
 	panel := m.questPanel()
+	if m.msgOpen {
+		panel = m.messengerPanel()
+	}
 	if m.hasReaderContent() || m.editorPath != "" {
 		panel = m.readerPanel()
 	}
@@ -176,6 +188,7 @@ func (shellSurface) Resize(m *Model) {
 	m.resizeShell()
 	m.refreshShell()
 	m.refreshShellReader()
+	m.refreshMessenger()
 	m.resizeShellEditor()
 }
 
@@ -183,7 +196,7 @@ func (shellSurface) Resize(m *Model) {
 // height. The terminal is preserved first; the status panel shrinks.
 func (m Model) shellDims() (termW, statusW, panelH int) {
 	statusW = 26
-	if m.hasReaderContent() || m.editorPath != "" {
+	if m.hasReaderContent() || m.editorPath != "" || m.msgOpen {
 		statusW = m.width * 40 / 100
 	}
 	if m.width-statusW < 46 {
@@ -219,6 +232,8 @@ func (m *Model) openShell(d hacking.Deck) {
 	m.readerText = ""
 	m.readerFocus = false
 	m.editorPath = ""
+	m.msgOpen = false
+	m.msgSeen = 0
 
 	ti := textinput.New()
 	ti.Prompt = termPromptStyle.Render(s.Prompt())
@@ -229,6 +244,7 @@ func (m *Model) openShell(d hacking.Deck) {
 	m.input.Blur()
 
 	m.resizeShell()
+	m.syncMessenger() // announce anything waiting on login
 	m.refreshShell()
 }
 
@@ -266,6 +282,12 @@ func (m *Model) resizeShell() {
 	} else {
 		m.shellReader.Width = rw
 		m.shellReader.Height = rh
+	}
+	if m.msgVP.Width == 0 {
+		m.msgVP = viewport.New(rw, rh)
+	} else {
+		m.msgVP.Width = rw
+		m.msgVP.Height = rh
 	}
 	m.resizeShellEditor()
 }
@@ -327,6 +349,7 @@ func (m Model) hasReaderContent() bool {
 
 func (m *Model) openShellDocument(doc *hacking.Document) {
 	m.editorPath = ""
+	m.msgOpen = false // the right panel is modal; the reader takes it
 	m.readerTitle = doc.Path
 	m.readerMD = ""
 	m.readerText = ""
@@ -339,6 +362,7 @@ func (m *Model) openShellDocument(doc *hacking.Document) {
 }
 
 func (m *Model) openShellEditor(edit *hacking.EditBuffer) {
+	m.msgOpen = false // the right panel is modal; the editor takes it
 	m.readerTitle = edit.Path
 	m.readerMD = ""
 	m.readerText = ""
@@ -511,6 +535,7 @@ func (m *Model) closeShell() {
 	m.shell = nil
 	m.readerFocus = false
 	m.editorPath = ""
+	m.msgOpen = false
 	m.input.Focus()
 	m.entries = append(m.entries, dimStyle.Render("[left the terminal]"))
 	m.eng.World.CheckEvents()
@@ -539,7 +564,98 @@ func (m Model) questPanel() string {
 
 	b.WriteString("\n\n" + termPanelTitleStyle.Render("STATUS"))
 	b.WriteString("\nlink: stable")
+	if mgr := m.deckCfg.Messenger; mgr.Enabled() {
+		if n := mgr.Unread(w); n > 0 {
+			b.WriteString(fmt.Sprintf("\nmsgs: %d unread", n))
+		} else {
+			b.WriteString("\nmsgs: " + termDimStyle.Render("none"))
+		}
+	}
 	b.WriteString("\nICE: " + termDimStyle.Render("none detected"))
 	b.WriteString("\ntrace: " + termDimStyle.Render("cold"))
 	return b.String()
+}
+
+// toggleMessenger is the `messenger` command landing in the UI: the
+// right panel is modal, and this claims or releases it. Opening reads
+// the whole thread.
+func (m *Model) toggleMessenger() {
+	mgr := m.deckCfg.Messenger
+	if !mgr.Enabled() {
+		m.shellEntries = append(m.shellEntries,
+			termDimStyle.Render("messenger: no service on this deck"))
+		return
+	}
+	if m.msgOpen {
+		m.msgOpen = false
+		m.msgSeen = 0
+		m.resizeShell() // the panel narrows back to the quest column
+		return
+	}
+	m.msgOpen = true
+	m.readerTitle = "" // take the panel from the reader
+	m.readerMD = ""
+	m.readerText = ""
+	m.readerFocus = false
+	mgr.MarkRead(m.eng.World)
+	m.resizeShell() // the panel widens like the reader
+	m.refreshMessenger()
+}
+
+// syncMessenger runs after every command: with the panel open, new
+// arrivals render (and read) immediately; closed, they get one dim
+// scrollback notice — flags fire mid-session, so the Resistance can
+// react to a hack while it happens, still without a single timer.
+func (m *Model) syncMessenger() {
+	mgr := m.deckCfg.Messenger
+	if !mgr.Enabled() {
+		return
+	}
+	if m.msgOpen {
+		if mgr.Unread(m.eng.World) > 0 {
+			mgr.MarkRead(m.eng.World)
+			m.refreshMessenger()
+		}
+		return
+	}
+	if n := mgr.Unread(m.eng.World); n > m.msgSeen {
+		m.shellEntries = append(m.shellEntries, termDimStyle.Render(
+			fmt.Sprintf("[messenger] %d unread — 'messenger' opens it", n)))
+		m.msgSeen = n
+	}
+}
+
+// refreshMessenger re-renders the thread, pinned to the newest message.
+func (m *Model) refreshMessenger() {
+	if !m.msgOpen || m.msgVP.Width == 0 {
+		return
+	}
+	mgr := m.deckCfg.Messenger
+	from := termPanelTitleStyle.Render(strings.ToUpper(mgr.Contact))
+	var lines []string
+	for _, msg := range mgr.Thread(m.eng.World) {
+		lines = append(lines, from+"\n"+msg.Text)
+	}
+	content := termDimStyle.Render("no messages")
+	if len(lines) > 0 {
+		content = strings.Join(lines, "\n\n")
+	}
+	m.msgVP.SetContent(termOutputStyle.Width(m.msgVP.Width).Render(content))
+	m.msgVP.GotoBottom()
+}
+
+// messengerPanel is the messenger's turn holding the modal right panel.
+func (m Model) messengerPanel() string {
+	titleText := ansi.Truncate("MESSENGER // "+
+		strings.ToUpper(m.deckCfg.Messenger.Contact), m.msgVP.Width, "")
+	title := termTitleStyle.
+		Width(m.msgVP.Width).
+		MaxWidth(m.msgVP.Width).
+		Render(titleText)
+	hintText := ansi.Truncate("'messenger' closes · up/down: scroll", m.msgVP.Width, "")
+	hint := termDimStyle.
+		Width(m.msgVP.Width).
+		MaxWidth(m.msgVP.Width).
+		Render(hintText)
+	return lipgloss.JoinVertical(lipgloss.Left, title, m.msgVP.View(), hint)
 }

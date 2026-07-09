@@ -130,6 +130,11 @@ type Model struct {
 	vimInsert bool   // insert mode (i); false = normal mode (esc)
 	vimCmd    string // pending :-command line, ":" prefix included
 	vimMsg    string // one-key status flash (bad :cmd, esc hint)
+	// Messenger panel (hacking_ui.go): another modal state of the
+	// right panel, toggled by the `messenger` command.
+	msgOpen bool
+	msgVP   viewport.Model
+	msgSeen int // unread count already announced in the scrollback
 
 	entries  []string // transcript lines shown in the LOG
 	commands []string // executed commands, oldest first

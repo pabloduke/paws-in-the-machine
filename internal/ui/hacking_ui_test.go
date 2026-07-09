@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/pabloduke/paws-in-the-machine/internal/game"
+	"github.com/pabloduke/paws-in-the-machine/internal/systems/hacking"
 )
 
 func TestHackingScreenSwapsAndRestores(t *testing.T) {
@@ -89,7 +90,10 @@ func TestTerminalPromptInsidePanelAndScrollbackBottomAnchored(t *testing.T) {
 	if strings.TrimSpace(scrollLines[0]) != "" {
 		t.Fatalf("short scrollback should be bottom-anchored, first viewport line=%q", scrollLines[0])
 	}
-	if !strings.Contains(scrollLines[len(scrollLines)-1], "CantOS") {
+	// The newest line is the messenger's login announcement; the boot
+	// banner sits just above it.
+	if !strings.Contains(scrollLines[len(scrollLines)-1], "[messenger]") ||
+		!strings.Contains(scrollLines[len(scrollLines)-2], "CantOS") {
 		t.Fatalf("newest short scrollback should sit at the bottom, viewport=%q", strings.Join(scrollLines, "\n"))
 	}
 
@@ -553,5 +557,82 @@ func TestHackingScreenNarrowTerminal(t *testing.T) {
 	// Must render without panicking and keep the terminal present.
 	if view := mod.View(); !strings.Contains(view, "CYBERDECK // DEC") {
 		t.Fatalf("narrow render lost the terminal: %q", view)
+	}
+}
+
+// The messenger holds the modal right panel: login announces waiting
+// messages, `messenger` opens the thread (reading it), a mid-session
+// flag delivers a new message with a scrollback notice, and the reader
+// takes the panel back when a document opens.
+func TestMessengerPanelFlow(t *testing.T) {
+	w := game.NewWorld()
+	mod := typeLine(newSized(w), "use deck")
+	mm := mod.(Model)
+
+	// The welcome brief is waiting: announced in the scrollback and
+	// counted in the quest panel's STATUS block.
+	if joined := strings.Join(mm.shellEntries, "\n"); !strings.Contains(joined, "[messenger] 1 unread") {
+		t.Fatalf("login should announce the waiting message: %q", joined)
+	}
+	if v := mod.View(); !strings.Contains(v, "msgs: 1 unread") {
+		t.Fatalf("the quest panel should count unread messages: %q", v)
+	}
+
+	// Open the panel: contact title, message text, thread marked read.
+	mod = typeLine(mod, "messenger")
+	mm = mod.(Model)
+	if !mm.msgOpen {
+		t.Fatalf("the messenger command should open the panel")
+	}
+	v := mod.View()
+	if !strings.Contains(v, "MESSENGER // RESISTANCE") || !strings.Contains(v, "barista") {
+		t.Fatalf("the panel should show the contact and the welcome brief: %q", v)
+	}
+	if mm.deckCfg.Messenger.Unread(w) != 0 {
+		t.Fatalf("opening the panel should read the thread")
+	}
+
+	// Toggle closed: the quest panel returns.
+	mod = typeLine(mod, "messenger")
+	if v := mod.View(); strings.Contains(v, "MESSENGER //") || !strings.Contains(v, "OBJECTIVE") {
+		t.Fatalf("the second messenger should hand the panel back: %q", v)
+	}
+
+	// A flag set mid-session delivers a message at once — no timers,
+	// no logout needed — with a dim notice in the scrollback.
+	mod = typeLine(mod, "ssh sunfarm.arc")
+	mod = typeLine(mod, "cat /var/log/burial.log") // sets heard_whisper
+	mm = mod.(Model)
+	if joined := strings.Join(mm.shellEntries, "\n"); !strings.Contains(joined, "[messenger] 1 unread") {
+		t.Fatalf("the new arrival should be announced: %q", joined)
+	}
+
+	// The reader is modal over the messenger: opening a document while
+	// the thread is up takes the panel and closes it.
+	mod = typeLine(mod, "messenger")
+	mod = typeLine(mod, "cat ~/notes/notes.md")
+	mm = mod.(Model)
+	if mm.msgOpen {
+		t.Fatalf("opening a document should close the messenger")
+	}
+	if v := mod.View(); !strings.Contains(v, "READER //") {
+		t.Fatalf("the reader should hold the panel: %q", v)
+	}
+}
+
+// A deck with no messenger service refuses the command gently.
+func TestMessengerWithoutService(t *testing.T) {
+	w := game.NewWorld()
+	mod := typeLine(newSized(w), "use deck")
+	mm := mod.(Model)
+	mm.deckCfg.Messenger = hacking.Messenger{}
+	var tm tea.Model = mm
+	tm = typeLine(tm, "messenger")
+	out := tm.(Model)
+	if out.msgOpen {
+		t.Fatalf("a deck without service must not open the panel")
+	}
+	if joined := strings.Join(out.shellEntries, "\n"); !strings.Contains(joined, "no service") {
+		t.Fatalf("the refusal should land in the scrollback: %q", joined)
 	}
 }
