@@ -95,6 +95,7 @@ panel.
 | `kill <pid>` | stop a process; fires `OnKill` |
 | `run <path>` | execute a binary: prints its `RunText`, fires `OnRun` |
 | `messenger` | toggle the messenger in the right panel (see "The messenger" below); `talk` is its alias |
+| `send <file>` | upload a deck-resident file to the contact's drop; fires `OnSend`. Deck-only on purpose (retrieve, then deliver): a file on a remote host errors with "copy it home first". Any file sends (no wall); only hooked files advance the story. `scp` is its alias |
 | `help` | the simple commands as a three-column table — Command / Purpose / Linux Equivalent — friendly names first; the full Linux reference is deliberately not listed (terminal folk already know it, and `.aliases` documents the mapping) |
 
 Esc closes the terminal outright from any connection depth — the
@@ -133,9 +134,9 @@ hidden `~/.aliases` file of `alias name=command` lines. It ships with
 friendlier verbs — `list`→`ls`, `look`/`read`→`cat`, `search`→`grep`,
 `copy`→`cp`, `connect`→`ssh`, `talk`→`messenger` — so a player who has
 never touched a shell can still play, while the real commands always
-work. One alias runs the other way: `nmap`→`scan` gives pros the
-real-world name for the game command, same trick in reverse (`talk` is
-also a nod to the old Unix chat command). This lowers the
+work. Two aliases run the other way: `nmap`→`scan` and `scp`→`send`
+give pros the real-world names for the game commands, same trick in
+reverse (`talk` is also a nod to the old Unix chat command). This lowers the
 floor without a menu; it does not replace the terminal.
 
 Design line held deliberately (see the conversation that shaped it):
@@ -220,6 +221,8 @@ Content attaches flag names to files and processes:
 - `OnCopy` — set when the file lands on the deck.
 - `OnKill` — set when the process is killed.
 - `OnRun` — set when the executable is run.
+- `OnSend` — set when the file is `send`-uploaded to the contact's drop
+  (the delivery beat; marduk's reply message keys on the same flag).
 
 Each hook sets a World flag. Dialogue, room descriptions, checks, and
 Buddy's notes already read flags, so `cat`-ing the right log can change
@@ -294,10 +297,18 @@ docs/draft.md): the Resistance-lite mission-giver's voice, and the
 answer to what the terminal's right panel is for. `messenger` (alias
 `talk`) toggles it in the right panel.
 
-- **One contact for the draft** — `resistance` — but messages are
-  authored per contact (`hacking.Messenger` on the `Deck` component),
-  so later senders (a sentinel taunting mid-hack, corp spam) slot in
-  without a rewrite.
+- **One contact for the draft** — `marduk`, the mission-giver (handle
+  tentative, user ruling 2026-07-09) — but messages are authored per
+  contact (`hacking.Messenger` on the `Deck` component), so later
+  senders (a sentinel taunting mid-hack, corp spam) slot in without a
+  rewrite.
+- **The game boots into the terminal** (`main` calls
+  `Model.BootIntoDeck`) with marduk's mission brief waiting as the
+  first unread — typing `messenger` is the first thing the game
+  teaches. The overworld intro text greets the first logout instead.
+- **Delivery closes the loop**: `send <file>` uploads a deck-resident
+  file to marduk's drop; the file's `OnSend` flag makes his reply
+  arrive in the same session. Mission 1 ends exactly here.
 - **The thread is derived, never stored** (the journal pattern): a
   message has arrived exactly when its `When` flag is true. Arrival is
   a consequence of play — copy the notice, and the channel lights up —

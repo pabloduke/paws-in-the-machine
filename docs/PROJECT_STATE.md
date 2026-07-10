@@ -25,9 +25,15 @@ Current branch: `main`
 
 ## Current Focus
 
-The game is building toward a cat-hacker loop where Buddy uses normal room
-actions, dialogue, stealth, and a fake terminal shell together. The current
-beat is the first Microslop Corp terminal puzzle.
+Rough-draft phase (docs/draft.md): the whole game with Resistance-lite
+(marduk, a mission-giver over the deck messenger — nothing more).
+Mission 1's opening slice is built: the game boots into the terminal
+with marduk's brief unread; the barista → hound → rack → `ssh
+microslop` chain is the mission body; the layoff plans
+(`/srv/hr/rif_q3.txt`) are the target; `send` (alias `scp`) delivers
+them and marduk's payoff closes the mission. Next mission-1 bite: the
+badge peek (barista stops speaking the password — docs/draft.md §1
+step 5).
 
 ## Implemented
 

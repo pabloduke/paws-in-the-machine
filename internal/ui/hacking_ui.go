@@ -216,6 +216,21 @@ func (m Model) shellDims() (termW, statusW, panelH int) {
 	return termW, statusW, panelH
 }
 
+// BootIntoDeck opens the terminal on the first deck in scope — the
+// game starts at the terminal with marduk's brief waiting (user ruling
+// 2026-07-09, docs/draft.md). Called by main after New, not inside it,
+// so the overworld remains the default surface everywhere else (and in
+// tests). No-op when no deck is reachable.
+func (m *Model) BootIntoDeck() {
+	decks := hacking.DecksInScope(m.eng.World)
+	if len(decks) == 0 {
+		return
+	}
+	if d, ok := engine.Part[hacking.Deck](decks[0]); ok {
+		m.openShell(d)
+	}
+}
+
 // openShell logs into the deck and swaps the screen to the terminal.
 func (m *Model) openShell(d hacking.Deck) {
 	s, err := hacking.NewSession(m.eng.World, d.Net, d.Host)

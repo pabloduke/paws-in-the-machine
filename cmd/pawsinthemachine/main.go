@@ -13,7 +13,9 @@ import (
 
 func main() {
 	eng := engine.New(game.NewWorld())
-	program := tea.NewProgram(ui.New(eng, game.Intro), tea.WithAltScreen())
+	mod := ui.New(eng, game.Intro)
+	mod.BootIntoDeck() // the game opens at the terminal (docs/draft.md)
+	program := tea.NewProgram(mod, tea.WithAltScreen())
 	if _, err := program.Run(); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)
