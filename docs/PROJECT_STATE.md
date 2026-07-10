@@ -61,8 +61,9 @@ step 5).
 - `grep -ir` searches recursively and case-insensitively through fake host
   filesystems.
 - The hacking terminal has a terminal-only green phosphor CRT look.
-- The terminal right panel is modal: quest/status by default, swapped
-  for the reader, the editor, or the messenger — the deck's IM
+- The terminal right panel is modal and idles blank (screen-saver
+  only, no objectives/status — user ruling 2026-07-10), claimed by
+  the reader, the editor, or the messenger — the deck's IM
   (`messenger`/`talk`), the Resistance-lite mission channel. Messages
   arrive on flags, never timers (docs/systems/hacking.md).
 - Buddy's notes live at `~/notes/notes.md`, generated from discovered flags

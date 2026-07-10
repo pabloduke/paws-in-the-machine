@@ -317,12 +317,10 @@ answer to what the terminal's right panel is for. `messenger` (alias
   never a timer (`turns.md`); save/load reconstructs the thread for
   free. The only stored state is a per-message read marker
   (`msg_read_<id>`, system-owned).
-- **Unread surfaces twice**: a dim `[messenger] N unread` line in the
-  scrollback when a message lands (including at login), and a
-  `msgs: N unread` row in the quest panel's STATUS block. Opening the
-  panel reads the whole thread. Flags set mid-session deliver
-  immediately — the messenger is the one place the world talks back
-  before logout.
+- **Unread surfaces in the scrollback**: a dim `[messenger] N unread`
+  line when a message lands (including at login). Opening the panel
+  reads the whole thread. Flags set mid-session deliver immediately —
+  the messenger is the one place the world talks back before logout.
 - **Replies come later**: the plan (docs/draft.md) is to reuse the
   dialogue system — a tree rendered as chat — so the contact gets NPC
   memory for free. Not built yet; the panel is read-only today.
@@ -362,10 +360,12 @@ exactly):
 - **Terminal** (~60% width when the reader is active, otherwise dominant):
   bordered, titled `CYBERDECK // <host>`, with scrollback bottom-anchored above the in-panel prompt —
   `paws_in_the_machine@host:path $` — where all typing lands in CRT green.
-The right panel is modal: the quest/status panel by default, swapped
-wholesale for the reader, the editor, or the messenger — whichever
-claimed it last (opening a document closes the messenger and vice
-versa).
+The right panel is modal and **idles blank** (user ruling 2026-07-10:
+no objectives, no status, no game state — just a dim screen-saver
+mark). It's claimed wholesale by the reader, the editor, or the
+messenger — whichever the player brought up last (opening a document
+closes the messenger and vice versa) — and returns to idle when they
+close.
 
 - **Reader/editor panel** (~40% width when active): opens when `cat`
   reads a Markdown or text file, rendering Markdown with Glamour and text

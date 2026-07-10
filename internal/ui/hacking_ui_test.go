@@ -31,9 +31,14 @@ func TestHackingScreenSwapsAndRestores(t *testing.T) {
 	if !strings.Contains(view, "CYBERDECK // DECK") {
 		t.Fatalf("terminal title missing: %q", view)
 	}
+	// The right panel idles blank except for the screen-saver art —
+	// no objectives, no status (user ruling 2026-07-10).
+	if !strings.Contains(view, "zzz") {
+		t.Fatalf("idle right panel should show the screen-saver art: %q", view)
+	}
 	for _, section := range []string{"OBJECTIVE", "LOCATION", "DISCOVERIES", "STATUS"} {
-		if !strings.Contains(view, section) {
-			t.Fatalf("terminal right panel should show %s: %q", section, view)
+		if strings.Contains(view, section) {
+			t.Fatalf("idle right panel must not show %s: %q", section, view)
 		}
 	}
 	if strings.Contains(view, "THE CITY") || strings.Contains(view, "LOG") {
@@ -573,13 +578,10 @@ func TestMessengerPanelFlow(t *testing.T) {
 	mod := typeLine(newSized(w), "use deck")
 	mm := mod.(Model)
 
-	// The welcome brief is waiting: announced in the scrollback and
-	// counted in the quest panel's STATUS block.
+	// The welcome brief is waiting: announced in the scrollback (the
+	// idle right panel shows nothing but the screen-saver art).
 	if joined := strings.Join(mm.shellEntries, "\n"); !strings.Contains(joined, "[messenger] 1 unread") {
 		t.Fatalf("login should announce the waiting message: %q", joined)
-	}
-	if v := mod.View(); !strings.Contains(v, "msgs: 1 unread") {
-		t.Fatalf("the quest panel should count unread messages: %q", v)
 	}
 
 	// Open the panel: contact title, message text, thread marked read.
@@ -596,10 +598,10 @@ func TestMessengerPanelFlow(t *testing.T) {
 		t.Fatalf("opening the panel should read the thread")
 	}
 
-	// Toggle closed: the quest panel returns.
+	// Toggle closed: the panel idles again (screen-saver art).
 	mod = typeLine(mod, "messenger")
-	if v := mod.View(); strings.Contains(v, "MESSENGER //") || !strings.Contains(v, "OBJECTIVE") {
-		t.Fatalf("the second messenger should hand the panel back: %q", v)
+	if v := mod.View(); strings.Contains(v, "MESSENGER //") || !strings.Contains(v, "zzz") {
+		t.Fatalf("the second messenger should hand the panel back to idle: %q", v)
 	}
 
 	// A flag set mid-session delivers a message at once — no timers,

@@ -147,7 +147,8 @@ func (shellSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 }
 
 // Screen is the full-screen terminal layout: dominant terminal with an
-// in-panel prompt, read-only status panel right.
+// in-panel prompt, modal right panel (idle art / reader / editor /
+// messenger — never game state; user ruling 2026-07-10).
 func (shellSurface) Screen(m *Model) string {
 	termW, statusW, panelH := m.shellDims()
 
@@ -172,7 +173,7 @@ func (shellSurface) Screen(m *Model) string {
 	if m.readerFocus || m.editorPath != "" {
 		statusStyle = termPanelFocusStyle
 	}
-	panel := m.questPanel()
+	panel := m.idlePanel()
 	if m.msgOpen {
 		panel = m.messengerPanel()
 	}
@@ -558,37 +559,19 @@ func (m *Model) closeShell() {
 	m.maybeLevelUp()
 }
 
-// questPanel is the read-only orientation panel beside the terminal.
-func (m Model) questPanel() string {
-	w := m.eng.World
-	var b strings.Builder
-	b.WriteString(termPanelTitleStyle.Render("OBJECTIVE"))
-	b.WriteString("\n" + m.deckCfg.CurrentObjective(w))
+// idleArt is the right panel's screen-saver: pure chrome, no game
+// state (user ruling 2026-07-10 — the panel stays blank unless a
+// file, the editor, or the messenger claims it).
+const idleArt = ` /\_/\
+( -.- )  zzz
+ |> <|`
 
-	b.WriteString("\n\n" + termPanelTitleStyle.Render("LOCATION"))
-	b.WriteString("\n" + m.shell.HostName() + ":" + m.shell.Path())
-
-	b.WriteString("\n\n" + termPanelTitleStyle.Render("DISCOVERIES"))
-	if found := m.shell.Discoveries(); len(found) == 0 {
-		b.WriteString("\n" + termDimStyle.Render("none yet"))
-	} else {
-		for _, name := range found {
-			b.WriteString("\n" + name)
-		}
-	}
-
-	b.WriteString("\n\n" + termPanelTitleStyle.Render("STATUS"))
-	b.WriteString("\nlink: stable")
-	if mgr := m.deckCfg.Messenger; mgr.Enabled() {
-		if n := mgr.Unread(w); n > 0 {
-			b.WriteString(fmt.Sprintf("\nmsgs: %d unread", n))
-		} else {
-			b.WriteString("\nmsgs: " + termDimStyle.Render("none"))
-		}
-	}
-	b.WriteString("\nICE: " + termDimStyle.Render("none detected"))
-	b.WriteString("\ntrace: " + termDimStyle.Render("cold"))
-	return b.String()
+// idlePanel is the right panel when nothing claims it: dim art,
+// nothing else — no objectives, no status, no state.
+func (m Model) idlePanel() string {
+	_, statusW, panelH := m.shellDims()
+	art := termDimStyle.Render(idleArt + "\n\n CantOS")
+	return lipgloss.Place(statusW-4, panelH-4, lipgloss.Center, lipgloss.Center, art)
 }
 
 // toggleMessenger is the `messenger` command landing in the UI: the
