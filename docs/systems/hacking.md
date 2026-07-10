@@ -87,7 +87,7 @@ panel.
 | `cp <src> <dst>` | copy a file; copying to the deck fires `OnCopy`. `~` always resolves to the deck's home from any host — no scp needed |
 | `mkdir <dir...>` | create fake directories; parent directories must already exist |
 | `touch <file...>` | create empty fake files; existing files are unchanged |
-| `scan <host>` | port table for a host: `PORT SERVICE \| STATE`, state binary open/closed. The standard four (21 FTP, 22 SSH, 23 TELNET, 80 HTTP) always appear — a bare host still reads like a real machine — with configured services overlaid and extra ports appended |
+| `scan <host>` | port table for a host: `PORT SERVICE \| STATE`, state binary open/closed. The standard four (21 FTP, 22 SSH, 23 TELNET, 80 HTTP) always appear — a bare host still reads like a real machine — with configured services overlaid and extra ports appended. A host whose route flag (`Require`) is unmet reports `Host seems down (no route to host)` instead of a table (user ruling 2026-07-09): no route means the host is unreachable, not a wall of closed ports — an authored open port stays open, its password stays the door |
 | `ssh <host> [-p port]` | connect to SSH, defaulting to port 22 |
 | `exit` / `logout` | pop back one connection; at the deck, closes the terminal and returns to the room |
 | `curl <host>[/path]` | print a served resource — the recon tool |
@@ -165,7 +165,9 @@ Design line held deliberately (see the conversation that shaped it):
 
 Some hosts can require a story route before they answer. If the route
 flag is missing, `ssh microslop` prints a fake network-unreachable error
-and leaves Buddy on the deck. This models the non-terminal part of a
+and leaves Buddy on the deck, and `scan microslop` reports the host down
+— the two commands tell the same truth: the problem is the network, not
+the ports. This models the non-terminal part of a
 hack: social engineering, stealth, and physically bridging local
 hardware (a rack's maintenance jack, a patched cable) onto the lair's
 uplink. The deck itself never leaves the lair — hacking starts at home.

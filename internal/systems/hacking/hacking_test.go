@@ -460,8 +460,12 @@ func TestPasswordGatedSSH(t *testing.T) {
 	if out := exec(t, s, "ssh microslop"); !strings.Contains(out, "Network is unreachable") {
 		t.Fatalf("ssh without local route: %q", out)
 	}
-	if out := exec(t, s, "scan microslop"); !strings.Contains(out, "22    SSH      | closed") {
-		t.Fatalf("scan route-gated host should read closed: %q", out)
+	// No route means the host is down to the scan too — not a wall of
+	// closed ports pretending to be a hardened box (user ruling
+	// 2026-07-09): once reachable, 22 is open and the password is the
+	// door.
+	if out := exec(t, s, "scan microslop"); !strings.Contains(out, "Host seems down") {
+		t.Fatalf("scan without a route should report the host down: %q", out)
 	}
 	if got := s.Prompt(); got != "paws_in_the_machine@deck:~ $ " {
 		t.Fatalf("unreachable host should keep shell prompt, got %q", got)
