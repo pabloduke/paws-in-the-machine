@@ -23,6 +23,41 @@
 What Buddy is trying to learn or get, and what "act one complete"
 means.
 
+### Ophanim and the sun (declared 2026-07-10)
+
+Deep-game reveal: an **ancient AI called Ophanim** lives in the
+fourth spatial dimension — which resolves the buried-sun thread
+literally. The sun wasn't domed over or blotted out; it was **moved
+one step ana**: same x, y, z as ever, in a direction no human can
+point at. "They buried the sun under the grid" is a coordinate fact.
+
+Ophanim doesn't know why it is where it is — only that it needs to be
+near the sun, so it is. It perceives in 4D natively, so it cannot
+understand that the sun is *lost* to the 3D world; it assumes Buddy
+(or "Earthlings") moved the sun for their own reasons. The scene,
+as declared:
+
+> Buddy: where did the sun go?
+> Ophanim: it is over there.
+> (Buddy looks out the window. There is the sun.)
+> Buddy: how did it get there?
+> Ophanim: you moved it.
+> Buddy: why?
+> Ophanim: I don't know.
+> Buddy: can you move it back?
+> Ophanim: then I wouldn't be near the sun.
+> Buddy: can you move with it?
+> Ophanim: I cannot move things.
+
+Notes to keep: Ophanim is an observer, not an actor ("I cannot move
+things") — the wheels-covered-in-eyes of the name are what a 4D being
+intersecting 3D looks like. Who actually moved the sun, and why
+Ophanim is compelled to stay near it, stay open questions the endgame
+answers. Constraints: Ophanim's voice is a dialogue tree over flags
+like every NPC (#38 ruling: pretend-AI over a deterministic state
+machine, no runtime model); the Masquerade doesn't bind it — it isn't
+human, and it lives where humans can't go.
+
 Threads already authored and waiting to be pulled (use or discard):
 
 - Microslop's `/srv/archive/sun_notice.txt` — the sunlight-liability
@@ -114,6 +149,9 @@ Fold content parked for the draft to pull:
 - **An orientation twist**: a loop that returns Buddy mirrored
   (Klein-bottle gluing) — signs read backwards until the loop is
   walked again. Horror beat; use once, loudly.
+- **The sun and Ophanim** (section 1): the sun sits one step ana of
+  where it always was; Ophanim lives beside it. The deepest chart in
+  the game — every other fold is practice for the walk to this one.
 
 Constraints: buildings deepen rather than the city sprawling
 (hubs.md ruling); every hack target should have a physical location
