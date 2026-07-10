@@ -7,6 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/pabloduke/paws-in-the-machine/internal/game"
+	"github.com/pabloduke/paws-in-the-machine/internal/systems/hubs"
 )
 
 // The PDA in the field: usable anywhere, menus only, and it shows the
@@ -78,5 +79,36 @@ func TestPDAMenusInTheField(t *testing.T) {
 	}
 	if joined := strings.Join(mod.(Model).entries, "\n"); !strings.Contains(joined, "pocket the PDA") {
 		t.Fatalf("pocketing should land in the LOG: %q", joined)
+	}
+}
+
+// The uplink row follows Buddy (user ruling 2026-07-10): the left
+// panel offers the deck where it lives (the lair) and the carried PDA
+// everywhere else — never both, the slab yields to the real terminal.
+func TestPanelOffersPDAOutsideTheLair(t *testing.T) {
+	w := game.NewWorld()
+	mod := newSized(w)
+
+	if v := mod.View(); !strings.Contains(v, "the deck") || strings.Contains(v, "the PDA") {
+		t.Fatalf("in the lair the panel should offer the deck, not the PDA: %q", v)
+	}
+
+	hubs.Travel(w, "okuda")
+	v := mod.View()
+	if !strings.Contains(v, "// UPLINK") || !strings.Contains(v, "the PDA") || strings.Contains(v, "the deck") {
+		t.Fatalf("away from the lair the panel should offer the PDA under UPLINK: %q", v)
+	}
+
+	// Tab to the panel, arrow down from the current hub to the PDA
+	// row, Enter thumbs it awake.
+	mod, _ = mod.Update(spec(tea.KeyTab))
+	mod, _ = mod.Update(spec(tea.KeyDown)) // okuda hub row -> the PDA row
+	mod, _ = mod.Update(spec(tea.KeyEnter))
+	mm := mod.(Model)
+	if mm.pdaMode != pdaMenu {
+		t.Fatalf("enter on the PDA row should open the PDA menu, mode=%v", mm.pdaMode)
+	}
+	if !strings.Contains(mod.View(), "Check notes") {
+		t.Fatalf("the PDA overlay should be up: %q", mod.View())
 	}
 }

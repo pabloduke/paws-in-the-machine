@@ -23,6 +23,33 @@ func (PDA) Handle(*engine.World, *engine.Entity, engine.Command) (string, bool) 
 	return "", false
 }
 
+// PDAsInScope returns entities the player can currently reach that
+// carry a PDA — mirrors DecksInScope (visible plus carried), so the
+// UI can offer the slab wherever Buddy is.
+func PDAsInScope(w *engine.World) []*engine.Entity {
+	var out []*engine.Entity
+	seen := map[*engine.Entity]bool{}
+	add := func(e *engine.Entity) {
+		if seen[e] {
+			return
+		}
+		if _, ok := engine.Part[PDA](e); ok {
+			seen[e] = true
+			out = append(out, e)
+		}
+	}
+	for _, e := range w.Visible() {
+		add(e)
+	}
+	for _, e := range w.Player.Contents {
+		e.Walk(func(c *engine.Entity) bool {
+			add(c)
+			return true
+		})
+	}
+	return out
+}
+
 // TextFile is one readable document on the mirrored host: a display
 // path plus the node behind it. Listing never fires hooks; Read does.
 type TextFile struct {

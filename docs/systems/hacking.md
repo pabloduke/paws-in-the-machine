@@ -347,6 +347,12 @@ deck Buddy carries, so the terminal is available outside the lair when
 the story wants physical plug-in beats. (Typing `log in` / `use deck`
 still works as an alias path.)
 
+**The uplink row follows Buddy** (user ruling 2026-07-10): when no
+deck is in scope — anywhere but the lair — the `// UPLINK` subhead
+offers **the PDA** instead, and Enter thumbs it awake (the same menu
+`use pda` opens). The slab yields to the real terminal: the panel
+never offers both.
+
 ## Screen layout
 
 Full-screen swap while a session is live (the three-panel room UI and

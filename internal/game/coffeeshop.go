@@ -10,9 +10,13 @@ import (
 // machine, the laptop, and the corpo hound guarding the back room.
 func buildCoffeeshop() *engine.Entity {
 	coffeeshop := engine.NewEntity("coffeeshop", "The Coffee Shop").With(
-		engine.Description{Text: "(Placeholder) The coffee shop down the block. " +
-			"Steam, low talk, a door that never quite shuts. The barista " +
-			"works the counter like it owes them money."},
+		// User-declared 2026-07-10.
+		engine.Description{Text: "The coffee shop bustles with people. An " +
+			"overworked barista making drinks, taking orders, looks " +
+			"exhausted and ragged. Her long blonde hair plastered to her " +
+			"face underneath that ugly baseball cap they make her wear. " +
+			"Her apron stained with coffee and chocolate. She seems " +
+			"distracted and lonely."},
 		engine.Exits{
 			Dirs:    map[string]string{"south": "lair"},
 			Blocked: "(Placeholder) Nothing that way but rain. The lair is south.",
