@@ -13,6 +13,11 @@ const (
 	flagWhisperSilenced = "whisper_silenced"
 	flagReadSunNotice   = "read_microslop_sun_notice"
 	flagGotSunNotice    = "got_microslop_notice"
+	// Mission 1 (docs/draft.md): the layoff plans on microslop's HR
+	// share — read at the source, copied home, sent to marduk's drop.
+	flagReadLayoffPlans      = "read_layoff_plans"
+	flagGotLayoffPlans       = "got_layoff_plans"
+	flagLayoffPlansDelivered = "layoff_plans_delivered"
 
 	// Set by verb hooks and dialogue effects.
 	flagMugDown         = "mug_down"
@@ -86,4 +91,7 @@ const (
 	flagXPSunNoticeRead   = "xp_sun_notice_read"
 	flagXPSunNoticeCopied = "xp_sun_notice_copied"
 	flagXPOkuda410        = "xp_okuda_410"
+	flagXPLayoffRead      = "xp_layoff_read"
+	flagXPLayoffCopied    = "xp_layoff_copied"
+	flagXPLayoffDelivered = "xp_layoff_delivered"
 )

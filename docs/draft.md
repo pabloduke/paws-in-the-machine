@@ -75,16 +75,23 @@ state machine (flags only, no timers).
 Super rough; the reconciled version of the user's flowchart. Steps
 marked **[new]** don't exist yet; unmarked steps are built and tested.
 
-1. Start at the terminal (the lair, the deck).
+Opening amended 2026-07-09 (built): steps 1–4 collapsed — there is no
+acceptance/prove-your-skills beat. The game **boots into the
+terminal** with the mission brief already waiting as an unread
+message from **marduk** (the handler's handle, tentative): get inside
+Microslop, pull the layoff plans, `send` them to him — and the brief
+points at the barista and at `~/notes/notes.md`.
+
+1. Start at the terminal (built: `BootIntoDeck`, brief unread).
 2. Tutorial — **mission 1 is the tutorial** (declared 2026-07-09; no
-   separate practice host). The teaching lives in the notes: early
-   hints are explicit step-by-step orders — go to the barista, look
-   at the badge, return to the deck, scan ports — written into
-   `~/notes/notes.md` as each flag lands (built machinery). See
-   section 4 for the hint-fade rule.
-3. Resistance accepts Buddy → Mission 1: break into Microslop.
-4. Resistance hint, recorded in notes: the barista at the local
-   coffee shop was laid off from Microslop.
+   separate practice host). The teaching lives in the notes: a
+   `## Mission — marduk` checklist of explicit step-by-step orders,
+   ticking `[x]` as each flag lands (built). See section 4 for the
+   hint-fade rule.
+3. Mission brief from marduk over the messenger (built; replaces the
+   old "Resistance accepts Buddy" beat).
+4. marduk's hint: the barista at the local coffee shop was laid off
+   from Microslop (built, in the brief + checklist).
 5. **[rework]** The badge peek (declared 2026-07-09). The barista's
    old Microslop badge is clipped to the backpack she keeps behind
    the counter. The badge is laminated, and tucked behind the card is
@@ -113,15 +120,17 @@ marked **[new]** don't exist yet; unmarked steps are built and tested.
    server rack (`microslop_route_open`). Best overworld↔terminal
    weave in the game so far; the password alone must not be enough.
 7. Scan Microslop; connect (built).
-8. Explore the filesystem; locate the layoff plans. **[new]** the
-   layoff document itself — lands beside `/srv/archive/
-   sun_notice.txt`, and the barista's firing sets it up. "Internal
-   network" stays one host for mission 1; if a later mission wants
-   depth behind it, that's the #42 net-depth question waking up.
-9. Retrieve (copy home) the layoff document.
-10. **[new]** Return the document to the Resistance — over the
-    messenger (section 4), no meetup location needed. Payoff beat:
-    the Resistance recruits the affected engineers.
+8. Explore the filesystem; locate the layoff plans (built:
+   `/srv/hr/rif_q3.txt`, breadcrumbed from `access.log`; the
+   barista's wave-one firing sets it up). "Internal network" stays
+   one host for mission 1; if a later mission wants depth behind it,
+   that's the #42 net-depth question waking up.
+9. Retrieve (copy home) the layoff document (built: `OnCopy`).
+10. Deliver over the wire (built): **`send <file>`** — Linux
+    equivalent `scp`, deck-resident files only (retrieve, then
+    deliver) — fires `OnSend`, and marduk's payoff reply lands in the
+    same session. Payoff beat: the Resistance reaches every name on
+    wave two before the badge-revoke batch does — recruitment.
 
 ## 2. City map
 
@@ -208,6 +217,13 @@ intel, not instructions.
 what it unlocks)*
 
 ## 5. NPC roster
+
+**The Animal Masquerade (ruled 2026-07-10, dialogue.md):** animals
+are smart and corpos/civilians must never learn it — VtM-style
+Masquerade. With non-Resistance NPCs every dialogue choice is
+cat-theater (meow, purr, stare, paw); with Resistance members Buddy
+talks for real, and on the net he types. marduk knows his agent is a
+cat. Every NPC below is implicitly tagged in-the-know or not.
 
 Per hub: who gates what, and what they remember. The pattern is the
 barista (dialogue.md "State And Memory"): per-NPC memory flags

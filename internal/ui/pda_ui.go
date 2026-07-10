@@ -43,12 +43,19 @@ func (pdaSurface) Intercept(m *Model, cmd engine.Command) bool {
 	if !isPDA {
 		return false
 	}
+	m.openPDA(p)
+	return true
+}
+
+// openPDA wakes the slab — shared by "use pda" and the left panel's
+// UPLINK row.
+func (m *Model) openPDA(p hacking.PDA) {
 	m.pdaCfg = p
 	m.pdaMode = pdaMenu
 	m.pdaSel = 0
 	m.input.Blur()
 	m.entries = append(m.entries, dimStyle.Render("[you thumb the PDA awake]"))
-	return true
+	m.refreshLog()
 }
 
 // pdaMenuItems is the main menu, in order.

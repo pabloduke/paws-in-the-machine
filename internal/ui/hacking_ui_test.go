@@ -6,7 +6,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 
+	"github.com/pabloduke/paws-in-the-machine/internal/engine"
 	"github.com/pabloduke/paws-in-the-machine/internal/game"
 	"github.com/pabloduke/paws-in-the-machine/internal/systems/hacking"
 )
@@ -423,10 +425,12 @@ func TestMicroslopPasswordPuzzle(t *testing.T) {
 		t.Fatalf("copying Microslop notice should set flag; flags=%v", w.Flags)
 	}
 	mod = typeLine(mod, "cat ~/notes/notes.md")
-	if reader := readerText(mod); !strings.Contains(reader, "apple") ||
-		!strings.Contains(reader, "SUNFARM-ARC") ||
-		!strings.Contains(reader, "sunlight") || !strings.Contains(reader, "liability notice") {
-		t.Fatalf("notes should record Microslop discoveries: %q", reader)
+	// The full source, not the viewport: the mission checklist above
+	// the field notes pushes these below the visible fold.
+	if notes := mod.(Model).readerMD; !strings.Contains(notes, "apple") ||
+		!strings.Contains(notes, "SUNFARM-ARC") ||
+		!strings.Contains(notes, "sunlight") || !strings.Contains(notes, "liability notice") {
+		t.Fatalf("notes should record Microslop discoveries: %q", notes)
 	}
 }
 
@@ -585,7 +589,7 @@ func TestMessengerPanelFlow(t *testing.T) {
 		t.Fatalf("the messenger command should open the panel")
 	}
 	v := mod.View()
-	if !strings.Contains(v, "MESSENGER // RESISTANCE") || !strings.Contains(v, "barista") {
+	if !strings.Contains(v, "MESSENGER // MARDUK") || !strings.Contains(v, "barista") {
 		t.Fatalf("the panel should show the contact and the welcome brief: %q", v)
 	}
 	if mm.deckCfg.Messenger.Unread(w) != 0 {
@@ -634,5 +638,39 @@ func TestMessengerWithoutService(t *testing.T) {
 	}
 	if joined := strings.Join(out.shellEntries, "\n"); !strings.Contains(joined, "no service") {
 		t.Fatalf("the refusal should land in the scrollback: %q", joined)
+	}
+}
+
+// The game boots into the terminal (main calls BootIntoDeck): marduk's
+// brief is announced before the player types anything, and the first
+// Esc lands in the lair with the intro waiting in the LOG.
+func TestBootIntoDeck(t *testing.T) {
+	w := game.NewWorld()
+	lipgloss.SetColorProfile(termenv.ANSI)
+	var mod tea.Model = New(engine.New(w), "intro text")
+	mm := mod.(Model)
+	mm.BootIntoDeck() // main.go does this before the program runs
+	mod = mm
+	mod, _ = mod.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+
+	mm = mod.(Model)
+	if mm.shell == nil {
+		t.Fatalf("boot should open the terminal")
+	}
+	v := mod.View()
+	if !strings.Contains(v, "CYBERDECK // DECK") {
+		t.Fatalf("boot should land on the terminal screen: %q", v)
+	}
+	if joined := strings.Join(mm.shellEntries, "\n"); !strings.Contains(joined, "[messenger] 1 unread") {
+		t.Fatalf("the brief should be announced at boot: %q", joined)
+	}
+
+	mod, _ = mod.Update(spec(tea.KeyEsc))
+	mm = mod.(Model)
+	if mm.shell != nil {
+		t.Fatalf("esc should log out into the lair")
+	}
+	if after := mod.View(); !strings.Contains(after, "intro text") {
+		t.Fatalf("the intro should be waiting in the LOG after logout: %q", after)
 	}
 }

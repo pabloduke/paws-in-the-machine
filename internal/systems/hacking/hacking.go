@@ -102,6 +102,7 @@ type Node struct {
 	OnRead   string // flag set when cat'ed or grep-matched
 	OnCopy   string // flag set when copied onto the deck
 	OnRun    string // flag set when run
+	OnSend   string // flag set when sent to the contact's drop
 	Copied   bool   // placed by cp — marks a deck-side discovery
 	Touched  bool   // created by touch — user-owned, no edit backup needed
 	BackedUp bool   // edit backup already created
@@ -330,6 +331,8 @@ func (s *Session) ExecDetailed(line string) ExecResult {
 		return ExecResult{Output: s.grep(args)}
 	case "cp":
 		return ExecResult{Output: s.cp(args)}
+	case "send":
+		return ExecResult{Output: s.send(args)}
 	case "mkdir":
 		return ExecResult{Output: s.mkdir(args)}
 	case "touch":
@@ -815,6 +818,29 @@ func (s *Session) cp(args []string) string {
 	return "" // like the real thing: silent on success
 }
 
+// send uploads a deck-resident file to the contact's drop — the
+// delivery half of a mission (docs/draft.md: mission 1 closes over the
+// wire). Deck-only on purpose: retrieve, then deliver — a file still
+// sitting on a remote host has to be copied home first. Any file
+// sends (no wall); only hooked files advance the story.
+func (s *Session) send(args []string) string {
+	if len(args) != 1 {
+		return "usage: send <file>"
+	}
+	host, _ := s.locate(args[0])
+	node := s.node(args[0])
+	switch {
+	case node == nil:
+		return "send: " + args[0] + ": No such file or directory"
+	case node.Dir:
+		return "send: " + args[0] + ": Is a directory"
+	case host != s.deck:
+		return "send: can only send from the deck — copy it home first"
+	}
+	s.setFlag(node.OnSend)
+	return "uploading " + node.Name + " → drop... done"
+}
+
 func (s *Session) mkdir(args []string) string {
 	if len(args) == 0 {
 		return "usage: mkdir <dir...>"
@@ -941,6 +967,10 @@ func (s *Session) serviceState(host *Host, svc *Service) string {
 
 // serviceState resolves what a scan shows for one port right now: a
 // pure function of flags, shared by the shell and the PDA sniffer.
+// Host-level reachability (Require) is deliberately not checked here:
+// a missing route means the whole host is down to the scan (user
+// ruling 2026-07-09), not that its ports read closed — an authored
+// open port stays open, the password stays the door.
 func serviceState(w *engine.World, host *Host, svc *Service) string {
 	state := svc.State
 	if state == "" {
@@ -948,9 +978,6 @@ func serviceState(w *engine.World, host *Host, svc *Service) string {
 	}
 	if state == StateHidden {
 		return StateHidden
-	}
-	if host.Require != "" && !w.Flags[host.Require] {
-		return StateClosed
 	}
 	if svc.OpenWhen != "" && !w.Flags[svc.OpenWhen] {
 		return StateClosed
@@ -1010,6 +1037,12 @@ var standardPorts = []struct {
 // extra configured ports follow in port order; hidden extras are
 // omitted (hidden standard ports scan as closed — the disguise).
 func portReport(w *engine.World, host *Host) string {
+	// No route, no scan: an unreachable host is down to the wire, the
+	// same truth ssh tells. All-ports-closed would lie — it reads as
+	// "hardened", when the fix is the network, not the door.
+	if host.Require != "" && !w.Flags[host.Require] {
+		return "scan: " + host.Name + ": Host seems down (no route to host)"
+	}
 	byPort := map[int]*Service{}
 	for _, svc := range host.configuredServices() {
 		byPort[svc.Port] = svc
@@ -1220,6 +1253,7 @@ const helpText = `deck shell:
   scan <host>          | list a host's ports            | nmap
   connect <host>       | jack into a host               | ssh
   messenger            | your messages (right panel)    | talk
+  send <file>          | hand a file to your contact    | scp
   run <file>           | execute something              |
   exit / logout        | hang up (or leave the deck)    |
 

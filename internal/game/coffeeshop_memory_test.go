@@ -90,7 +90,7 @@ func TestBaristaBurnedIsAForkNotAWall(t *testing.T) {
 	if !w.Flags["barista_softened"] {
 		t.Fatal("a burned barista should still be softenable by charm")
 	}
-	choose(t, baristaTalk(t, w), "what Microslop did")
+	choose(t, baristaTalk(t, w), "Microslop lanyard")
 	if !w.Flags["knows_microslop_password"] {
 		t.Fatal("apple must stay reachable through a burned barista (no soft-lock)")
 	}

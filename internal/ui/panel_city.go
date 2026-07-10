@@ -20,6 +20,7 @@ type panelKind int
 const (
 	panelHub  panelKind = iota // a city district — Enter travels
 	panelDeck                  // a terminal in reach — Enter logs in
+	panelPDA                   // the carried slab — Enter thumbs it awake
 )
 
 // panelItem is one selectable row in the left panel.
@@ -45,14 +46,23 @@ func (m *Model) focusCityPanel() {
 }
 
 // panelItems is the left panel's focusable list: hubs to travel to,
-// then decks in scope to log into.
+// then the uplink row — the deck where it lives (the lair), the
+// carried PDA everywhere else (user ruling 2026-07-10). The PDA
+// yields to the deck: no point offering the reading glasses while
+// the real terminal is in the room.
 func (m Model) panelItems() []panelItem {
 	var items []panelItem
 	for _, h := range hubs.List(m.eng.World) {
 		items = append(items, panelItem{panelHub, h, h.Name})
 	}
-	for _, d := range hacking.DecksInScope(m.eng.World) {
+	decks := hacking.DecksInScope(m.eng.World)
+	for _, d := range decks {
 		items = append(items, panelItem{panelDeck, d, engine.DisplayName(m.eng.World, d)})
+	}
+	if len(decks) == 0 {
+		for _, p := range hacking.PDAsInScope(m.eng.World) {
+			items = append(items, panelItem{panelPDA, p, engine.DisplayName(m.eng.World, p)})
+		}
 	}
 	return items
 }
@@ -91,6 +101,10 @@ func (citySurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 			if d, ok := engine.Part[hacking.Deck](item.entity); ok {
 				m.openShell(d)
 			}
+		case panelPDA:
+			if p, ok := engine.Part[hacking.PDA](item.entity); ok {
+				m.openPDA(p)
+			}
 		}
 	}
 	return nil
@@ -116,9 +130,10 @@ func (m Model) cityPanel() string {
 	b.WriteString(panelTitleStyle.Render("▸ THE CITY"))
 	prevKind := panelHub
 	for i, it := range items {
-		// A blank line and a green subhead set the deck(s) apart from
-		// the hubs — logging in is not walking somewhere.
-		if it.kind == panelDeck && (i == 0 || prevKind == panelHub) {
+		// A blank line and a green subhead set the uplink rows (deck
+		// or PDA) apart from the hubs — logging in is not walking
+		// somewhere.
+		if it.kind != panelHub && (i == 0 || prevKind == panelHub) {
 			b.WriteString("\n\n" + deckTitleStyle.Render("// UPLINK"))
 		}
 		prevKind = it.kind
@@ -131,7 +146,7 @@ func (m Model) cityPanel() string {
 		switch {
 		case m.panelFocused && i == m.selected:
 			row = hubSelStyle.Render(row)
-		case it.kind == panelDeck:
+		case it.kind != panelHub:
 			row = deckRowStyle.Render(row)
 		}
 		b.WriteString("\n" + row)

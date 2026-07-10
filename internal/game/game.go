@@ -13,10 +13,14 @@ package game
 
 import "github.com/pabloduke/paws-in-the-machine/internal/engine"
 
-// Intro is shown once when the session starts.
+// Intro seeds the overworld LOG. The game boots into the terminal
+// (main calls BootIntoDeck), so this is what greets Buddy the first
+// time he logs out into the lair.
 const Intro = `PAWS IN THE MACHINE
 
-(Intro text goes here. Type "help" for commands.)`
+(Placeholder) The deck's glow fades behind you. The lair: rain on the
+window, neon through the blinds, a city that owes you nothing yet.
+Type "help" for commands.`
 
 // awardOnce grants XP the first time flag trips; returns the XP line
 // (with leading separator) or "" if already earned.

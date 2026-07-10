@@ -27,6 +27,7 @@ alias copy=cp
 alias connect=ssh
 alias nmap=scan
 alias talk=messenger
+alias scp=send
 `
 
 func starterNet() map[string]*hacking.Host {
@@ -92,11 +93,32 @@ func starterNet() map[string]*hacking.Host {
 					hacking.Dir("log",
 						hacking.File("access.log",
 							"(Placeholder) 01:02 cafeteria bot accepted badge\n"+
+								"02:40 HR uploaded q3 planning docs to /srv/hr/\n"+
 								"03:17 sun notice moved to /srv/archive/sun_notice.txt\n"+
 								"03:18 legal requested wording review"),
 					),
 				),
 				hacking.Dir("srv",
+					// Mission 1's target (docs/draft.md): the layoff
+					// plans. RIF is corp-speak for "reduction in force" —
+					// the barista's team is on the list.
+					hacking.Dir("hr",
+						&hacking.Node{
+							Name:   "rif_q3.txt",
+							OnRead: flagReadLayoffPlans,
+							OnCopy: flagGotLayoffPlans,
+							OnSend: flagLayoffPlansDelivered,
+							Text: "(Placeholder) MICROSLOP HR — CONFIDENTIAL\n" +
+								"Subject: Q3 reduction in force, wave two\n" +
+								"Per legal: use \"role realignment\" in all comms.\n" +
+								"Wave one (complete): contractor support, cafe " +
+								"annex staff.\n" +
+								"Wave two (pending): grid maintenance, archive " +
+								"ops, night engineering.\n" +
+								"Do not notify affected teams before the " +
+								"badge-revoke batch runs.",
+						},
+					),
 					hacking.Dir("archive",
 						&hacking.Node{
 							Name:   "sun_notice.txt",
@@ -234,6 +256,15 @@ func netEvents() []engine.When {
 		beat(flagReadOkuda410, flagXPOkuda410, 5,
 			"(Placeholder) Asset 410, read at the source. Whatever Okuda "+
 				"was paid to lose, you found the receipt."),
+		beat(flagReadLayoffPlans, flagXPLayoffRead, 3,
+			"(Placeholder) \"Role realignment.\" You read the real words "+
+				"under the nice ones."),
+		beat(flagGotLayoffPlans, flagXPLayoffCopied, 5,
+			"(Placeholder) The layoff plans are on your deck. Names, "+
+				"dates, the badge-revoke batch. Heavier than data should be."),
+		beat(flagLayoffPlansDelivered, flagXPLayoffDelivered, 8,
+			"(Placeholder) The drop took the plans. Somewhere, marduk is "+
+				"already reading. Mission one, done."),
 	}
 }
 
@@ -241,20 +272,50 @@ func netJournal() []engine.Entry {
 	return []engine.Entry{
 		{Flag: flagKnowsMicroslopPassword, Text: "The barista said Microslop contractor boxes were reset to `apple`."},
 		{Flag: flagMicroslopRouteOpen, Text: "Bridged the coffee shop rack onto the lair's uplink. The deck can reach Microslop now."},
+		{Flag: flagReadLayoffPlans, Text: "Found Microslop's Q3 layoff plans in /srv/hr/rif_q3.txt — \"role realignment,\" wave two pending."},
+		{Flag: flagGotLayoffPlans, Text: "Copied the layoff plans onto the deck."},
+		{Flag: flagLayoffPlansDelivered, Text: "Sent the layoff plans to marduk's drop. Mission one complete."},
 		{Flag: flagReadSunNotice, Text: "Microslop buried old sun liability under grid asset `SUNFARM-ARC`."},
 		{Flag: flagGotSunNotice, Text: "Copied Microslop's sunlight liability notice onto the deck."},
 		{Flag: flagReadOkuda410, Text: "(Placeholder) okuda.grid is asset 410: records Okuda was paid to lose, still humming in their own records office."},
 	}
 }
 
+// missionSteps is mission 1's checklist, rendered into Buddy's notes.
+// Mission 1 is the explicit end of the hint-fade (docs/draft.md):
+// these read like orders; missions 2 and 3 get vaguer, and from 4 on
+// notes are just intel.
+var missionSteps = []struct {
+	flag string
+	text string
+}{
+	{flagKnowsMicroslopPassword, "talk to the barista at the coffee shop — she used to work at Microslop"},
+	{flagMicroslopRouteOpen, "get into the coffee shop back room; the server rack can bridge the deck onto Microslop's net"},
+	{flagGotLayoffPlans, "connect to microslop, find the layoff plans (start with the logs), copy them home"},
+	{flagLayoffPlansDelivered, "send the plans to marduk: send <file>"},
+}
+
 func buddyNotes(w *engine.World) string {
-	entries := w.JournalEntries()
-	if len(entries) == 0 {
-		return "# Notes\n\nNothing solid yet."
+	var b strings.Builder
+	b.WriteString("# Notes\n\n## Mission — marduk\n")
+	done := 0
+	for _, step := range missionSteps {
+		mark := "[ ]"
+		if w.Flags[step.flag] {
+			mark = "[x]"
+			done++
+		}
+		b.WriteString("\n- " + mark + " " + step.text)
+	}
+	if done == len(missionSteps) {
+		b.WriteString("\n\nMission complete. marduk has the plans.")
 	}
 
-	var b strings.Builder
-	b.WriteString("# Notes\n")
+	b.WriteString("\n\n## Field notes\n")
+	entries := w.JournalEntries()
+	if len(entries) == 0 {
+		b.WriteString("\nNothing solid yet.")
+	}
 	for _, e := range entries {
 		b.WriteString("\n- " + e)
 	}

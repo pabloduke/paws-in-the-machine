@@ -37,25 +37,36 @@ func buildLair() (*engine.Entity, *engine.Entity) {
 		hacking.Deck{
 			Net:  net,
 			Host: "deck",
+			// Mission 1's chain first (docs/draft.md), side threads after.
 			Objectives: []hacking.Objective{
+				{Flag: flagKnowsMicroslopPassword, Text: "find the barista's Microslop intel"},
+				{Flag: flagMicroslopRouteOpen, Text: "get the deck a route into Microslop"},
+				{Flag: flagGotLayoffPlans, Text: "pull the layoff plans off Microslop"},
+				{Flag: flagLayoffPlansDelivered, Text: "send the plans to marduk"},
 				{Flag: flagHeardWhisper, Text: "trace the whisper in the dead code"},
 				{Flag: flagGotSunFragment, Text: "pull whatever 'sun' data is still out there"},
 			},
-			// The Resistance's channel (docs/draft.md: Resistance-lite —
-			// a mission-giver and a delivery point, nothing more).
-			// Messages arrive on flags, never timers.
+			// marduk's channel (docs/draft.md: Resistance-lite — a
+			// mission-giver and a delivery point, nothing more; the
+			// handle is tentative, user ruling 2026-07-09). The game
+			// boots into the terminal with the brief waiting; messages
+			// arrive on flags, never timers.
 			Messenger: hacking.Messenger{
-				Contact: "resistance",
+				Contact: "marduk",
 				Msgs: []hacking.Msg{
 					{ID: "welcome",
-						Text: "(Placeholder) channel's clean. you're the cat " +
-							"the barista keeps feeding, right? she used to be " +
-							"one of ours — Microslop badge, before the layoffs. " +
-							"start there."},
+						Text: "(Placeholder) channel's clean. job for you, " +
+							"stray: get inside Microslop's intranet and pull " +
+							"their layoff plans — the real list, not the press " +
+							"release. copy it to your deck, then send it to me " +
+							"(the send command). you can't reach their net from " +
+							"here yet. the barista at the coffee shop north of " +
+							"you used to work there — start with her. your " +
+							"notes file has the steps: cat ~/notes/notes.md"},
 					{ID: "route_open", When: flagMicroslopRouteOpen,
-						Text: "(Placeholder) we see the bridge you patched at " +
+						Text: "(Placeholder) i see the bridge you patched at " +
 							"the coffee shop. good paws. Microslop will answer " +
-							"the deck now."},
+							"the deck now — go get the plans."},
 					{ID: "whisper", When: flagHeardWhisper,
 						Text: "(Placeholder) you heard it too, then. the thing " +
 							"in the dead code. careful who you tell — most of " +
@@ -64,6 +75,13 @@ func buildLair() (*engine.Entity, *engine.Entity) {
 						Text: "(Placeholder) that liability notice on your " +
 							"deck is the first paper proof anyone's pulled out " +
 							"of Microslop. hold onto it. we'll want it soon."},
+					{ID: "delivered", When: flagLayoffPlansDelivered,
+						Text: "(Placeholder) drop confirms. wave two: grid " +
+							"maintenance, archive ops, night engineering — " +
+							"we'll reach every name on it before the badge-" +
+							"revoke batch does. that's recruitment, stray. " +
+							"mission one, done. rest your paws; i'll be in " +
+							"touch."},
 				},
 			},
 		},

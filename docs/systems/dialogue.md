@@ -14,6 +14,31 @@ The player talks by choosing numbered responses. There is no free-form
 natural language parser inside dialogue. That keeps authoring explicit
 and testable.
 
+## The Animal Masquerade (user ruling 2026-07-10)
+
+Animals are smart. **Corpos — and civilians — can't know that.** Like
+the Masquerade in Vampire: The Masquerade, keeping the secret is the
+world's first law, and it splits dialogue in two:
+
+- **With non-Resistance NPCs, Buddy plays cat.** Every choice must be
+  cat-theater: body language (purr, stare, sit under the flyer looking
+  bereaved), physical acts (nudge the shard into view, hook a claw
+  under the tip jar), and vocalization — cats meow, loudly and on
+  purpose; demanding attention with a meow is a legitimate choice.
+  Never speech: no "ask", "tell", "explain". This is cover, not
+  incapacity — Buddy could talk, and must not.
+- **Information still flows: people talk at cats.** The NPC's `Say`
+  prose is them venting, monologuing, narrating to an animal they
+  assume can't understand — the reveal mechanism, and why a cat makes
+  the perfect spy.
+- **With Resistance members, Buddy talks** (and over the wire, types).
+  marduk knows exactly what his agent is — "good paws" is literal.
+  Resistance dialogue can be real two-way conversation.
+
+Breaking the Masquerade (speaking where a corpo can hear) is not
+authored anywhere yet; if it ever is, it's a story catastrophe, not a
+check failure.
+
 ## Choices
 
 Each node contains NPC text and zero or more choices. A choice may:
