@@ -103,6 +103,11 @@ type Node struct {
 	OnCopy   string // flag set when copied onto the deck
 	OnRun    string // flag set when run
 	OnSend   string // flag set when sent to the contact's drop
+	// PresentWhen gates the node's very existence on a world flag:
+	// until it is set, the node is absent from ls/cat/grep and the PDA
+	// mirror. This is how a mission file "arrives" in ~/notes when its
+	// handler's briefing grants it (docs/systems/hacking.md).
+	PresentWhen string
 	Copied   bool   // placed by cp — marks a deck-side discovery
 	Touched  bool   // created by touch — user-owned, no edit backup needed
 	BackedUp bool   // edit backup already created
@@ -430,7 +435,17 @@ func find(root *Node, segs []string) *Node {
 
 func (s *Session) node(p string) *Node {
 	host, segs := s.locate(p)
-	return find(host.Root, segs)
+	n := find(host.Root, segs)
+	if n != nil && !present(s.w, n) {
+		return nil // gated off: not there yet
+	}
+	return n
+}
+
+// present reports whether a node currently exists in the filesystem —
+// true unless a PresentWhen flag gates it and is still unset.
+func present(w *engine.World, n *Node) bool {
+	return n.PresentWhen == "" || w.Flags[n.PresentWhen]
 }
 
 func (s *Session) resolvedPath(p string) string {
@@ -571,6 +586,9 @@ func (s *Session) ls(args []string) string {
 	}
 	names := make([]string, 0, len(n.Children))
 	for _, c := range n.Children {
+		if !present(s.w, c) {
+			continue // gated off until its flag lands
+		}
 		if !all && strings.HasPrefix(c.Name, ".") {
 			continue // hidden unless -a
 		}
@@ -734,7 +752,7 @@ func (s *Session) grep(args []string) string {
 			continue
 		case n.Dir:
 			hadFile := false
-			walkFiles(n, arg, func(path string, file *Node) {
+			walkFiles(s.w, n, arg, func(path string, file *Node) {
 				hadFile = true
 				out = append(out, s.grepFile(pat, path, file, true)...)
 			})
@@ -748,12 +766,15 @@ func (s *Session) grep(args []string) string {
 	return strings.Join(out, "\n") // like the real thing: silent when nothing matches
 }
 
-func walkFiles(n *Node, path string, visit func(string, *Node)) {
+func walkFiles(w *engine.World, n *Node, path string, visit func(string, *Node)) {
 	if !n.Dir {
 		visit(path, n)
 		return
 	}
 	for _, c := range n.Children {
+		if !present(w, c) {
+			continue // gated off until its flag lands
+		}
 		childPath := path
 		if childPath == "." {
 			childPath = c.Name
@@ -762,7 +783,7 @@ func walkFiles(n *Node, path string, visit func(string, *Node)) {
 		} else {
 			childPath += "/" + c.Name
 		}
-		walkFiles(c, childPath, visit)
+		walkFiles(w, c, childPath, visit)
 	}
 }
 
@@ -1265,31 +1286,14 @@ alias name=command`
 // screen. Engine dispatch declines every verb — the UI owns the
 // interactive session.
 type Deck struct {
-	Net        map[string]*Host
-	Host       string // local host name on the net
-	Objectives []Objective
-	Messenger  Messenger
+	Net       map[string]*Host
+	Host      string // local host name on the net
+	Messenger Messenger
 }
 
 // Handle declines every command; see the type comment.
 func (Deck) Handle(*engine.World, *engine.Entity, engine.Command) (string, bool) {
 	return "", false
-}
-
-// Objective is one quest-panel hint: Text shows while Flag is unset.
-type Objective struct {
-	Flag string
-	Text string
-}
-
-// CurrentObjective picks the first unmet hint, or a placeholder.
-func (d Deck) CurrentObjective(w *engine.World) string {
-	for _, o := range d.Objectives {
-		if !w.Flags[o.Flag] {
-			return o.Text
-		}
-	}
-	return "signal searching..."
 }
 
 // DecksInScope returns entities the player can currently reach that

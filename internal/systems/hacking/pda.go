@@ -73,12 +73,17 @@ func (f TextFile) Read(w *engine.World) Document {
 }
 
 // TextFiles lists every .md/.txt on the host, sorted by path, with
-// the host's home shown as ~ the way the shell prints it.
-func TextFiles(host *Host) []TextFile {
+// the host's home shown as ~ the way the shell prints it. Flag-gated
+// files (PresentWhen) are skipped until their flag lands, so a mission
+// file mirrors onto the PDA exactly when it appears on the deck.
+func TextFiles(w *engine.World, host *Host) []TextFile {
 	var out []TextFile
 	var walk func(n *Node, path string)
 	walk = func(n *Node, path string) {
 		for _, c := range n.Children {
+			if !present(w, c) {
+				continue
+			}
 			p := path + "/" + c.Name
 			if c.Dir {
 				walk(c, p)

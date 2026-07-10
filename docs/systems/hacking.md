@@ -326,6 +326,11 @@ answer to what the terminal's right panel is for. `messenger` (alias
   `Model.BootIntoDeck`) with marduk's mission brief waiting as the
   first unread — typing `messenger` is the first thing the game
   teaches. The overworld intro text greets the first logout instead.
+- **Reading a brief downloads its mission** (`Msg.Grants`, user ruling
+  2026-07-10): a mission message carries a flag set when it is read,
+  and a mission file gated on that flag (`Node.PresentWhen`) appears in
+  `~/notes` at that moment — no `download`/`cp` to type, it just shows
+  up. See "Missions" below.
 - **Delivery closes the loop**: `send <file>` uploads a deck-resident
   file to marduk's drop; the file's `OnSend` flag makes his reply
   arrive in the same session. Mission 1 ends exactly here.
@@ -351,6 +356,28 @@ Players read it with `cat ~/notes/notes.md` and can search it with
 `grep -ir <pattern> ~/notes`. Notes are written as things Buddy has found
 or inferred, with vague clue texture allowed, but not explicit next-step
 instructions.
+
+## Missions
+
+Missions are their own files in `~/notes` (user ruling 2026-07-10;
+`notes.md` was a stopgap and is now just field notes). A mission file
+**auto-downloads** when its handler's briefing is read: the briefing
+message's `Msg.Grants` flag flips, and the mission file — declared with
+a matching `Node.PresentWhen` — appears in `~/notes`. No `download` or
+`cp` to type; it just shows up, and mirrors onto the PDA the same
+instant (`TextFiles` honors `PresentWhen`).
+
+The file holds the mission params and a checklist that ticks `[x]` as
+its flags land (mission 1: `Microslop_Find_The_Layoff_List.md`).
+Filenames are underscored, no spaces, so `cat` reads them without
+quoting. Mission 1 is the loud end of the hint-fade (docs/draft.md):
+its steps read like orders; later missions get vaguer files. This is
+also where a mission's objectives live — there is no separate
+quest-panel objective list (the terminal's right panel idles blank).
+
+`Node.PresentWhen` is general: any node gated on a flag is absent from
+`ls`/`cat`/`grep`/PDA until the flag is set — a clean way to make files
+appear as the story turns them on.
 
 ## Logging in
 

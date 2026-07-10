@@ -40,6 +40,14 @@ func starterNet() map[string]*hacking.Host {
 					hacking.Dir("paws_in_the_machine",
 						hacking.Dir("notes",
 							hacking.DynamicFile("notes.md", buddyNotes),
+							// Mission files land here on their own when the
+							// handler's briefing is read (PresentWhen +
+							// Msg.Grants). Mission 1: marduk's Microslop job.
+							&hacking.Node{
+								Name:        "Microslop_Find_The_Layoff_List.md",
+								PresentWhen: flagMissionMicroslop,
+								TextFn:      missionMicroslopDoc,
+							},
 						),
 						hacking.File(".aliases", defaultAliases),
 					),
@@ -281,11 +289,11 @@ func netJournal() []engine.Entry {
 	}
 }
 
-// missionSteps is mission 1's checklist, rendered into Buddy's notes.
-// Mission 1 is the explicit end of the hint-fade (docs/draft.md):
-// these read like orders; missions 2 and 3 get vaguer, and from 4 on
-// notes are just intel.
-var missionSteps = []struct {
+// missionMicroslopSteps is mission 1's checklist, rendered into the
+// mission file (not notes.md). Mission 1 is the explicit end of the
+// hint-fade (docs/draft.md): these read like orders; missions 2 and 3
+// get vaguer, and from 4 on notes are just intel.
+var missionMicroslopSteps = []struct {
 	flag string
 	text string
 }{
@@ -295,11 +303,17 @@ var missionSteps = []struct {
 	{flagLayoffPlansDelivered, "send the plans to marduk: send <file>"},
 }
 
-func buddyNotes(w *engine.World) string {
+// missionMicroslopDoc renders the mission file: params up top, a
+// checklist that ticks as flags land. Present only once marduk's brief
+// is read (net.go PresentWhen), so it "downloads" from the handler.
+func missionMicroslopDoc(w *engine.World) string {
 	var b strings.Builder
-	b.WriteString("# Notes\n\n## Mission — marduk\n")
+	b.WriteString("# Microslop — Find the Layoff List\n\n")
+	b.WriteString("From: marduk\n")
+	b.WriteString("Get inside Microslop's intranet, pull the real layoff " +
+		"plans, and send them back.\n\n## Steps\n")
 	done := 0
-	for _, step := range missionSteps {
+	for _, step := range missionMicroslopSteps {
 		mark := "[ ]"
 		if w.Flags[step.flag] {
 			mark = "[x]"
@@ -307,15 +321,22 @@ func buddyNotes(w *engine.World) string {
 		}
 		b.WriteString("\n- " + mark + " " + step.text)
 	}
-	if done == len(missionSteps) {
+	if done == len(missionMicroslopSteps) {
 		b.WriteString("\n\nMission complete. marduk has the plans.")
 	}
+	return b.String()
+}
 
-	b.WriteString("\n\n## Field notes\n")
+// buddyNotes renders ~/notes/notes.md: Buddy's field notes, derived
+// from discovered flags. Missions live in their own files now (user
+// ruling 2026-07-10); this is just what he's learned.
+func buddyNotes(w *engine.World) string {
 	entries := w.JournalEntries()
 	if len(entries) == 0 {
-		b.WriteString("\nNothing solid yet.")
+		return "# Notes\n\nNothing solid yet."
 	}
+	var b strings.Builder
+	b.WriteString("# Notes\n")
 	for _, e := range entries {
 		b.WriteString("\n- " + e)
 	}

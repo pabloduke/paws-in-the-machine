@@ -43,7 +43,7 @@ func TestPDAFieldIntelLoop(t *testing.T) {
 	w := game.NewWorld()
 	p := pdaCfg(t, w)
 
-	files := hacking.TextFiles(p.Net[p.Host])
+	files := hacking.TextFiles(w, p.Net[p.Host])
 	if len(files) != 1 || files[0].Path != "~/notes/notes.md" {
 		t.Fatalf("the deck mirror should list Buddy's notes: %+v", files)
 	}
@@ -84,7 +84,7 @@ func TestPDASeesCopiedFiles(t *testing.T) {
 		t.Fatalf("copying the notice home should work: %q", out)
 	}
 
-	files := hacking.TextFiles(p.Net[p.Host])
+	files := hacking.TextFiles(w, p.Net[p.Host])
 	found := false
 	for _, f := range files {
 		if f.Path == "~/notes/sun_notice.txt" {

@@ -141,7 +141,7 @@ func (m *Model) pdaPick() {
 	case pdaMenu:
 		switch m.pdaSel {
 		case 0: // Check notes
-			m.pdaFiles = hacking.TextFiles(m.pdaCfg.Net[m.pdaCfg.Host])
+			m.pdaFiles = hacking.TextFiles(m.eng.World, m.pdaCfg.Net[m.pdaCfg.Host])
 			m.pdaMode = pdaNotes
 			m.pdaSel = 0
 		case 1: // Scan ports

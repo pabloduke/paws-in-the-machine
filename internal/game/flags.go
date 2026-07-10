@@ -18,6 +18,9 @@ const (
 	flagReadLayoffPlans      = "read_layoff_plans"
 	flagGotLayoffPlans       = "got_layoff_plans"
 	flagLayoffPlansDelivered = "layoff_plans_delivered"
+	// Set when marduk's brief is read (Msg.Grants): the mission file
+	// appears in ~/notes (PresentWhen). "Downloading" the mission.
+	flagMissionMicroslop = "mission_microslop"
 
 	// Set by verb hooks and dialogue effects.
 	flagMugDown         = "mug_down"

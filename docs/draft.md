@@ -79,15 +79,16 @@ Opening amended 2026-07-09 (built): steps 1–4 collapsed — there is no
 acceptance/prove-your-skills beat. The game **boots into the
 terminal** with the mission brief already waiting as an unread
 message from **marduk** (the handler's handle, tentative): get inside
-Microslop, pull the layoff plans, `send` them to him — and the brief
-points at the barista and at `~/notes/notes.md`.
+Microslop, pull the layoff plans, `send` them to him — and reading
+the brief drops the mission file in `~/notes`.
 
 1. Start at the terminal (built: `BootIntoDeck`, brief unread).
 2. Tutorial — **mission 1 is the tutorial** (declared 2026-07-09; no
-   separate practice host). The teaching lives in the notes: a
-   `## Mission — marduk` checklist of explicit step-by-step orders,
-   ticking `[x]` as each flag lands (built). See section 4 for the
-   hint-fade rule.
+   separate practice host). Reading marduk's brief auto-downloads the
+   mission file `~/notes/Microslop_Find_The_Layoff_List.md` (built:
+   `Msg.Grants` + `Node.PresentWhen`, user ruling 2026-07-10) — a
+   checklist of explicit step-by-step orders that ticks `[x]` as each
+   flag lands. See section 4 for the hint-fade rule.
 3. Mission brief from marduk over the messenger (built; replaces the
    old "Resistance accepts Buddy" beat).
 4. marduk's hint: the barista at the local coffee shop was laid off
@@ -187,10 +188,12 @@ target — that's the draft doing its job, bring it back here.
 ## 4. Quest structure
 
 How the player knows what to do next. Draft rule: **use only the
-three mechanisms that exist** — deck `Objectives` (quest-panel hints
-that clear on flags), the generated `~/notes/notes.md`, and the
-event journal. No new quest system in the draft; where these creak
-is exactly the data #34 needs.
+mechanisms that exist** — **mission files** in `~/notes` (one per
+mission, auto-downloaded when the handler's brief is read; a checklist
+that ticks on flags — user ruling 2026-07-10), the field-notes file
+`~/notes/notes.md`, and the event journal. No quest panel (the
+terminal's right panel idles blank); no new quest system in the draft.
+Where these creak is exactly the data #34 needs.
 
 **Messenger (declared 2026-07-09):** an instant messenger on the
 terminal's right panel — the panel that's been reserved-but-blank
@@ -208,10 +211,10 @@ document over the wire.
 
 **Hint-fade rule (declared 2026-07-09):** missions 1–3 are the
 tutorial ramp; there is no separate tutorial content. Mission 1's
-notes read like a checklist (go to the barista, look at the badge,
+file reads like a checklist (go to the barista, look at the badge,
 return to the deck, scan ports); missions 2 and 3 teach too, with
-less and less guidance each; from mission 4 on, notes are just
-intel, not instructions.
+less and less guidance each; from mission 4 on, mission files are
+just intel, not instructions.
 
 *(declare here — the quest chain as a flag list: what sets each,
 what it unlocks)*

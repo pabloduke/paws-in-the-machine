@@ -23,6 +23,11 @@ type Msg struct {
 	ID   string // stable content id; the read-marker flag derives from it
 	When string
 	Text string
+	// Grants is a world flag set when this message is read — the
+	// handler handing over a mission. Reading the brief "downloads"
+	// the mission: content gates a mission file's presence on the same
+	// flag (docs/systems/hacking.md, user ruling 2026-07-10).
+	Grants string
 }
 
 // readFlag is the read marker for one message. These flags are
@@ -56,9 +61,13 @@ func (mgr Messenger) Unread(w *engine.World) int {
 }
 
 // MarkRead marks every arrived message read — opening the panel reads
-// the whole thread.
+// the whole thread — and applies each read message's Grants flag: a
+// briefing downloads its mission the moment you read it.
 func (mgr Messenger) MarkRead(w *engine.World) {
 	for _, msg := range mgr.Thread(w) {
 		w.Flags[readFlag(msg.ID)] = true
+		if msg.Grants != "" {
+			w.Flags[msg.Grants] = true
+		}
 	}
 }
