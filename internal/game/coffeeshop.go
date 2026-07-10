@@ -121,7 +121,10 @@ func buildCoffeeshop() *engine.Entity {
 							End: true,
 						},
 						{
-							Text: "Ask what Microslop did to them.",
+							// A cat can't ask (user ruling 2026-07-09) — but a cat
+						// can demand. The reveal is her venting at a cat who
+						// won't stop meowing at the right thing.
+						Text: "Plant yourself in front of her Microslop lanyard and meow. Insist. Cats always get answers.",
 							Require: []dialogue.Requirement{
 								dialogue.Flag(flagBaristaSoftened),
 								dialogue.MissingFlag(flagKnowsMicroslopPassword),

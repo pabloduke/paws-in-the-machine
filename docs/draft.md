@@ -159,6 +159,13 @@ what it unlocks)*
 
 ## 5. NPC roster
 
+**The Animal Masquerade (ruled 2026-07-10, dialogue.md):** animals
+are smart and corpos/civilians must never learn it — VtM-style
+Masquerade. With non-Resistance NPCs every dialogue choice is
+cat-theater (meow, purr, stare, paw); with Resistance members Buddy
+talks for real, and on the net he types. marduk knows his agent is a
+cat. Every NPC below is implicitly tagged in-the-know or not.
+
 Per hub: who gates what, and what they remember. The pattern is the
 barista (dialogue.md "State And Memory"): per-NPC memory flags
 (softened/burned), memory-aware greeting/description, favors refused
