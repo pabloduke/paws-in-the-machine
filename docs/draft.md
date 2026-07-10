@@ -94,6 +94,27 @@ Hubs and rooms. Existing: the lair (deck lives here, only here), the
 neighborhood, the plaza, the coffee shop (+ back room), Okuda HQ
 (lobby → corridor → records office → Deep Archive annex).
 
+**Charts (ruled 2026-07-10, hubs.md "Charts"):** declare rooms
+chart-first — coordinates within a hub, one w-slice at a time; exits
+derive from adjacency, so the compass never lies. Folds
+(hyperspatial content) are authored gluings on the fourth axis, never
+scrambled edges; player-facing directions stay compass-only, and
+ana/kata are our words, not the game's. Buddy can't sense folds — he
+survives them (lands on his feet; humans come out on their heads),
+which is why the Resistance runs cats.
+
+Fold content parked for the draft to pull:
+
+- **Aisle 410**: one step ana of the Okuda archive (`w+1`) — the
+  erasure was geometric; the vault was never unplugged because nobody
+  could stand where it is.
+- **The backstage lattice**: a small kata-side chart whose faces
+  touch thin spots in several hubs — the Resistance's courier network,
+  traversable only by things that land on their feet.
+- **An orientation twist**: a loop that returns Buddy mirrored
+  (Klein-bottle gluing) — signs read backwards until the loop is
+  walked again. Horror beat; use once, loudly.
+
 Constraints: buildings deepen rather than the city sprawling
 (hubs.md ruling); every hack target should have a physical location
 the overworld work happens in (scan from the lair → do the legwork →

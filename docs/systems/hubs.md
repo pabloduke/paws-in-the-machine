@@ -35,6 +35,78 @@ normally. No dice — a lock is state, not an attempt; `checks.Guarded`
 remains the tool for obstacles you try approaches against. First use:
 Okuda's archive door, released by `run unlock.bin` on `okuda.grid`.
 
+## Charts: the lattice under each hub
+
+**RULED 2026-07-10, spec'd, not built** — implementation gets its own
+branch after the mission-1 branch merges.
+
+The world is two-level:
+
+- **Between hubs: a graph.** Hubs are nodes; travel is the edges. No
+  geometric promise between hubs, ever — the subway model: nobody
+  riding it knows or cares whether the plaza is "north" of the lair.
+  Distance between districts is a menu of stops, not a lie about
+  adjacency.
+- **Inside a hub: a lattice ("chart").** Every room in a hub gets a
+  coordinate — an int slice, N-capable; in practice four slots
+  `(x, y, z, w)` — and walkable exits **derive from adjacency**:
+  north is `y+1`, up is `z+1`. Reciprocity and geometric consistency
+  hold by construction; the compass cannot lie.
+
+**Design rule: geometry is lawful.** The scrambled-exit fakery of
+70s/80s text adventures (Zork mazes: north from A reaches B, south
+from B reaches somewhere else) is banned outright — a player mapping
+this game in a notebook must never be cheated. Hand-declared
+connections remain allowed *on top of* the lattice for doors and
+obstacles — `engine.Exits.Gated` locks and `checks.Guarded` passages
+are content, adjacency is geometry — but they connect cells that are
+actually adjacent (or are folds, below).
+
+**Folded space is lawful too.** The lattice's fourth axis is where
+hyperspatial content lives, authored as a **gluing table**: declared
+identifications between cells/faces, possibly across charts — wraps,
+twists (Klein-bottle-style orientation reversal), tesseract folds
+(Heinlein's "—And He Built a Crooked House—" is the house style
+precedent), or a backstage lattice whose kata-side faces touch thin
+spots in several hubs at once (a wormhole network). A fold is never a
+scrambled edge: it's a rule the player can discover, learn, and map.
+
+**Vocabulary (user ruling 2026-07-10):** the player only ever sees
+`north/south/east/west/up/down`. The folding is invisible in the
+interface; discovery is cartographic — the map stops closing, a loop
+comes home too short. The 4D direction words **ana/kata** (`w±1`,
+Hinton's terms) are dev-facing only: docs, comments, coordinates.
+They never appear in game text.
+
+**The cat clause (user ruling 2026-07-10):** Buddy cannot sense folds
+— he *survives* them. A fold transit reorients the traveler
+(floor↔wall); a human comes out on their head, a cat lands on his
+feet. Fold-transit prose always carries the lands-on-his-feet beat.
+This is a lore gate: humans can't traverse folded space, which is why
+the Resistance runs cat agents, and Masquerade-adjacent — corpos
+can't even survey what's one step ana of their own archive. First
+planned use: Okuda's missing aisle 410 sits at the archive's
+coordinates, one step ana (`w+1`).
+
+**Retrofit notes (for the build branch):**
+
+- 13 rooms across 3 hubs need coordinates. The existing exits are
+  grid-consistent except one contradiction: the backroom's `north →
+  coffeeshop` puts it where the lair already is — resolve by placing
+  the backroom east or west of the shop.
+- Okuda already uses `up`/`down` correctly; its two check/gate
+  passages (fire escape, archive door) map onto real adjacencies.
+- Hub travel is untouched: the chart replaces hand-wired `Exits.Dirs`
+  inside hubs, nothing between them.
+
+**Open questions (parked, not ruled):**
+
+- Stations: hub travel is currently boardable from any room, including
+  mid-infiltration. Whether travel should only be offered from a
+  chart's street/entry rooms is undecided.
+- Whether any fold content lands in act one, or the fourth axis stays
+  authored-but-unvisited until later.
+
 ## Travel UX: the side panel
 
 A persistent side panel next to the transcript lists all hubs, marking
