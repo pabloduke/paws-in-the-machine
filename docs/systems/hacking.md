@@ -57,9 +57,28 @@ panel.
   optional open-when flag, and optional password. Port states are
   binary on purpose (user ruling 2026-07-09): a port is open or
   closed, never `filtered` — one less word between a newb and the
-  puzzle. An unmet route flag or open-when flag reads as `closed`;
-  `hidden` is authoring-only (a hidden standard port scans as
+  puzzle. `hidden` is authoring-only (a hidden standard port scans as
   `closed`, the disguise; a hidden extra port is omitted).
+
+  **Two puzzle shapes** (user ruling 2026-07-10), and `scan` reports
+  the true machine state for both:
+
+  1. **Port already open, guarded by a credential.** The box is a
+     running server — 22 is genuinely open — and the work is getting
+     the password/keyfile. `scan` shows `open` from the start; `ssh`
+     asks for the password. Example: microslop (22 open, password
+     `apple`). A missing route flag (`Require`) makes the host
+     *unreachable* — `ssh` reports the network unreachable — but that
+     never changes what `scan` lists: you can't reach it *is not* the
+     same as its ports are closed.
+  2. **Ports closed, opening one is the work.** The box is dark — all
+     ports read `closed` — and a port only opens when something in
+     the world genuinely re-enables it (`OpenWhen` flag). This is a
+     real state change to the machine, not the story hiding a scan:
+     `scan` honestly shows `closed`, then `open` once the port is
+     switched on. Example: okuda.grid, whose physically-disabled port
+     is re-enabled by the records-office console (#16 closed-ports
+     loop).
 - **Process** — `{PID, name, state}` plus an optional `OnKill` hook.
 - **Session** — `{current host, cwd, ssh stack}` — the state behind
   the screen. Created on login, discarded when the terminal closes; the
