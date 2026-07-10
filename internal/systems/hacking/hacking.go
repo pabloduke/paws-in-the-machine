@@ -1037,12 +1037,11 @@ var standardPorts = []struct {
 // extra configured ports follow in port order; hidden extras are
 // omitted (hidden standard ports scan as closed — the disguise).
 func portReport(w *engine.World, host *Host) string {
-	// No route, no scan: an unreachable host is down to the wire, the
-	// same truth ssh tells. All-ports-closed would lie — it reads as
-	// "hardened", when the fix is the network, not the door.
-	if host.Require != "" && !w.Flags[host.Require] {
-		return "scan: " + host.Name + ": Host seems down (no route to host)"
-	}
+	// scan is pure recon: it always lists the ports and their real
+	// states (user ruling 2026-07-10). A port's state is a fact of the
+	// machine — 22 open on a box running SSH — never something the
+	// story flips. The route flag gates *connecting* (ssh reports the
+	// network unreachable), not what the scan shows.
 	byPort := map[int]*Service{}
 	for _, svc := range host.configuredServices() {
 		byPort[svc.Port] = svc
