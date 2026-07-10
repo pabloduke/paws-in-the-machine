@@ -41,6 +41,31 @@ func buildLair() (*engine.Entity, *engine.Entity) {
 				{Flag: flagHeardWhisper, Text: "trace the whisper in the dead code"},
 				{Flag: flagGotSunFragment, Text: "pull whatever 'sun' data is still out there"},
 			},
+			// The Resistance's channel (docs/draft.md: Resistance-lite —
+			// a mission-giver and a delivery point, nothing more).
+			// Messages arrive on flags, never timers.
+			Messenger: hacking.Messenger{
+				Contact: "resistance",
+				Msgs: []hacking.Msg{
+					{ID: "welcome",
+						Text: "(Placeholder) channel's clean. you're the cat " +
+							"the barista keeps feeding, right? she used to be " +
+							"one of ours — Microslop badge, before the layoffs. " +
+							"start there."},
+					{ID: "route_open", When: flagMicroslopRouteOpen,
+						Text: "(Placeholder) we see the bridge you patched at " +
+							"the coffee shop. good paws. Microslop will answer " +
+							"the deck now."},
+					{ID: "whisper", When: flagHeardWhisper,
+						Text: "(Placeholder) you heard it too, then. the thing " +
+							"in the dead code. careful who you tell — most of " +
+							"us pretend we didn't."},
+					{ID: "notice", When: flagGotSunNotice,
+						Text: "(Placeholder) that liability notice on your " +
+							"deck is the first paper proof anyone's pulled out " +
+							"of Microslop. hold onto it. we'll want it soon."},
+				},
+			},
 		},
 	)
 

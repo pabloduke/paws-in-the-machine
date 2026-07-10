@@ -205,10 +205,11 @@ type Session struct {
 
 // ExecResult is the structured result of a fake shell command.
 type ExecResult struct {
-	Output   string
-	Done     bool
-	Document *Document
-	Edit     *EditBuffer
+	Output    string
+	Done      bool
+	Document  *Document
+	Edit      *EditBuffer
+	Messenger bool // the messenger command: UI toggles the panel
 }
 
 // Document is a text file read by cat that the UI can render in
@@ -348,6 +349,10 @@ func (s *Session) ExecDetailed(line string) ExecResult {
 		return ExecResult{Output: s.kill(args)}
 	case "run":
 		return ExecResult{Output: s.run(args)}
+	case "messenger":
+		// The session only signals; the messenger data hangs off the
+		// Deck component and the UI owns the panel (messenger.go).
+		return ExecResult{Messenger: true}
 	case "help":
 		return ExecResult{Output: helpText}
 	}
@@ -1214,6 +1219,7 @@ const helpText = `deck shell:
   cd <path> / pwd      | move around / where am I       |
   scan <host>          | list a host's ports            | nmap
   connect <host>       | jack into a host               | ssh
+  messenger            | your messages (right panel)    | talk
   run <file>           | execute something              |
   exit / logout        | hang up (or leave the deck)    |
 
@@ -1229,6 +1235,7 @@ type Deck struct {
 	Net        map[string]*Host
 	Host       string // local host name on the net
 	Objectives []Objective
+	Messenger  Messenger
 }
 
 // Handle declines every command; see the type comment.

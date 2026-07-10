@@ -26,6 +26,7 @@ alias search=grep
 alias copy=cp
 alias connect=ssh
 alias nmap=scan
+alias talk=messenger
 `
 
 func starterNet() map[string]*hacking.Host {
