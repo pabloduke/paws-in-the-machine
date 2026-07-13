@@ -35,20 +35,19 @@ func guardedWorld(seed int64) (*engine.World, *engine.Engine) {
 // TestXCOMRule: identical attempts give identical results, across fresh
 // worlds with the same seed; a changed stat may change the outcome.
 func TestXCOMRule(t *testing.T) {
-	first := checks.Check(mustWorld(3), "hound.sneak", 10, 22)
+	first := checks.Check(mustWorld(3), "guard.sneak", 0, 22)
 	for range 5 {
-		if got := checks.Check(mustWorld(3), "hound.sneak", 10, 22); got != first {
+		if got := checks.Check(mustWorld(3), "guard.sneak", 0, 22); got != first {
 			t.Fatal("identical attempt changed its result")
 		}
 	}
 
-	// With seed 3 the tuned demo pattern holds for the game's hound:
-	// sneak fails at Stealth 10, passes at 12 (see internal/game).
-	if checks.Check(mustWorld(3), "hound.sneak", 10, 22) {
-		t.Fatal("expected sneak at Stealth 10 to fail with seed 3")
+	// Extreme stats pin both sides without coupling the unit test to content tuning.
+	if checks.Check(mustWorld(3), "guard.sneak", 0, 22) {
+		t.Fatal("expected sneak at Stealth 0 to fail")
 	}
-	if !checks.Check(mustWorld(3), "hound.sneak", 12, 22) {
-		t.Fatal("expected sneak at Stealth 12 to pass with seed 3")
+	if !checks.Check(mustWorld(3), "guard.sneak", 21, 22) {
+		t.Fatal("expected sneak at Stealth 21 to pass")
 	}
 }
 
@@ -83,7 +82,7 @@ func TestApproachMatrix(t *testing.T) {
 	// you needed: 18 - 12 = 6 XP (crossing L1->2, leaving 1 XP over).
 	out := eng.Execute("parkour guard")
 	if !strings.Contains(out, "parkour-ok") || w.Room().ID != "back" {
-		t.Fatalf("expected parkour success into back room: %q (room %s)", out, w.Room().ID)
+		t.Fatalf("expected parkour success into destination: %q (room %s)", out, w.Room().ID)
 	}
 	if !strings.Contains(out, "+6 XP") || w.Level != 2 || w.XP != 1 {
 		t.Fatalf("expected +6 XP and level 2: %q (level %d, xp %d)", out, w.Level, w.XP)
@@ -179,6 +178,34 @@ func TestOnFailForks(t *testing.T) {
 	eng.Execute("sneak past guard") // +25: passes
 	if w.Flags["alerted"] {
 		t.Fatalf("success must not set OnFail flags")
+	}
+}
+
+// An in-place obstacle can write its result without moving the player.
+func TestOnSuccessWithoutDestination(t *testing.T) {
+	w := engine.NewWorld()
+	w.Seed = 3
+	w.Stats = engine.Stats{Stealth: 10}
+	room := engine.NewEntity("room", "Room").With(engine.Exits{})
+	badge := engine.NewEntity("badge", "a badge").With(checks.Guarded{
+		Approaches: map[checks.Approach]checks.Attempt{
+			checks.Sneak: {
+				Difficulty: 1,
+				Success:    "read it",
+				Failure:    "caught",
+				OnSuccess:  []string{"credential_seen"},
+			},
+		},
+	})
+	w.Root.Add(room)
+	room.Add(badge, w.Player)
+
+	out := engine.New(w).Execute("sneak badge")
+	if !strings.Contains(out, "read it") || !w.Flags["credential_seen"] {
+		t.Fatalf("in-place success should set its flags: %q flags=%v", out, w.Flags)
+	}
+	if w.Room() != room {
+		t.Fatalf("an in-place obstacle must not move the player")
 	}
 }
 

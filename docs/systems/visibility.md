@@ -23,9 +23,11 @@ can see and reach is a pure function of world state:
 
 ## Observer vs actor verbs
 
-- **Observers** (look, examine, stats, inventory) mutate nothing —
-  examining the bookcase does not change the bookcase, or anything
-  else. Objects are not quantum.
+- **Observers** (look, examine, stats, inventory) never change the
+  physical world — examining the bookcase does not open or move it.
+  Looking may record a fact Buddy has now read (a discovery flag feeding
+  notes or mission progress), but the observed object itself is unchanged.
+  Objects are not quantum.
 - **Actors** (take, turn, knock, use, move, ...) may mutate state, and
   changing enclosure is how things are revealed: turn the candlestick →
   flag set → drawer open → the ruby (always physically present in the

@@ -5,8 +5,10 @@ Status: first playable slice built; NPC presence and broader memory still open.
 ## Model
 
 Dialogue is a state-based node graph attached to an entity with a
-`dialogue.Talkable` component. The parser only recognizes `talk <npc>`;
-the dialogue system owns the conversation state after that: which node is
+`dialogue.Talkable` component. `meow <npc>` gets a person's attention. The
+overworld parser does not accept `talk` or `speak`: no current in-person
+Resistance conversation has been authored. The dialogue system owns the
+conversation state after that: which node is
 active, which responses are visible, what effects apply, and whether the
 conversation has ended.
 
@@ -94,15 +96,16 @@ remembered *facts*, not a number. Presence (`Placed`) is a fourth lever
 where vanishing would wall progression (failure is a fork, not a wall).
 The worked example is the coffee-shop barista: `barista_softened` (warm)
 and `barista_burned` (cold, from knocking her tip jar over) drive her
-greeting, her description, and whether she'll call the hound off — but
-never the `apple` reveal, so cruelty costs goodwill, not the route.
+greeting, her description, and whether Buddy is invited behind the counter
+to read her badge. Burning that route never walls the credential: the
+stealth approach remains open at a penalty.
 
 Once-only beats use flags too. A one-time XP award is guarded by an XP
 flag; a once-only response can be guarded by `Choice.OnceFlag`.
 
 ## UI Contract
 
-Typing `talk <npc>` enters dialogue mode: a centered modal opens over
+Typing `meow <npc>` enters dialogue mode: a centered modal opens over
 the main row (NPC line on top, choice menu below) and closes when the
 conversation ends. Up/Down
 and number keys `1`-`9` move the highlighted choice, `Enter` commits
@@ -115,7 +118,7 @@ the conversation ends.
 
 - `dialogue.Talkable` — component attached to an NPC or terminal. It is
   data only: conversations are interactive, so they run through
-  `Start`/`Session` (the UI intercepts `talk` after applying
+  `Start`/`Session` (the UI intercepts the canonical dialogue verb after applying
   `World.Rewrite`), never through engine command dispatch. The one verb
   `Handle` claims is `talk`, and only to refuse honestly — without it
   the engine default would claim the NPC "has nothing to say", a lie

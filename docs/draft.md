@@ -93,41 +93,40 @@ the brief drops the mission file in `~/notes`.
    old "Resistance accepts Buddy" beat).
 4. marduk's hint: the barista at the local coffee shop was laid off
    from Microslop (built, in the brief + checklist).
-5. **[rework]** The badge peek (declared 2026-07-09). The barista's
+5. The badge/post-it look (declared 2026-07-09; built). The barista's
    old Microslop badge is clipped to the backpack she keeps behind
    the counter. The badge is laminated, and tucked behind the card is
-   a post-it with her employee ID and the password. Buddy doesn't
-   steal anything — he reads the post-it and the info lands in his
+   a post-it with her employee ID (`1008476`) and the password. Buddy
+   doesn't steal anything — he reads the post-it and the info lands in his
    notes on its own (flag → generated `~/notes/notes.md`, which the
    PDA mirrors live; all built machinery). She never speaks the
    password — this **replaces** the current dialogue reveal of
    `apple` (rewrites her tree + `TestMicroslopPasswordPuzzle`). Two
    routes to the badge, Okuda-shaped:
-   - **Charm her**: she sets out a saucer of milk behind the counter,
-     right next to the backpack — Buddy is invited in, the peek is
+   - **Charm her**: `meow barista` opens the dialogue. She sets out a
+     saucer of milk behind the counter, right next to the backpack —
+     Buddy is invited in, and `look post-it`, `examine post-it`, or
+     `read post-it` records what it says. The look is
      unwatched. (Charm works on *her*, never on the backpack — the
      fire-escape rule.)
    - **Sneak past her**: uninvited, behind the counter while she
-     works — a real stealth check; the existing hound-distraction /
-     lure circumstances apply.
+     works — a real stealth check; shattering the loose mug on the
+     espresso machine supplies the existing distraction modifier.
    - Failure fork: caught nosing at her backpack → `barista_burned`,
      charm route goes cold, stealth stays open at a penalty. Never a
      wall.
-   - The employee ID rides along for later: candidate hook — the
-     layoff document is findable *by* her ID in Microslop's
-     filesystem (search her ID, find her own termination record).
-6. Physical route — the flowchart skipped this, the draft keeps it:
-   past the corpo hound into the back room, patch the deck in at the
-   server rack (`microslop_route_open`). Best overworld↔terminal
-   weave in the game so far; the password alone must not be enough.
-7. Scan Microslop; connect (built).
-8. Explore the filesystem; locate the layoff plans (built:
-   `/srv/hr/rif_q3.txt`, breadcrumbed from `access.log`; the
-   barista's wave-one firing sets it up). "Internal network" stays
+   - Employee ID `1008476` is the filesystem breadcrumb: searching
+     for it points to her entry in `/srv/hr/rif_q3.txt`.
+6. Return to the lair, scan Microslop, and connect with `apple`
+   (built). Microslop is the intentionally careless tutorial host:
+   its SSH service is directly reachable.
+7. Explore the filesystem; search for `1008476` and locate the layoff
+   plans (built: `/srv/hr/rif_q3.txt`, breadcrumbed from
+   `access.log`; the barista's wave-one firing sets it up). "Internal network" stays
    one host for mission 1; if a later mission wants depth behind it,
    that's the #42 net-depth question waking up.
-9. Retrieve (copy home) the layoff document (built: `OnCopy`).
-10. Deliver over the wire (built): **`send <file>`** — Linux
+8. Retrieve (copy home) the layoff document (built: `OnCopy`).
+9. Deliver over the wire (built): **`send <file>`** — Linux
     equivalent `scp`, deck-resident files only (retrieve, then
     deliver) — fires `OnSend`, and marduk's payoff reply lands in the
     same session. Payoff beat: the Resistance reaches every name on
@@ -136,7 +135,7 @@ the brief drops the mission file in `~/notes`.
 ## 2. City map
 
 Hubs and rooms. Existing: the lair (deck lives here, only here), the
-neighborhood, the plaza, the coffee shop (+ back room), Okuda HQ
+neighborhood, the plaza, the coffee shop, Okuda HQ
 (lobby → corridor → records office → Deep Archive annex).
 
 **Charts (ruled 2026-07-10, hubs.md "Charts"):** declare rooms
@@ -175,8 +174,8 @@ come home and jack in).
 The hackable hosts, roughly easiest → hardest, and **how each one
 falls** — that's the ingress taxonomy's menu (docs/systems/hacking
 ingress notes, #23/#42): straight hack of a sloppy host / charm an
-insider / stealth heist. Existing hosts: microslop (route + password,
-via barista + back room), okuda.grid (port opened from the records
+insider / stealth heist. Existing hosts: microslop (password from the
+barista's badge), okuda.grid (port opened from the records
 office), sunfarm.arc and undernet.relay (no routes in yet).
 
 Constraints: vary the ingress type across the ladder; expect the
@@ -234,8 +233,11 @@ barista (dialogue.md "State And Memory"): per-NPC memory flags
 to a cruel stray — and never walling a critical path behind a burned
 bridge.
 
-Existing: the barista (microslop intel), the corpo hound (back-room
-gate), the Okuda receptionist (front-desk charm fork).
+Existing: the barista (Microslop credential), the Okuda receptionist
+(front-desk charm fork).
+
+Parked: the corpo hound is reserved for a future mission and is not
+present in the coffee shop.
 
 *(declare here)*
 

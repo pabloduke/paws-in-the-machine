@@ -26,16 +26,12 @@ func TestDeckMessengerMardukChannel(t *testing.T) {
 
 	thread := mgr.Thread(w)
 	if len(thread) != 1 || !strings.Contains(thread[0].Text, "barista") {
-		t.Fatalf("the welcome brief should be waiting and point at the barista: %+v", thread)	}
+		t.Fatalf("the welcome brief should be waiting and point at the barista: %+v", thread)
+	}
 	if mgr.Unread(w) != 1 {
 		t.Fatalf("the welcome brief should start unread")
 	}
 
-	w.Flags["microslop_route_open"] = true // the backroom rack (backroom.go)
-	thread = mgr.Thread(w)
-	if len(thread) != 2 || !strings.Contains(thread[1].Text, "bridge") {
-		t.Fatalf("the route flag should deliver the bridge message: %+v", thread)
-	}
 }
 
 // `talk` is the messenger's friendly alias in ~/.aliases — the same
@@ -52,8 +48,8 @@ func TestTalkAliasOpensMessenger(t *testing.T) {
 // mission file downloads into ~/notes when marduk's brief is read,
 // its checklist advances flag by flag, the layoff plans read/copy/send
 // hooks fire, and marduk's payoff lands the moment the drop takes the
-// file. The overworld halves (barista, rack) are pinned by their own
-// tests; here their flags are set directly.
+// file. The overworld badge interaction is pinned by its own tests;
+// here its flag is set directly.
 func TestMissionOneLayoffPlans(t *testing.T) {
 	w := game.NewWorld()
 	d, _ := engine.Part[hacking.Deck](w.FindID("deck"))
@@ -87,23 +83,22 @@ func TestMissionOneLayoffPlans(t *testing.T) {
 	if out, _ := s.Exec("ls ~/notes"); !strings.Contains(out, "Microslop_Find_The_Layoff_List.md") {
 		t.Fatalf("reading the brief should drop the mission file in notes: %q", out)
 	}
-	if m := mission(); !strings.Contains(m, "[ ] talk to the barista") {
+	if m := mission(); !strings.Contains(m, "[ ] meow at the barista") {
 		t.Fatalf("the checklist should open all-unchecked: %q", m)
 	}
 
-	// The overworld work, as flags (barista dialogue, backroom rack).
-	w.Flags["knows_microslop_password"] = true
-	w.Flags["microslop_route_open"] = true
-	if m := mission(); !strings.Contains(m, "[x] talk to the barista") ||
-		!strings.Contains(m, "[ ] connect to microslop") {
+	// The overworld work, as a flag from looking at the post-it.
+	w.Flags["read_microslop_badge"] = true
+	if m := mission(); !strings.Contains(m, "[x] meow at the barista") ||
+		!strings.Contains(m, "[ ] return to the lair") {
 		t.Fatalf("the checklist should tick as flags land: %q", m)
 	}
 
 	// The terminal half for real: in, read, copy home, send.
 	s.Exec("ssh microslop")
 	s.Exec("apple")
-	if out, _ := s.Exec("cat /var/log/access.log"); !strings.Contains(out, "/srv/hr/") {
-		t.Fatalf("the access log should breadcrumb HR: %q", out)
+	if out, _ := s.Exec("grep -ir 1008476 /"); !strings.Contains(out, "/srv/hr/rif_q3.txt") {
+		t.Fatalf("the employee ID should breadcrumb the layoff plans: %q", out)
 	}
 	s.ExecDetailed("cat /srv/hr/rif_q3.txt")
 	if !w.Flags["read_layoff_plans"] {

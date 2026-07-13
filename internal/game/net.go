@@ -93,7 +93,6 @@ func starterNet() map[string]*hacking.Host {
 			Name:     "microslop",
 			Home:     "/",
 			Password: "apple",
-			Require:  flagMicroslopRouteOpen,
 			Banner:   "(Placeholder) MICROSLOP CORP intranet. everything asks permission except the dust.",
 			Services: []*hacking.Service{
 				{Port: 21, Protocol: hacking.ProtocolFTP, State: hacking.StateOpen},
@@ -110,7 +109,7 @@ func starterNet() map[string]*hacking.Host {
 					hacking.Dir("log",
 						hacking.File("access.log",
 							"(Placeholder) 01:02 cafeteria bot accepted badge\n"+
-								"02:40 HR uploaded q3 planning docs to /srv/hr/\n"+
+								"02:40 HR matched employee 1008476 to /srv/hr/rif_q3.txt\n"+
 								"03:17 sun notice moved to /srv/archive/sun_notice.txt\n"+
 								"03:18 legal requested wording review"),
 					),
@@ -287,8 +286,7 @@ func netEvents() []engine.When {
 
 func netJournal() []engine.Entry {
 	return []engine.Entry{
-		{Flag: flagKnowsMicroslopPassword, Text: "The barista said Microslop contractor boxes were reset to `apple`."},
-		{Flag: flagMicroslopRouteOpen, Text: "Bridged the coffee shop rack onto the lair's uplink. The deck can reach Microslop now."},
+		{Flag: flagReadMicroslopBadge, Text: "The barista's old Microslop badge has employee ID `1008476` and password `apple` tucked behind it."},
 		{Flag: flagReadLayoffPlans, Text: "Found Microslop's Q3 layoff plans in /srv/hr/rif_q3.txt — \"role realignment,\" wave two pending."},
 		{Flag: flagGotLayoffPlans, Text: "Copied the layoff plans onto the deck."},
 		{Flag: flagLayoffPlansDelivered, Text: "Sent the layoff plans to marduk's drop. Mission one complete."},
@@ -318,9 +316,8 @@ var missionMicroslopSteps = []struct {
 	flag string
 	text string
 }{
-	{flagKnowsMicroslopPassword, "talk to the barista at the coffee shop — she used to work at Microslop"},
-	{flagMicroslopRouteOpen, "get into the coffee shop back room; the server rack can bridge the deck onto Microslop's net"},
-	{flagGotLayoffPlans, "connect to microslop, find the layoff plans (start with the logs), copy them home"},
+	{flagReadMicroslopBadge, "meow at the barista, then look at the post-it behind her old badge; or sneak to the post-it"},
+	{flagGotLayoffPlans, "return to the lair, connect to microslop, search for employee 1008476, and copy the layoff plans home"},
 	{flagLayoffPlansDelivered, "send the plans to marduk: send <file>"},
 }
 

@@ -65,7 +65,7 @@ func testNet() map[string]*hacking.Host {
 			Name:     "microslop",
 			Home:     "/",
 			Password: "apple",
-			Require:  "microslop_route_open",
+			Require:  "test_route_open",
 			Banner:   "MICROSLOP CORP intranet.",
 			Root: hacking.Dir("/",
 				hacking.Dir("home",
@@ -232,7 +232,7 @@ func TestEditTouchedTextAndMarkdownFiles(t *testing.T) {
 
 func TestEditExistingTextFileCreatesOneBackup(t *testing.T) {
 	w, s := newShell(t)
-	w.Flags["microslop_route_open"] = true
+	w.Flags["test_route_open"] = true
 	exec(t, s, "ssh microslop")
 	exec(t, s, "apple")
 
@@ -470,7 +470,7 @@ func TestPasswordGatedSSH(t *testing.T) {
 		t.Fatalf("unreachable host should keep shell prompt, got %q", got)
 	}
 
-	w.Flags["microslop_route_open"] = true
+	w.Flags["test_route_open"] = true
 	if out := exec(t, s, "scan microslop"); !strings.Contains(out, "22    SSH      | open") {
 		t.Fatalf("port 22 stays open after the route opens: %q", out)
 	}

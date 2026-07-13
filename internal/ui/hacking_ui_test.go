@@ -366,39 +366,25 @@ func TestHackingBeatSetsFlags(t *testing.T) {
 
 func TestMicroslopPasswordPuzzle(t *testing.T) {
 	w := game.NewWorld()
-	w.Seed = 3 // drives the hound check (parkour); pin the demo tuning
 	mod := newSized(w)
 	mod = typeLine(mod, "use deck")
-	mod = typeLine(mod, "ssh microslop")
-	if joined := strings.Join(mod.(Model).shellEntries, "\n"); !strings.Contains(joined, "Network is unreachable") {
-		t.Fatalf("ssh microslop should require a local route first: %q", joined)
-	}
-	if mod.(Model).shell.HostName() != "deck" {
-		t.Fatalf("missing route should not connect")
+	mod = typeLine(mod, "scan microslop")
+	if joined := strings.Join(mod.(Model).shellEntries, "\n"); !strings.Contains(joined, "22    SSH      | open") {
+		t.Fatalf("Microslop should be directly reachable from the lair: %q", joined)
 	}
 	mod = typeLine(mod, "exit")
 
 	mod = typeLine(mod, "north")
-	mod = typeLine(mod, "talk barista")
+	mod = typeLine(mod, "meow barista")
 	mod, _ = mod.Update(spec(tea.KeyEnter)) // purr
 	mod, _ = mod.Update(spec(tea.KeyEnter)) // accept tribute
-	mod = typeLine(mod, "talk barista")
-	mod = chooseDialogueContaining(t, mod, "Microslop")
-	if !w.Flags["knows_microslop_password"] {
-		t.Fatalf("barista should reveal Microslop password; flags=%v", w.Flags)
+	mod = typeLine(mod, "examine post-it")
+	if !w.Flags["read_microslop_badge"] {
+		t.Fatalf("examining the post-it should reveal the Microslop password; flags=%v", w.Flags)
 	}
 
-	mod = typeLine(mod, "parkour hound")
-	mod = spendPendingLevelUp(mod)
-	mod = typeLine(mod, "use rack")
-	if !w.Flags["microslop_route_open"] {
-		t.Fatalf("using the backroom rack should open the Microslop route; flags=%v", w.Flags)
-	}
-
-	// The deck lives in the lair (deck_test.go): the route is open,
-	// but hacking it means going home first.
-	mod = typeLine(mod, "north") // back room -> coffee shop
-	mod = typeLine(mod, "south") // coffee shop -> lair
+	// The deck lives in the lair (deck_test.go), so the credential comes home.
+	mod = typeLine(mod, "south")
 	mod = typeLine(mod, "use deck")
 	mod = typeLine(mod, "ssh microslop")
 	if view := mod.View(); !strings.Contains(view, "password:") {
@@ -420,6 +406,10 @@ func TestMicroslopPasswordPuzzle(t *testing.T) {
 	if view := mod.View(); !strings.Contains(view, "CYBERDECK // MICROSLOP") {
 		t.Fatalf("microslop title missing: %q", view)
 	}
+	mod = typeLine(mod, "grep -ir 1008476 /")
+	if joined := strings.Join(mod.(Model).shellEntries, "\n"); !strings.Contains(joined, "/srv/hr/rif_q3.txt") {
+		t.Fatalf("employee ID should locate the layoff plans: %q", joined)
+	}
 	mod = typeLine(mod, "grep sun /var/log/access.log")
 	mod = typeLine(mod, "cat /srv/archive/sun_notice.txt")
 	if !w.Flags["read_microslop_sun_notice"] {
@@ -432,10 +422,11 @@ func TestMicroslopPasswordPuzzle(t *testing.T) {
 	mod = typeLine(mod, "cat ~/notes/notes.md")
 	// The full source, not the viewport: the mission checklist above
 	// the field notes pushes these below the visible fold.
-	if notes := mod.(Model).readerMD; !strings.Contains(notes, "apple") ||
+	if notes := mod.(Model).readerMD; !strings.Contains(notes, "1008476") ||
+		!strings.Contains(notes, "apple") ||
 		!strings.Contains(notes, "SUNFARM-ARC") ||
 		!strings.Contains(notes, "sunlight") || !strings.Contains(notes, "liability notice") {
-		t.Fatalf("notes should record Microslop discoveries: %q", notes)
+		t.Fatalf("notes should record the badge and Microslop discoveries: %q", notes)
 	}
 }
 

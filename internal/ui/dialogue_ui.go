@@ -10,7 +10,7 @@ import (
 	"github.com/pabloduke/paws-in-the-machine/internal/systems/dialogue"
 )
 
-// The dialogue surface (docs/systems/dialogue.md): "talk <npc>" opens
+// The dialogue surface (docs/systems/dialogue.md): "meow <npc>" opens
 // the conversation menu as a centered overlay; the LOG keeps the
 // transcript, the overlay is the live view.
 
@@ -24,7 +24,7 @@ func (dialogueSurface) Intercept(m *Model, cmd engine.Command) bool {
 		return false
 	}
 	if cmd.Object == "" {
-		m.entries = append(m.entries, "Talk to whom?")
+		m.entries = append(m.entries, "Meow at whom?")
 		return true
 	}
 	target := m.eng.World.InScope(cmd.Object)

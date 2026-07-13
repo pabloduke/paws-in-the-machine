@@ -285,7 +285,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // executeLine runs one prompt command. Surfaces get first claim on
-// parsed commands (interactive verbs like "talk" or "use deck");
+// parsed commands (interactive verbs like "meow" or "use deck");
 // whatever nobody intercepts falls through to the engine. Rewrites
 // apply first so idioms that expand to intercepted verbs still hit
 // the intercepts.

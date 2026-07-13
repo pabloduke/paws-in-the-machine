@@ -26,7 +26,7 @@ func TestDialogueMenuFlow(t *testing.T) {
 		mod, _ = mod.Update(kr(r))
 	}
 	mod, _ = mod.Update(spec(tea.KeyEnter))
-	for _, r := range "talk barista" {
+	for _, r := range "meow barista" {
 		mod, _ = mod.Update(kr(r))
 	}
 	mod, _ = mod.Update(spec(tea.KeyEnter))
@@ -60,10 +60,10 @@ func TestDialogueMenuFlow(t *testing.T) {
 	}
 }
 
-func TestRewriteReachesTalkIntercept(t *testing.T) {
+func TestRewriteReachesDialogueIntercept(t *testing.T) {
 	lipgloss.SetColorProfile(termenv.ANSI)
 	w := game.NewWorld()
-	w.Rewrites["greet barista"] = "talk barista"
+	w.Rewrites["greet barista"] = "meow barista"
 	m := New(engine.New(w), "intro")
 	var mod tea.Model = m
 	mod, _ = mod.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
@@ -76,6 +76,6 @@ func TestRewriteReachesTalkIntercept(t *testing.T) {
 	}
 	mod, _ = mod.Update(spec(tea.KeyEnter))
 	if mm := mod.(Model); mm.dialogue == nil {
-		t.Fatalf("rewrite expanding to a talk command should open the dialogue modal")
+		t.Fatalf("rewrite expanding to a meow command should open the dialogue modal")
 	}
 }

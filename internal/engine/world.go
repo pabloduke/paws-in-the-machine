@@ -103,7 +103,7 @@ func NewWorld() *World {
 
 // Rewrite applies any whole-phrase idiom rewrite to input. Execute
 // calls it on every command; UI layers that pre-parse input (like the
-// talk intercept) must apply it too, so idioms reach every path.
+// dialogue intercept) must apply it too, so idioms reach every path.
 func (w *World) Rewrite(input string) string {
 	if r, ok := w.Rewrites[strings.ToLower(strings.TrimSpace(input))]; ok {
 		return r

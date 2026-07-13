@@ -5,6 +5,6 @@
 // gates hide choices entirely.
 //
 // The system is deliberately separate from the parser. The parser only
-// recognizes "talk <npc>"; dialogue owns choice visibility, conditions,
+// recognizes "meow <npc>"; dialogue owns choice visibility, conditions,
 // effects, node transitions, and rendering.
 package dialogue
