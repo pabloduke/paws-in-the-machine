@@ -53,7 +53,7 @@ one package under `internal/systems/<name>/` — see Architecture in the readme.
    burned routes. Observers have perception: an unwatched obstacle
    (watcher absent or oblivious) rolls with a big bonus. The only
    dice in the game. See `systems/stealth.md`.
-7. 📝 **NPCs/dialogue** — first dialogue slice is built: `talk <npc>`
+7. 📝 **NPCs/dialogue** — first dialogue slice is built: `meow <npc>`
    enters a numbered node graph with visible-choice requirements and
    flag/XP effects. Presence is built: positions are a function of
    game state (`engine.Placed`, see `systems/presence.md`), never

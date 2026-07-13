@@ -6,8 +6,8 @@ import (
 	"github.com/pabloduke/paws-in-the-machine/internal/systems/dialogue"
 )
 
-// buildCoffeeshop is The Coffee Shop: the barista, the espresso
-// machine, the laptop, and the corpo hound guarding the back room.
+// buildCoffeeshop is The Coffee Shop: the barista, her old badge, the
+// espresso machine, and the laptop.
 func buildCoffeeshop() *engine.Entity {
 	coffeeshop := engine.NewEntity("coffeeshop", "The Coffee Shop").With(
 		// User-declared 2026-07-10.
@@ -16,7 +16,8 @@ func buildCoffeeshop() *engine.Entity {
 			"exhausted and ragged. Her long blonde hair plastered to her " +
 			"face underneath that ugly baseball cap they make her wear. " +
 			"Her apron stained with coffee and chocolate. She seems " +
-			"distracted and lonely."},
+			"distracted and lonely. Her backpack is behind the counter, " +
+			"its old Microslop badge clipped to it."},
 		engine.Exits{
 			Dirs:    map[string]string{"south": "lair"},
 			Blocked: "(Placeholder) Nothing that way but rain. The lair is south.",
@@ -30,14 +31,6 @@ func buildCoffeeshop() *engine.Entity {
 
 	barista := engine.NewEntity("barista", "the barista", "barista", "human").With(
 		engine.Notable{},
-		// Position as a function of state (docs/systems/presence.md):
-		// once the shard is out in the open, she works the back room.
-		engine.Placed{Fn: func(w *engine.World) string {
-			if w.Flags[flagBaristaSawShard] {
-				return "backroom"
-			}
-			return "coffeeshop"
-		}},
 		// Her body language remembers first contact (NPC memory, #14):
 		// cold if Buddy was cruel, easy once she's been won over.
 		engine.Description{Fn: func(w *engine.World) string {
@@ -92,9 +85,8 @@ func buildCoffeeshop() *engine.Entity {
 							// The cruel fork (NPC memory, #14): a petty cat move
 							// she remembers. Only reachable at first contact —
 							// once she's warmed to you, or already soured, this
-							// is gone. It never touches the apple reveal below,
-							// so being cruel costs a favor and her goodwill, not
-							// the critical path (failure is a fork, not a wall).
+							// is gone. Being cruel closes the invited post-it look,
+							// but the stealth route stays open.
 							Text: "Hook a claw under her tip jar and send it to the floor. Because you can.",
 							Require: []dialogue.Requirement{
 								dialogue.MissingFlag(flagBaristaSoftened),
@@ -108,71 +100,13 @@ func buildCoffeeshop() *engine.Entity {
 							},
 							End: true,
 						},
-						{
-							Text: "Nudge the data-shard into view.",
-							Require: []dialogue.Requirement{
-								dialogue.HasItem("shard"),
-								dialogue.MissingFlag(flagBaristaSawShard),
-							},
-							Effects: []dialogue.Effect{
-								dialogue.SetFlag(flagBaristaSawShard),
-								dialogue.Say("(Placeholder) The barista's eyes flick " +
-									"to the shard, then away from the cameras. " +
-									"\"Not here. Back room's safer, if you can " +
-									"get past the dog.\""),
-								dialogue.AwardOnce(flagXPBaristaShard, 2),
-							},
-							End: true,
-						},
-						{
-							// A cat can't ask (user ruling 2026-07-09) — but a cat
-						// can demand. The reveal is her venting at a cat who
-						// won't stop meowing at the right thing.
-						Text: "Plant yourself in front of her Microslop lanyard and meow. Insist. Cats always get answers.",
-							Require: []dialogue.Requirement{
-								dialogue.Flag(flagBaristaSoftened),
-								dialogue.MissingFlag(flagKnowsMicroslopPassword),
-							},
-							Effects: []dialogue.Effect{
-								dialogue.SetFlag(flagKnowsMicroslopPassword),
-								dialogue.Say("(Placeholder) The barista's mouth goes flat. " +
-									"\"Microslop fired me for flagging a leak, then reset " +
-									"every contractor box to the same insult of a password: apple. " +
-									"If you're going there, make it hurt.\""),
-							},
-							End: true,
-						},
-						{
-							Text: "Stare at the hound, then at the barista. " +
-								"Your meaning is clear: that dog has too much " +
-								"free time.",
-							Require: []dialogue.Requirement{
-								dialogue.Flag(flagBaristaSoftened),
-								// She won't do a cruel stray any favors — the lure
-								// closes if she's burned. A fork, not a wall: the
-								// hound still yields to sneak or parkour.
-								dialogue.MissingFlag(flagBaristaBurned),
-								dialogue.MissingFlag(flagHoundLured),
-							},
-							Effects: []dialogue.Effect{
-								dialogue.SetFlag(flagHoundLured),
-								dialogue.Say("(Placeholder) The barista sighs, " +
-									"digs a strip of jerky from under the " +
-									"counter, and whistles. The hound's " +
-									"professionalism lasts half a second. It " +
-									"parks itself at the counter, nose down, " +
-									"the back door forgotten."),
-								dialogue.AwardOnce(flagXPHoundLure, 2),
-							},
-							End: true,
-						},
 						{Text: "Mrow.", Next: "mrow"},
 						{Text: "Leave.", End: true},
 					},
 				},
 				"softened": {
 					Text: "(Placeholder) \"Fine. One saucer. Don't make it weird.\" " +
-						"The barista slides a cap of cream under the counter lip.",
+						"The barista sets it behind the counter beside her backpack.",
 					Choices: []dialogue.Choice{
 						{Text: "Accept this tribute.", End: true},
 					},
@@ -183,6 +117,47 @@ func buildCoffeeshop() *engine.Entity {
 						{Text: "Leave.", End: true},
 					},
 				},
+			},
+		},
+	)
+
+	backpack := engine.NewEntity("backpack", "the barista's backpack",
+		"backpack", "badge", "microslop badge", "post-it", "postit", "note").With(
+		engine.On{Verb: "examine", Do: func(w *engine.World) string {
+			switch {
+			case w.Flags[flagReadMicroslopBadge]:
+				return "(Placeholder) The post-it behind the badge reads: " +
+					"employee ID `1008476`, password `apple`."
+			case w.Flags[flagBaristaSoftened] && !w.Flags[flagBaristaBurned]:
+				w.Flags[flagReadMicroslopBadge] = true
+				return "(Placeholder) From the invited saucer, you look at the post-it " +
+					"behind the laminated badge: employee ID `1008476`, password `apple`."
+			default:
+				return "(Placeholder) The post-it is behind the counter and the " +
+					"barista is watching. Meow at her or sneak to the post-it."
+			}
+		}},
+		checks.Guarded{
+			Watcher: "barista",
+			Solved:  flagReadMicroslopBadge,
+			Approaches: map[checks.Approach]checks.Attempt{
+				checks.Sneak: {
+					Difficulty: 22,
+					Success: "(Placeholder) You slip behind the counter and look at the post-it " +
+						"through the badge laminate: employee ID `1008476`, password `apple`.",
+					Failure: "(Placeholder) The barista catches your nose at her backpack. " +
+						"The invitation in her face disappears; next time she watches for you.",
+					OnSuccess: []string{flagReadMicroslopBadge},
+					OnFail:    []string{flagBaristaBurned},
+					Mods: []checks.Mod{
+						{If: []string{flagBaristaBurned}, Delta: -2},
+						{If: []string{flagMugShattered}, Delta: +4, Consume: flagMugShattered},
+					},
+				},
+			},
+			Refusals: map[checks.Approach]string{
+				checks.Charm:   "(Placeholder) Charm the barista, not her backpack.",
+				checks.Parkour: "(Placeholder) There is no acrobatic route through a laminated badge.",
 			},
 		},
 	)
@@ -216,115 +191,15 @@ func buildCoffeeshop() *engine.Entity {
 		}},
 	)
 
-	hound := engine.NewEntity("hound", "a corpo hound", "hound", "dog", "guard").With(
-		engine.Notable{},
-		// Prose telegraphs perception state; the numbers stay hidden
-		// (docs/systems/stealth.md).
-		engine.Description{Fn: func(w *engine.World) string {
-			if w.Flags[flagHoundLured] {
-				return "(Placeholder) The corpo hound is parked at the " +
-					"counter, nose deep in a strip of jerky. The back " +
-					"door has never been less interesting to anyone."
-			}
-			return "(Placeholder) A corpo security hound parked in " +
-				"front of the back room door. Ears up. Dogs take this job " +
-				"personally."
-		}},
-		checks.Guarded{
-			Dest: "backroom",
-			// Snack time blinds the watcher: attempts roll with the
-			// unwatched bonus while the lure holds (perception reads
-			// flags, never spends them).
-			Oblivious: []checks.Cond{{If: []string{flagHoundLured}}},
-			Unwatched: 10,
-			Approaches: map[checks.Approach]checks.Attempt{
-				checks.Sneak: {
-					Difficulty: 22,
-					Success: "(Placeholder) You pour yourself along the " +
-						"skirting board, one shadow among many.",
-					Failure: "(Placeholder) A low growl. The hound's eyes " +
-						"track you before you've taken two steps. Not " +
-						"like this — something has to change.",
-					// Failure alerts the hound (dogs escalate); the mug
-					// distraction is spent by the roll it covers. With
-					// the pinned seed the demo loop is: fail at 10,
-					// alerted −2, mug +4 → 12 clears it.
-					OnFail: []string{flagHoundAlerted},
-					Mods: []checks.Mod{
-						{If: []string{flagHoundAlerted}, Delta: -2},
-						{If: []string{flagMugShattered}, Delta: +4,
-							Consume: flagMugShattered},
-					},
-				},
-				checks.Parkour: {
-					Difficulty: 18,
-					Success: "(Placeholder) Counter, shelf, hanging lamp, " +
-						"transom window. The hound guards a door; you " +
-						"were never going to use the door.",
-					Failure: "(Placeholder) You misjudge the counter's " +
-						"grease factor and abort the run. The hound " +
-						"huffs. Not like this — something has to change.",
-					OnFail: []string{flagHoundAlerted},
-					Mods: []checks.Mod{
-						{If: []string{flagHoundAlerted}, Delta: -2},
-					},
-				},
-			},
-			Refusals: map[checks.Approach]string{
-				checks.Charm: "(Placeholder) You deploy the adopt-me eyes. " +
-					"The hound stares through them into middle distance. " +
-					"Dogs are immune to cute. It's why the corpos hire them.",
-			},
-		},
-	)
-
-	coffeeshop.Add(counter, barista, machine, laptop, hound, door)
+	coffeeshop.Add(counter, barista, backpack, machine, laptop, door)
 	return coffeeshop
-}
-
-// coffeeshopEvents narrates the stage changes presence makes silently
-// (docs/systems/presence.md: presence says where, events say what
-// you saw).
-func coffeeshopEvents() []engine.When {
-	return []engine.When{
-		{
-			Flags: []string{flagBaristaSawShard},
-			Enter: "coffeeshop",
-			Once:  flagSeenCounterEmpty,
-			Do: func(w *engine.World) string {
-				return "(Placeholder) The counter stands unmanned, the " +
-					"espresso machine hissing to no one. Through the gap " +
-					"in the back door: the barista, hunched over the " +
-					"server rack."
-			},
-		},
-		// A failed run past the hound is a story state, not a retry
-		// gate (docs/systems/stealth.md): the alert lands as a beat,
-		// and the same flag stiffens later attempts via a Mod.
-		{
-			Flags: []string{flagHoundAlerted},
-			Once:  flagSeenHoundAlerted,
-			Do: func(w *engine.World) string {
-				return "(Placeholder) The hound is on its feet now, nose " +
-					"working the air, eyes sweeping the floor at cat " +
-					"height. Word travels up a corpo dog's leash. You'll " +
-					"need to change the situation — or be twice as good."
-			},
-		},
-	}
 }
 
 // coffeeshopJournal: derived entries, visible once their flag is true.
 func coffeeshopJournal() []engine.Entry {
 	return []engine.Entry{
-		{Flag: flagHoundAlerted, Text: "(Placeholder) The corpo hound at " +
-			"the coffee shop has my scent. A distraction might reset " +
-			"the odds."},
-		{Flag: flagHoundLured, Text: "(Placeholder) The barista can call " +
-			"the hound off with jerky. While it's at the counter, the " +
-			"back door is barely watched."},
 		{Flag: flagBaristaBurned, Text: "(Placeholder) The barista won't " +
-			"forget the tip jar. No favors coming from that counter — " +
-			"the hound's mine to handle the hard way."},
+			"forget the tip jar. No invitation behind the counter now; " +
+			"the badge takes stealth."},
 	}
 }

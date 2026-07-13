@@ -84,6 +84,16 @@ func TestCoreLoop(t *testing.T) {
 	}
 }
 
+func TestCatsMeowInsteadOfTalk(t *testing.T) {
+	cmd, ok := engine.Parse("meow barista")
+	if !ok || cmd.Verb != "talk" || cmd.Object != "barista" {
+		t.Fatalf("meow should reach the dialogue interceptor: %+v ok=%v", cmd, ok)
+	}
+	if _, ok := engine.Parse("talk barista"); ok {
+		t.Fatal("the overworld parser must not let Buddy speak")
+	}
+}
+
 // TestDisplayNameTypable: whatever label the UI shows must resolve,
 // article or not — even when ID and aliases don't cover it.
 func TestDisplayNameTypable(t *testing.T) {
@@ -157,7 +167,7 @@ func TestObvious(t *testing.T) {
 	w := engine.NewWorld()
 	room := engine.NewEntity("room", "Room").With(engine.Exits{})
 	coin := engine.NewEntity("coin", "a coin").With(engine.Portable{})
-	npc := engine.NewEntity("npc", "a hound").With(engine.Notable{})
+	npc := engine.NewEntity("npc", "an NPC").With(engine.Notable{})
 	scenery := engine.NewEntity("door", "a door").With(
 		engine.Description{Text: "Pretty boring."},
 	)

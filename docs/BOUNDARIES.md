@@ -80,7 +80,7 @@ The two former monoliths, split so ownership is per-file:
   place hubs are declared and areas cross-reference (shared,
   append-only)
 - `flags.go` — every story flag, declared once
-- `lair.go`, `coffeeshop.go`, `backroom.go`, `plaza.go` — one file
+- `lair.go`, `coffeeshop.go`, `plaza.go` — one file
   per area, each exposing `build<Area>() *engine.Entity`
 - `net.go` — the hacking net content
 
@@ -136,7 +136,7 @@ system UI implements `surface` (Active + HandleKey) in its own
 `<name>_ui.go`, plus whichever optional capabilities it needs —
 `fullscreenSurface` (Screen), `overlaySurface` (Overlay),
 `resizableSurface` (Resize), `interceptorSurface` (Intercept, to
-claim prompt verbs like "talk" before the engine sees them) — and
+claim prompt verbs like "meow" before the engine sees them) — and
 registers with one appended line in `model.go`:
 
 ```go

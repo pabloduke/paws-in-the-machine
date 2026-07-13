@@ -226,12 +226,16 @@ simple puzzle words, not real authentication.
 
 For the first Microslop beat, the intended setup is:
 
-- The barista was fired from Microslop and can reveal the simple password
-  after Buddy earns enough trust.
-- Buddy always carries the deck.
-- Buddy must get past the corpo hound into the back room and use the
-  server rack to patch the deck into the local network before `ssh
-  microslop` can reach the host.
+- The barista was fired from Microslop. Her old badge is clipped to the
+  backpack behind the coffee-shop counter, with the simple password on a
+  post-it behind the laminated card. Buddy can meow for an invited look or
+  sneak past her; `look post-it`, `examine post-it`, and `read post-it`
+  work. She never speaks the password.
+- Buddy's deck stays in the lair; the PDA carries the discovered credential
+  home through the shared notes view.
+- Microslop's SSH service is directly reachable from the lair. After the
+  post-it look, Buddy returns home, connects with `apple`, and searches for
+  employee ID `1008476` to locate the layoff plans.
 
 ## Hooks — the progression surface
 
@@ -258,14 +262,16 @@ either **sloppy** or **hardened**, and the four ingress types split
 cleanly along the game's central axis — deck is player-skill, body is
 character-skill (see the top-of-file rule).
 
-**Sloppy hosts fall at the keyboard (player skill, no roll):**
+**Sloppy hosts expose credentials through carelessness:**
 
-- **Known** — a person tells you a password; you type it (barista →
-  `apple`). Knowledge moves through the player's head.
+- **Known** — a person tells you a password; you type it. Knowledge moves
+  through the player's head.
 - **Leaked** — you *find* the credential the owner left lying around:
   in a shell's environment (`env`), a config, a committed secret in a
-  repo mirror. Rewards `ls -a` / `grep` / `env` recon. This is the easy
-  pivot and it is *supposed* to stop at the door of anyone competent.
+  repo mirror, or a post-it tucked behind a physical badge. Terminal leaks
+  reward `ls -a` / `grep` / `env` recon; physical leaks use ordinary
+  overworld access and checks. This is the easy credential and it is
+  *supposed* to stop at the door of anyone competent.
 
 **Hardened hosts do not leak. Their lock lives in meatspace, and there
 are two doors — the two stat builds (character skill, seeded checks in
@@ -288,10 +294,10 @@ self-inflicted dead end we allow (same license as any XCOM build).
 keep *both* doors reachable, so no build is stranded. Off-critical-path
 hosts may be single-door and punish a narrow build; that is fair.
 
-**Characterization for free:** Microslop is careless (secrets in env,
-committed keys) → falls to scavenging. Okuda was paid to lose records
-and assumes it is being hacked → its core does not leak, so `env` is
-useless there and you must come through a person or a heist.
+**Characterization for free:** Microslop is careless (the badge post-it,
+secrets in env, committed keys) → falls to scavenging. Okuda was paid to
+lose records and assumes it is being hacked → its core does not leak, so
+`env` is useless there and you must come through a person or a heist.
 
 Everything above runs on existing machinery — `OnRead`/`OnCopy` flags,
 overworld checks under the XCOM rule, NPC-memory flags, `Host.Require`

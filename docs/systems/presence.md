@@ -1,13 +1,12 @@
 # Presence
 
-Status: agreed; built (engine.Placed + checkpoint ordering + barista
-as first consumer).
+Status: agreed; built (`engine.Placed` + checkpoint ordering); no current
+authored content consumer.
 
 Where story-owned entities are, as a function of world state. The
 dialogue spec's rule — "positions are a function of game state
 (flags), never simulated movement" — finally gets its mechanism.
-Applies to any entity, not just characters: the barista, the hound,
-a parked van, the ruby once a fence takes it.
+Applies to any story-owned entity, not just characters.
 
 ## Model: position is derived, not stored
 
@@ -16,12 +15,12 @@ World (a Moore machine: output depends on current state only, never
 on the path that reached it):
 
 ```go
-barista := engine.NewEntity("barista", "the barista", ...).With(
+npc := engine.NewEntity("npc", "the npc", ...).With(
     engine.Placed{Fn: func(w *engine.World) string {
-        if w.Flags[flagBaristaSawShard] {
-            return "backroom"
+        if w.Flags[flagNPCWithdrawn] {
+            return ""
         }
-        return "coffeeshop"
+        return "room"
     }},
     ...
 )
@@ -48,8 +47,7 @@ regardless of how the flags got that way. Consequences:
   never be `Portable` — both on one entity is a content bug.
 - **Narrating the change.** Placement is silent: entities are simply
   elsewhere the next time the board is consulted. When a change
-  deserves witnessing ("the hound's chain rattles as it's led
-  away"), that is an event rule (docs/systems/events.md) keyed to
+  deserves witnessing, that is an event rule (docs/systems/events.md) keyed to
   the same flags. Presence says where; events say what you saw.
 
 ## Mechanism
@@ -88,13 +86,6 @@ While Buddy stands still doing nothing, nobody moves (turns.md).
   `internal/game/<area>.go`, reading flag constants from `flags.go`.
 - No UI surface, no verbs. The YOU SEE panel and room view already
   re-render from state; they pick placement changes up for free.
-
-## First consumer
-
-The barista: `coffeeshop` → `backroom` once `barista_saw_shard`,
-plus an event rule narrating the empty counter the next time Buddy
-enters the coffee shop. Exercises placement, offstage never, arrival
-interplay, and the events handoff.
 
 ## Rulings (were open questions)
 

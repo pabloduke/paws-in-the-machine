@@ -33,7 +33,7 @@ func (a Approach) stat(w *engine.World) int {
 // Check resolves a hidden d20 roll: roll + stat >= difficulty. The roll
 // is a pure function of (world seed, id, stat) — the XCOM rule — so
 // repeating an identical attempt repeats its result. id must uniquely
-// name the attempt ("hound.sneak").
+// name the attempt ("guard.sneak").
 func Check(w *engine.World, id string, stat, difficulty int) bool {
 	h := fnv.New64a()
 	fmt.Fprintf(h, "%d|%s|%d", w.Seed, id, stat)
@@ -86,6 +86,9 @@ type Attempt struct {
 	Difficulty int
 	Success    string
 	Failure    string
+	// OnSuccess flags are set when the attempt succeeds. This supports
+	// in-place obstacles whose result is story state rather than travel.
+	OnSuccess []string
 
 	// Mods are the situational modifiers that can shift this attempt.
 	Mods []Mod
@@ -107,8 +110,12 @@ type Attempt struct {
 // "<entityID>_bypassed" is set — once past, the obstacle stays solved
 // and further attempts aren't needed.
 type Guarded struct {
-	// Dest is the room ID a successful approach leads to.
+	// Dest is the room ID a successful approach leads to. Leave it empty
+	// for an in-place obstacle; the attempt can still set OnSuccess flags.
 	Dest string
+	// Solved names the flag that marks the obstacle complete. Empty keeps
+	// the default "<entityID>_bypassed" convention.
+	Solved string
 	// Approaches maps each possible approach to its attempt config.
 	Approaches map[Approach]Attempt
 	// Refusals overrides the default text for impossible approaches.
@@ -117,7 +124,7 @@ type Guarded struct {
 	// Watcher names the observer whose perception gates this obstacle.
 	// Empty means the entity itself is the observer; naming another
 	// entity lets the gate and the eyes differ (a back door watched by
-	// a hound) — and composes with presence: a watcher Placed out of
+	// a guard) — and composes with presence: a watcher Placed out of
 	// the room cannot observe (docs/systems/presence.md).
 	Watcher string
 	// Oblivious lists circumstances under which the watcher, though
@@ -165,9 +172,15 @@ func (g Guarded) Handle(w *engine.World, self *engine.Entity, cmd engine.Command
 		return "", false
 	}
 
-	if w.Flags[self.ID+"_bypassed"] {
-		dest := w.FindID(g.Dest)
-		dest.Add(w.Player)
+	solved := g.Solved
+	if solved == "" {
+		solved = self.ID + "_bypassed"
+	}
+	if w.Flags[solved] {
+		if g.Dest != "" {
+			dest := w.FindID(g.Dest)
+			dest.Add(w.Player)
+		}
 		return fmt.Sprintf("%s already knows to ignore you.", engine.Capitalize(self.Name)), true
 	}
 
@@ -218,9 +231,14 @@ func (g Guarded) Handle(w *engine.World, self *engine.Entity, cmd engine.Command
 		return attempt.Failure, true
 	}
 
-	w.Flags[self.ID+"_bypassed"] = true
-	dest := w.FindID(g.Dest)
-	dest.Add(w.Player)
+	w.Flags[solved] = true
+	for _, f := range attempt.OnSuccess {
+		w.Flags[f] = true
+	}
+	if g.Dest != "" {
+		dest := w.FindID(g.Dest)
+		dest.Add(w.Player)
+	}
 	// The XP award is the roll you needed: harder-for-you pays more,
 	// and grown stats (or a stacked deck of modifiers) shrink the
 	// reward (self-balancing).

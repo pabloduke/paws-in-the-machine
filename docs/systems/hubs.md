@@ -90,10 +90,7 @@ coordinates, one step ana (`w+1`).
 
 **Retrofit notes (for the build branch):**
 
-- 13 rooms across 3 hubs need coordinates. The existing exits are
-  grid-consistent except one contradiction: the backroom's `north →
-  coffeeshop` puts it where the lair already is — resolve by placing
-  the backroom east or west of the shop.
+- Existing rooms across 3 hubs need coordinates.
 - Okuda already uses `up`/`down` correctly; its two check/gate
   passages (fire escape, archive door) map onto real adjacencies.
 - Hub travel is untouched: the chart replaces hand-wired `Exits.Dirs`

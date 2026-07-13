@@ -83,7 +83,6 @@ func TestPDASeesCopiedFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("opening the deck session: %v", err)
 	}
-	w.Flags["microslop_route_open"] = true // the backroom rack (backroom.go)
 	s.Exec("ssh microslop")
 	s.Exec("apple")
 	if out, _ := s.Exec("cp /srv/archive/sun_notice.txt ~/notes/"); out != "" && strings.Contains(out, "cp:") {

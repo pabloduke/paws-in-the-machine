@@ -10,7 +10,7 @@ import (
 )
 
 // baristaTalk opens a fresh dialogue session with the coffee-shop
-// barista, the way the UI's talk intercept does.
+// barista, the way the UI's meow command does.
 func baristaTalk(t *testing.T, w *engine.World) *dialogue.Session {
 	t.Helper()
 	npc := w.FindID("barista")
@@ -76,39 +76,78 @@ func TestBaristaGreetingRemembers(t *testing.T) {
 	}
 }
 
-// Burning her closes the hound-lure favor but never the apple reveal:
-// cruelty costs goodwill, not the critical path (failure is a fork, not
-// a wall).
+// Burning her closes the invited post-it look, but stealth remains open:
+// failure is a fork, not a wall.
 func TestBaristaBurnedIsAForkNotAWall(t *testing.T) {
 	w := game.NewWorld()
 	w.Stats.Charm = 8
+	w.Stats.Stealth = 100
 
-	// Even a burned barista can be won over, and the softened line still
-	// hands out the Microslop password — the route survives the grudge.
+	// Softening her after the burn does not restore the invitation.
 	w.Flags["barista_burned"] = true
 	choose(t, baristaTalk(t, w), "Purr")
 	if !w.Flags["barista_softened"] {
 		t.Fatal("a burned barista should still be softenable by charm")
 	}
-	choose(t, baristaTalk(t, w), "Microslop lanyard")
-	if !w.Flags["knows_microslop_password"] {
-		t.Fatal("apple must stay reachable through a burned barista (no soft-lock)")
+	eng := engine.New(w)
+	eng.Execute("north")
+	eng.Execute("look post-it")
+	if w.Flags["read_microslop_badge"] {
+		t.Fatal("a burned barista must not grant the invited post-it look")
 	}
 
-	// But the favor is gone: softened + burned hides the hound-lure line.
-	if hasOption(baristaTalk(t, w), "too much") {
-		t.Fatal("a burned barista should not offer to lure the hound")
+	// The hard route remains available through a guaranteed stealth pass.
+	eng.Execute("sneak post-it")
+	if !w.Flags["read_microslop_badge"] {
+		t.Fatal("the badge must stay reachable through stealth after charm closes")
 	}
+
 }
 
-// The warm path is untouched: an unburned, softened barista still offers
-// to call the hound off.
-func TestBaristaLureSurvivesWhenNotBurned(t *testing.T) {
+// The warm path grants the invited post-it look.
+func TestBaristaInvitationReachesBadge(t *testing.T) {
 	w := game.NewWorld()
 	w.Stats.Charm = 8
 
 	choose(t, baristaTalk(t, w), "Purr")
-	if !hasOption(baristaTalk(t, w), "too much") {
-		t.Fatal("a softened, unburned barista should offer the hound lure")
+	if hasOption(baristaTalk(t, w), "Microslop") {
+		t.Fatal("the barista must never speak the Microslop credential")
+	}
+	eng := engine.New(w)
+	eng.Execute("north")
+	if out := eng.Execute("look post-it"); !strings.Contains(out, "password `apple`") {
+		t.Fatalf("looking at the post-it should expose its credential: %q", out)
+	}
+	if !w.Flags["read_microslop_badge"] {
+		t.Fatal("looking at the post-it should record the Microslop credential")
+	}
+	if out := eng.Execute("examine post-it"); !strings.Contains(out, "1008476") {
+		t.Fatalf("examine post-it should remain directly addressable: %q", out)
+	}
+	if out := eng.Execute("read post-it"); !strings.Contains(out, "apple") {
+		t.Fatalf("read post-it should remain directly addressable: %q", out)
+	}
+}
+
+// Getting caught at the backpack burns the invitation, applies the cold
+// memory, and leaves a harder stealth retry available.
+func TestBadgeSneakFailureFork(t *testing.T) {
+	w := game.NewWorld()
+	w.Seed = 3
+	w.Stats.Stealth = 0
+	eng := engine.New(w)
+	eng.Execute("north")
+
+	if out := eng.Execute("sneak post-it"); !strings.Contains(out, "catches") {
+		t.Fatalf("an impossible stealth attempt should be caught: %q", out)
+	}
+	if !w.Flags["barista_burned"] || w.Flags["read_microslop_badge"] {
+		t.Fatalf("failure should burn charm without granting the credential: %v", w.Flags)
+	}
+
+	w.Stats.Stealth = 100
+	eng.Execute("sneak post-it")
+	if !w.Flags["read_microslop_badge"] {
+		t.Fatal("stealth must remain open after the failure fork")
 	}
 }

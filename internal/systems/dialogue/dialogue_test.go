@@ -35,7 +35,7 @@ func dialogueWorld() (*engine.World, *engine.Entity) {
 						{
 							Text:    "Show the data-shard.",
 							Require: []dialogue.Requirement{dialogue.HasItem("shard")},
-							Effects: []dialogue.Effect{dialogue.SetFlag("barista_saw_shard")},
+							Effects: []dialogue.Effect{dialogue.SetFlag("npc_saw_item")},
 							End:     true,
 						},
 						{Text: "Leave.", End: true},
@@ -100,7 +100,7 @@ func TestHasItemRequirementAndEnd(t *testing.T) {
 	if out != "" {
 		t.Fatalf("ending choice with no Say effect should be quiet, got %q", out)
 	}
-	if !session.Done() || !w.Flags["barista_saw_shard"] {
+	if !session.Done() || !w.Flags["npc_saw_item"] {
 		t.Fatalf("choice should end and set flag; done=%v flags=%v", session.Done(), w.Flags)
 	}
 }
@@ -227,7 +227,7 @@ func TestHeadlessTalkRefusesHonestly(t *testing.T) {
 	w, _ := dialogueWorld()
 	eng := engine.New(w)
 
-	out := eng.Execute("talk barista")
+	out := eng.Execute("meow barista")
 	if strings.Contains(out, "nothing to say") {
 		t.Fatalf("a Talkable NPC must not claim to have nothing to say: %q", out)
 	}

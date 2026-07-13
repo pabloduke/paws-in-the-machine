@@ -246,7 +246,7 @@ const helpText = `Commands:
   sneak past <thing>    stealth your way through
   parkour <thing>       the acrobatic route (also: leap, vault)
   charm <thing>         weaponized cuteness (also: purr)
-  talk <person>         start a conversation
+  meow <person>         get a person's attention
   stats                 your numbers
 	train <stat>          spend a stat point (earned by leveling up)
 	inventory (i)         what you're carrying

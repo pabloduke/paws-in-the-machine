@@ -1,6 +1,10 @@
 # Project State
 
-Current branch: `main`
+Current branch: `terminal`
+
+Project phase: **first-draft version of the game**. Current content and
+mission structure are provisional and may be revised or removed as the full
+game takes shape.
 
 > **Lane handoff (2026-07-06, amended 2026-07-07).** Until now the
 > repo ran two lanes: Codex on the terminal/hacking lane, Claude on
@@ -28,12 +32,12 @@ Current branch: `main`
 Rough-draft phase (docs/draft.md): the whole game with Resistance-lite
 (marduk, a mission-giver over the deck messenger — nothing more).
 Mission 1's opening slice is built: the game boots into the terminal
-with marduk's brief unread; the barista → hound → rack → `ssh
-microslop` chain is the mission body; the layoff plans
-(`/srv/hr/rif_q3.txt`) are the target; `send` (alias `scp`) delivers
-them and marduk's payoff closes the mission. Next mission-1 bite: the
-badge peek (barista stops speaking the password — docs/draft.md §1
-step 5).
+with marduk's brief unread; the badge → return home → `ssh microslop`
+chain is the mission body; employee ID `1008476` locates the target,
+the layoff plans at `/srv/hr/rif_q3.txt`; `send` (alias `scp`) delivers
+them and marduk's payoff closes the mission. Looking at the post-it has two
+routes: `meow barista` can earn an invited look behind the counter; stealth risks
+burning that invitation but remains open at a penalty.
 
 ## Implemented
 
@@ -68,12 +72,9 @@ step 5).
   arrive on flags, never timers (docs/systems/hacking.md).
 - Buddy's notes live at `~/notes/notes.md`, generated from discovered flags
   and readable/searchable with shell commands instead of a journal menu.
-- Microslop is currently gated by:
-  - social intel from the barista, who was fired from Microslop and reveals the
-    password `apple`;
-  - physical access in the coffee shop back room, reached by bypassing the
-    corpo hound;
-  - using the backroom server rack to patch the deck into the local network.
+- Microslop is the directly reachable tutorial host. The fired barista's old
+  badge supplies employee ID `1008476` and password `apple`: meowing can earn
+  an invited look, or stealth reaches the post-it; she never speaks the password.
 - Once connected, Microslop has a small fake filesystem with logs pointing to
   `/srv/archive/sun_notice.txt`.
 - Reading and copying the Microslop notice set flags that feed Buddy's
@@ -81,14 +82,10 @@ step 5).
 
 ## Recent Verification
 
-`go test ./...` passes after the Microslop route/password flow changes.
+`go test ./...` passes after the Microslop badge/password flow changes.
 
 ## Next Useful Steps
 
-- Make the social-engineering path less linear: add alternate ways to learn or
-  infer `apple`.
-- Add clearer in-game hints when `ssh microslop` reports network unreachable.
-- Give the backroom/rack interaction a stronger stealth consequence or tension.
 - Expand Microslop's filesystem into a real mini puzzle instead of one log and
   one archive file.
 - Decide whether terminal history should persist across deck sessions or
@@ -114,10 +111,9 @@ step 5).
 - **Overworld UI**: neon truecolor restyle, animated rain
   (100ms `tea.Tick`, per-drop staggered speeds), neon sign flicker,
   `[` / `]` rain opacity (level 0 = off).
-- Demo content on the pinned seed: the coffeeshop hound exercises the
-  whole checks system (fail → `hound_alerted` −2 → mug distraction +4
-  consumed → clears; or barista lures the hound, `hound_lured`,
-  unwatched +10). `internal/game/checks_demo_test.go` walks it.
+- The coffee-shop badge applies the checks system in place: charm grants an
+  invited look; stealth can fail into `barista_burned`, with the espresso mug
+  as a consumable distraction. `coffeeshop_memory_test.go` pins both routes.
 - **#16 closed-ports loop is built** (`internal/game/okuda.go` +
   `net.go`): Okuda HQ, the first infiltration building, two ways in —
   front-desk charm (fail forks to `receptionist_suspicious` −2; the
@@ -167,8 +163,8 @@ step 5).
   longer overrides it, so every playthrough rolls its own table and the
   seed persists through save/load (the XCOM rule stays honest,
   save-scumming stays useless). The demo *tuning* now lives in the
-  tests that assert it: `checks_demo_test.go`, `okuda_demo_test.go`,
-  and `TestMicroslopPasswordPuzzle` each set `w.Seed = 3` after
+  tests that assert it: `okuda_demo_test.go` and
+  `TestBadgeSneakFailureFork` each set `w.Seed = 3` after
   `NewWorld`. **Any test asserting a check outcome must pin the seed**
   — an unpinned check test is flaky by construction. Starting stats
   (Stealth 10 / Agility 12 / Charm 8) and difficulties are still the
@@ -185,19 +181,17 @@ step 5).
   contact on two per-NPC flags — `barista_softened` (warm) and
   `barista_burned` (cold, from knocking her tip jar over) — read by her
   greeting (via the new `dialogue.Node.TextFn`, the memory-aware line),
-  her `Description{Fn}`, and the hound-lure favor she won't do for a
-  cruel stray. Kept off the critical path: burning her never walls the
-  `apple` reveal (failure is a fork, not a wall). Presence-withdrawal is
+  her `Description{Fn}`, and the invited post-it look. Kept off the critical
+  path: burning her never walls the credential because stealth stays open
+  (failure is a fork, not a wall). Presence-withdrawal is
   the pattern's fourth lever but is for non-critical NPCs only — moving
   a critical NPC offstage would wall progression. Spec:
   `docs/systems/dialogue.md` "State And Memory"; tests:
   `coffeeshop_memory_test.go` (game). Replicating it across NPCs is
   content (user-owned).
 - **#15 UI growth: status bar** — independent, any time.
-- **#16 closed-ports loop** — BUILT (see Implemented above). By user
-  ruling it grew past the issue's rack sketch: opening the port is a
-  full infiltration of Okuda HQ, not a switch in the coffee shop back
-  room. Still owed: what okuda.grid's vault actually holds —
+- **#16 closed-ports loop** — BUILT (see Implemented above). Opening the
+  port is a full infiltration of Okuda HQ. Still owed: what okuda.grid's vault actually holds —
   `/srv/vault/410.txt` is a marked story stub.
 
 ## Road to the real game (issues filed 2026-07-07)

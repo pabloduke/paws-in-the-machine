@@ -47,15 +47,14 @@ Rejected by the rule:
 An obstacle (guard, dog, camera, gap, locked-counter human...) declares
 which approaches are possible and how hard each is — per-approach
 difficulty and flavor text. Approaches not in the matrix are impossible
-and refuse without a roll, with flavor ("the hound stares through your
-adopt-me eyes; dogs are immune to cute").
+and refuse without a roll, with flavor.
 
-    corpo hound:   sneak 12   parkour 15   charm —
-    bored barista: sneak 8    parkour 10   charm 6
-    ceiling gap:   sneak —    parkour 13   charm —
+    security camera: sneak 12   parkour —    charm —
+    bored clerk:    sneak 8    parkour 10   charm 6
+    ceiling gap:    sneak —    parkour 13   charm —
 
 The player picks the approach by picking the verb: `sneak past the
-hound`, `parkour around the hound`, `charm the barista`. One obstacle,
+camera`, `parkour around the counter`, `charm the clerk`. One obstacle,
 up to three doors through it, each rolled separately.
 
 ## The check
@@ -83,7 +82,7 @@ new-game time and persists in world state (and future save files).
 - Dice are never shown. No roll output, no target numbers, no "4d6".
 - Stats and XP are visible on request (`stats`).
 - Difficulty and modifiers are telegraphed in prose, not numbers: "the
-  hound is half-asleep" vs "ears up"; "your fur disappears in the neon
+  guard is distracted" vs "watching the door"; "your fur disappears in the neon
   wash."
 
 ## Modifiers (the flavor lives here)
@@ -119,7 +118,11 @@ Examples:
 - Stats, XP, and the world seed live in engine core world state.
 - `internal/systems/checks/` package, one exposed surface: a `Check`
   function plus a `Guarded` component content attaches to obstacle
-  entities (the approach matrix as configuration).
+  entities (the approach matrix as configuration). `Guarded.Dest` may be
+  empty for an in-place obstacle; successful attempts can set declared
+  story flags through `Attempt.OnSuccess` without moving Buddy.
+  `Guarded.Solved` lets content use that declared flag instead of the
+  default `<entityID>_bypassed` convention.
 
 ## Observers have perception
 
@@ -129,9 +132,9 @@ observing never mutates, and no dice decide what an observer
 perceives (the roll stays on Buddy's side).
 
 - A `Guarded` obstacle may name a `Watcher` — the entity whose eyes
-  gate it. Empty means the obstacle watches for itself (the hound is
+  gate it. Empty means the obstacle watches for itself (a guard is
   its own gate); naming another entity splits the gate from the eyes
-  (a back door watched by a hound), which composes with presence: a
+  (a door watched by a guard), which composes with presence: a
   watcher `Placed` out of Buddy's room cannot observe.
 - `Oblivious` lists flag circumstances (If/Unless, the event-rule
   shape) under which a present watcher cannot see — asleep, lured to
@@ -144,12 +147,6 @@ perceives (the roll stays on Buddy's side).
   the XP payout shrinks by the help. `Unwatched: 0` opts out.
 - `Guarded.Watched(w, self)` is exported so events and journal prose
   can telegraph the state without duplicating the logic.
-
-Demo beat (placeholder content): once softened, the barista can be
-asked to whistle the hound to the counter (`hound_lured`); the lured
-hound's prose and a journal entry telegraph it, and sneaking past
-rolls at +10 — Stealth 10 rolls as 20 against difficulty 22 and
-clears, paying only the 2 XP the stacked deck deserves.
 
 ## Failure is a fork, not a wall
 
@@ -175,11 +172,10 @@ independently by every system that reads flags. Not every failure
 needs a flag — content spends them only where failure is
 interesting.
 
-Demo beat (placeholder content): failing the corpo hound sets
-`hound_alerted` (−2 on later attempts, an event beat, a journal
-entry); knocking the espresso machine shatters a mug
-(`mug_shattered`, +4, consumed by the roll it covers). Fail → knock
-→ sneak clears.
+Current content use: failing the coffee-shop badge sneak sets
+`barista_burned`, closing the invited route and penalizing later stealth.
+Knocking the espresso machine shatters a mug (`mug_shattered`, +4),
+consumed by the badge attempt it covers.
 
 ## Open questions
 

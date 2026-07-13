@@ -14,7 +14,6 @@ func NewWorld() *engine.World {
 
 	lair, pda := buildLair()
 	coffeeshop := buildCoffeeshop()
-	backroom := buildBackroom()
 	plazaSquare, arcade := buildPlaza()
 	okudaStreet, okudaLobby, okudaAlley, okudaCorridor, okudaOffice, okudaAnnex := buildOkuda()
 
@@ -29,7 +28,7 @@ func NewWorld() *engine.World {
 	)
 
 	w.Root.Add(neighborhood, plaza, okuda)
-	neighborhood.Add(lair, coffeeshop, backroom)
+	neighborhood.Add(lair, coffeeshop)
 	plaza.Add(plazaSquare, arcade)
 	okuda.Add(okudaStreet, okudaLobby, okudaAlley, okudaCorridor, okudaOffice, okudaAnnex)
 	lair.Add(w.Player)
@@ -40,13 +39,12 @@ func NewWorld() *engine.World {
 	// table — the XCOM rule stays honest and save-scumming stays
 	// useless (the seed persists through save/load). Demo and content
 	// tests pin w.Seed = 3 to assert specific tuned outcomes; see
-	// checks_demo_test.go and okuda_demo_test.go.
+	// badge and Okuda demo tests.
 	w.Stats = engine.Stats{Stealth: 10, Agility: 12, Charm: 8}
 	w.XP = 0
 
 	// Event rules and journal content, per area (docs/systems/events.md).
 	w.Rules = append(w.Rules, lairEvents()...)
-	w.Rules = append(w.Rules, coffeeshopEvents()...)
 	w.Rules = append(w.Rules, okudaEvents()...)
 	w.Rules = append(w.Rules, netEvents()...)
 	w.Journal = append(w.Journal, lairJournal()...)

@@ -50,14 +50,10 @@ func buildLair() (*engine.Entity, *engine.Entity) {
 							"stray: get inside Microslop's intranet and pull " +
 							"their layoff plans — the real list, not the press " +
 							"release. copy it to your deck, then send it to me " +
-							"(the send command). you can't reach their net from " +
-							"here yet. the barista at the coffee shop north of " +
-							"you used to work there — start with her. i've " +
+							"(the send command). the barista at the coffee shop " +
+							"north of you used to work there — start with her, " +
+							"then come home and connect. i've " +
 							"dropped the job in your notes: ls ~/notes"},
-					{ID: "route_open", When: flagMicroslopRouteOpen,
-						Text: "(Placeholder) i see the bridge you patched at " +
-							"the coffee shop. good paws. Microslop will answer " +
-							"the deck now — go get the plans."},
 					{ID: "whisper", When: flagHeardWhisper,
 						Text: "(Placeholder) you heard it too, then. the thing " +
 							"in the dead code. careful who you tell — most of " +
