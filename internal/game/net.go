@@ -40,6 +40,15 @@ func starterNet() map[string]*hacking.Host {
 					hacking.Dir("paws_in_the_machine",
 						hacking.Dir("notes",
 							hacking.DynamicFile("notes.md", buddyNotes),
+							// Mission 0: the bootstrap note, present from the
+							// first boot and gone the moment its job is done —
+							// it teaches opening the messenger, which reads
+							// marduk's brief and downloads mission 1.
+							&hacking.Node{
+								Name:       "use_the_messenger.md",
+								AbsentWhen: flagMissionMicroslop,
+								Text:       missionUseMessenger,
+							},
 							// Mission files land here on their own when the
 							// handler's briefing is read (PresentWhen +
 							// Msg.Grants). Mission 1: marduk's Microslop job.
@@ -288,6 +297,18 @@ func netJournal() []engine.Entry {
 		{Flag: flagReadOkuda410, Text: "(Placeholder) okuda.grid is asset 410: records Okuda was paid to lose, still humming in their own records office."},
 	}
 }
+
+// missionUseMessenger is mission 0: the very first note, teaching the
+// one thing the player must do to get everything else — open the
+// messenger. It vanishes the moment they do (net.go AbsentWhen).
+const missionUseMessenger = `# Getting Started
+
+Someone's trying to reach you. Your messenger is blinking.
+
+## Steps
+
+- [ ] open the messenger: type ` + "`messenger`" + ` (or ` + "`talk`" + `)
+      and read what's waiting`
 
 // missionMicroslopSteps is mission 1's checklist, rendered into the
 // mission file (not notes.md). Mission 1 is the explicit end of the

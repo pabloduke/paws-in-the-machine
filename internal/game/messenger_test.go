@@ -128,3 +128,35 @@ func TestMissionOneLayoffPlans(t *testing.T) {
 		t.Fatalf("the mission file should close out: %q", m)
 	}
 }
+
+// Mission 0 bootstraps the tutorial: the "open the messenger" note is
+// present from the first boot and vanishes the moment the messenger is
+// read, replaced by mission 1 (user ruling 2026-07-10).
+func TestMissionZeroBootstrap(t *testing.T) {
+	w := game.NewWorld()
+	d, _ := engine.Part[hacking.Deck](w.FindID("deck"))
+	s := deckSession(t, w)
+
+	// At boot: mission 0 present, mission 1 not yet.
+	if out, _ := s.Exec("ls ~/notes"); !strings.Contains(out, "use_the_messenger.md") ||
+		strings.Contains(out, "Microslop_Find") {
+		t.Fatalf("at boot only mission 0 should be in notes: %q", out)
+	}
+	if r := s.ExecDetailed("cat ~/notes/use_the_messenger.md"); r.Document == nil ||
+		!strings.Contains(r.Document.Text, "open the messenger") {
+		t.Fatalf("mission 0 should teach opening the messenger: %+v", r)
+	}
+
+	// Reading the brief: mission 0 gone, mission 1 arrived.
+	d.Messenger.MarkRead(w)
+	out, _ := s.Exec("ls ~/notes")
+	if strings.Contains(out, "use_the_messenger.md") {
+		t.Fatalf("mission 0 should vanish once the messenger is read: %q", out)
+	}
+	if !strings.Contains(out, "Microslop_Find_The_Layoff_List.md") {
+		t.Fatalf("mission 1 should have downloaded: %q", out)
+	}
+	if r := s.ExecDetailed("cat ~/notes/use_the_messenger.md"); r.Document != nil {
+		t.Fatalf("mission 0 should no longer be readable")
+	}
+}

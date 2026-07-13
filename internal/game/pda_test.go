@@ -43,9 +43,15 @@ func TestPDAFieldIntelLoop(t *testing.T) {
 	w := game.NewWorld()
 	p := pdaCfg(t, w)
 
+	// The deck mirror shows the field notes and mission 0 (the bootstrap
+	// note, present from the first boot until the messenger is opened).
 	files := hacking.TextFiles(w, p.Net[p.Host])
-	if len(files) != 1 || files[0].Path != "~/notes/notes.md" {
-		t.Fatalf("the deck mirror should list Buddy's notes: %+v", files)
+	paths := make([]string, len(files))
+	for i, f := range files {
+		paths[i] = f.Path
+	}
+	if strings.Join(paths, ",") != "~/notes/notes.md,~/notes/use_the_messenger.md" {
+		t.Fatalf("the deck mirror should list Buddy's notes and mission 0: %+v", files)
 	}
 	if doc := files[0].Read(w); !strings.Contains(doc.Text, "Nothing solid yet") {
 		t.Fatalf("reading notes should render the dynamic file: %q", doc.Text)

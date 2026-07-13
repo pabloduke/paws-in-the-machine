@@ -375,9 +375,19 @@ its steps read like orders; later missions get vaguer files. This is
 also where a mission's objectives live — there is no separate
 quest-panel objective list (the terminal's right panel idles blank).
 
-`Node.PresentWhen` is general: any node gated on a flag is absent from
-`ls`/`cat`/`grep`/PDA until the flag is set — a clean way to make files
-appear as the story turns them on.
+**Mission 0 — the bootstrap note.** `~/notes/use_the_messenger.md` is
+present from the very first boot and teaches the one thing the player
+needs to start everything: open the messenger. It uses `AbsentWhen`
+(the inverse of `PresentWhen`) to vanish the instant the messenger is
+read — the same flag that downloads mission 1. So the tutorial hands
+off cleanly: read the note → open the messenger → note disappears,
+mission 1 appears. This is what answers "how does the player know to
+type `messenger`?"
+
+`Node.PresentWhen` / `Node.AbsentWhen` are general: a node is absent
+from `ls`/`cat`/`grep`/PDA until `PresentWhen` is set and again once
+`AbsentWhen` is set — a clean way to make files appear (and disappear)
+as the story turns flags on.
 
 ## Logging in
 

@@ -103,11 +103,14 @@ type Node struct {
 	OnCopy   string // flag set when copied onto the deck
 	OnRun    string // flag set when run
 	OnSend   string // flag set when sent to the contact's drop
-	// PresentWhen gates the node's very existence on a world flag:
-	// until it is set, the node is absent from ls/cat/grep and the PDA
-	// mirror. This is how a mission file "arrives" in ~/notes when its
-	// handler's briefing grants it (docs/systems/hacking.md).
+	// PresentWhen / AbsentWhen gate the node's very existence on world
+	// flags: it is absent from ls/cat/grep and the PDA mirror until
+	// PresentWhen is set, and again once AbsentWhen is set. This is how
+	// a mission file "arrives" in ~/notes when its handler's briefing
+	// grants it — and how a bootstrap note (mission 0) vanishes once
+	// it's served its purpose (docs/systems/hacking.md).
 	PresentWhen string
+	AbsentWhen  string
 	Copied   bool   // placed by cp — marks a deck-side discovery
 	Touched  bool   // created by touch — user-owned, no edit backup needed
 	BackedUp bool   // edit backup already created
@@ -442,10 +445,17 @@ func (s *Session) node(p string) *Node {
 	return n
 }
 
-// present reports whether a node currently exists in the filesystem —
-// true unless a PresentWhen flag gates it and is still unset.
+// present reports whether a node currently exists in the filesystem:
+// absent until its PresentWhen flag is set, and absent again once its
+// AbsentWhen flag is set.
 func present(w *engine.World, n *Node) bool {
-	return n.PresentWhen == "" || w.Flags[n.PresentWhen]
+	if n.PresentWhen != "" && !w.Flags[n.PresentWhen] {
+		return false
+	}
+	if n.AbsentWhen != "" && w.Flags[n.AbsentWhen] {
+		return false
+	}
+	return true
 }
 
 func (s *Session) resolvedPath(p string) string {
