@@ -12,7 +12,7 @@ import (
 
 // The city panel (docs/systems/hubs.md): the persistent left panel
 // listing hubs to travel to, plus any decks in scope to log into.
-// citySurface owns the keyboard while the panel is focused (Tab).
+// citySurface owns the keyboard while the panel is focused (Shift+Tab).
 
 // panelKind tags a focusable row in the left panel.
 type panelKind int
@@ -35,7 +35,7 @@ type citySurface struct{}
 
 func (citySurface) Active(m *Model) bool { return m.panelFocused }
 
-// focusCityPanel shifts focus to the panel (Tab from the prompt),
+// focusCityPanel shifts focus to the panel (Shift+Tab from the prompt),
 // preselecting the hub Buddy is in.
 func (m *Model) focusCityPanel() {
 	if len(m.panelItems()) == 0 {
@@ -81,7 +81,7 @@ func (citySurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 	switch msg.Type {
 	case tea.KeyCtrlC:
 		return tea.Quit
-	case tea.KeyTab, tea.KeyEsc:
+	case tea.KeyShiftTab, tea.KeyEsc:
 		m.panelFocused = false
 	case tea.KeyUp:
 		m.selected = (m.selected - 1 + len(items)) % len(items)
@@ -151,9 +151,9 @@ func (m Model) cityPanel() string {
 		}
 		b.WriteString("\n" + row)
 	}
-	hint := "tab: focus · [ ] rain"
+	hint := "shift+tab: focus · [ ] rain"
 	if m.panelFocused {
-		hint = "up/down enter, esc"
+		hint = "up/down enter · shift+tab/esc"
 	} else if m.dialogue != nil {
 		hint = "dialogue active"
 	}

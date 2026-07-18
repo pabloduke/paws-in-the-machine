@@ -111,9 +111,9 @@ type Node struct {
 	// it's served its purpose (docs/systems/hacking.md).
 	PresentWhen string
 	AbsentWhen  string
-	Copied   bool   // placed by cp — marks a deck-side discovery
-	Touched  bool   // created by touch — user-owned, no edit backup needed
-	BackedUp bool   // edit backup already created
+	Copied      bool // placed by cp — marks a deck-side discovery
+	Touched     bool // created by touch — user-owned, no edit backup needed
+	BackedUp    bool // edit backup already created
 }
 
 // File and Dir are content-authoring helpers.
@@ -281,6 +281,144 @@ func (s *Session) Prompt() string {
 		}
 	}
 	return login + "@" + s.host.Name + ":" + path + " $ "
+}
+
+// AwaitingPassword reports whether the next input line is a credential,
+// allowing the UI to mask it and keep it out of command history.
+func (s *Session) AwaitingPassword() bool { return s.pending != nil }
+
+var shellCommands = []string{
+	"cat", "cd", "cp", "curl", "edit", "exit", "grep", "help", "kill",
+	"logout", "ls", "messenger", "mkdir", "nvim", "ps", "pwd", "run",
+	"scan", "send", "ssh", "touch", "vi", "vim",
+}
+
+// Complete expands the active token in line and returns every matching token.
+// The UI inserts the longest common prefix and can display ambiguous matches.
+func (s *Session) Complete(line string) (string, []string) {
+	if s.AwaitingPassword() {
+		return line, nil
+	}
+	cut := strings.LastIndexAny(line, " \t")
+	before, active := "", line
+	if cut >= 0 {
+		before, active = line[:cut+1], line[cut+1:]
+	}
+	prior := strings.Fields(before)
+	var matches []string
+	if len(prior) == 0 {
+		matches = s.commandMatches(active)
+	} else {
+		expanded := s.expandAliases([]string{prior[0]})
+		cmd := prior[0]
+		if len(expanded) > 0 {
+			cmd = expanded[0]
+		}
+		argIndex := len(prior) - 1
+		switch cmd {
+		case "scan", "ssh", "curl":
+			if argIndex == 0 {
+				matches = s.hostMatches(active)
+			}
+		case "grep":
+			// Options and the search pattern come before path operands.
+			nonOptions := 0
+			for _, arg := range prior[1:] {
+				if !strings.HasPrefix(arg, "-") {
+					nonOptions++
+				}
+			}
+			if nonOptions >= 1 {
+				matches = s.pathMatches(active)
+			}
+		case "ls", "cd", "cat", "edit", "vi", "vim", "nvim", "cp",
+			"send", "mkdir", "touch", "run":
+			matches = s.pathMatches(active)
+		}
+	}
+	if len(matches) == 0 {
+		return line, nil
+	}
+	completed := commonPrefix(matches)
+	if len(matches) == 1 && !strings.HasSuffix(completed, "/") {
+		completed += " "
+	}
+	return before + completed, matches
+}
+
+func (s *Session) commandMatches(prefix string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, cmd := range shellCommands {
+		if strings.HasPrefix(cmd, prefix) && !seen[cmd] {
+			seen[cmd] = true
+			out = append(out, cmd)
+		}
+	}
+	for alias := range s.aliasTable() {
+		if strings.HasPrefix(alias, prefix) && !seen[alias] {
+			seen[alias] = true
+			out = append(out, alias)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+func (s *Session) hostMatches(prefix string) []string {
+	var out []string
+	for name := range s.net {
+		if strings.HasPrefix(name, prefix) {
+			out = append(out, name)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+func (s *Session) pathMatches(token string) []string {
+	dirText, base := "", token
+	if slash := strings.LastIndex(token, "/"); slash >= 0 {
+		dirText, base = token[:slash+1], token[slash+1:]
+	}
+	lookup := strings.TrimSuffix(dirText, "/")
+	if lookup == "" {
+		if dirText == "/" {
+			lookup = "/"
+		} else {
+			lookup = "."
+		}
+	}
+	n := s.node(lookup)
+	if n == nil || !n.Dir {
+		return nil
+	}
+	var out []string
+	for _, child := range n.Children {
+		if !present(s.w, child) || !strings.HasPrefix(child.Name, base) {
+			continue
+		}
+		if strings.HasPrefix(child.Name, ".") && !strings.HasPrefix(base, ".") {
+			continue
+		}
+		match := dirText + child.Name
+		if child.Dir {
+			match += "/"
+		}
+		out = append(out, match)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func commonPrefix(values []string) string {
+	prefix := values[0]
+	for _, value := range values[1:] {
+		for !strings.HasPrefix(value, prefix) {
+			prefix = prefix[:len(prefix)-1]
+		}
+	}
+	return prefix
 }
 
 // Discoveries lists files that have been copied onto the deck.
