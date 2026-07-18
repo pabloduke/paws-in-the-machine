@@ -1,6 +1,7 @@
 # Project State
 
-Current branch: `terminal`
+Current branch: `main` (the `terminal` branch merged as PR #45,
+2026-07-13)
 
 Project phase: **first-draft version of the game**. Current content and
 mission structure are provisional and may be revised or removed as the full
@@ -72,6 +73,19 @@ burning that invitation but remains open at a penalty.
   arrive on flags, never timers (docs/systems/hacking.md).
 - Buddy's notes live at `~/notes/notes.md`, generated from discovered flags
   and readable/searchable with shell commands instead of a journal menu.
+  `notes.md` is field notes only; **missions are auto-downloading files**
+  in `~/notes` — reading the handler's brief sets a flag (`Msg.Grants`)
+  and the mission file appears via `Node.PresentWhen`
+  (`~/notes/Microslop_Find_The_Layoff_List.md`, a checklist that ticks
+  on flags). User ruling 2026-07-10.
+- **Mission 0**: a bootstrap note `~/notes/use_the_messenger.md` is
+  present from first boot and teaches the messenger; `Node.AbsentWhen`
+  (the inverse of `PresentWhen`) removes it the moment the messenger is
+  read — the same flag that downloads mission 1.
+- **`scan` is pure recon** (user ruling 2026-07-10): it always lists a
+  routed host's configured ports; port state never flips from story
+  events shown mid-scan. An unrouted host reports down, not a wall of
+  closed ports.
 - Microslop is the directly reachable tutorial host. The fired barista's old
   badge supplies employee ID `1008476` and password `apple`: meowing can earn
   an invited look, or stealth reaches the post-it; she never speaks the password.
@@ -82,7 +96,8 @@ burning that invitation but remains open at a penalty.
 
 ## Recent Verification
 
-`go test ./...` passes after the Microslop badge/password flow changes.
+`go test ./...` passes on `main` after the PR #45 merge (last run
+2026-07-15).
 
 ## Next Useful Steps
 
