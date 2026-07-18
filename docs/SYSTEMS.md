@@ -71,7 +71,7 @@ one package under `internal/systems/<name>/` — see Architecture in the readme.
 9. ✅ **Hubs & travel** — city topology: hubs (districts) containing
    explorable rooms, all known/travelable from the start (Buddy's lived
    here all his life); game state gates relevance, not access. Travel
-   via focusable side panel (Tab, arrows, Enter). See `systems/hubs.md`.
+   via focusable side panel (Shift+Tab, arrows, Enter). See `systems/hubs.md`.
 
 ### Supporting
 

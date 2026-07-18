@@ -109,10 +109,10 @@ coordinates, one step ana (`w+1`).
 A persistent side panel next to the transcript lists all hubs, marking
 the one Buddy is in.
 
-- **Tab** shifts focus between the command prompt and the panel.
+- **Shift+Tab** shifts focus between the command prompt and the panel.
 - With the panel focused: **Up/Down** select a hub, **Enter** travels
   (Buddy arrives at that hub's entry room; the room description prints
-  to the transcript), **Esc/Tab** returns to the prompt without
+  to the transcript), **Esc/Shift+Tab** returns to the prompt without
   traveling.
 - Typing at the prompt never affects the panel; panel keys never reach
   the prompt.

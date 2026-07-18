@@ -117,6 +117,93 @@ func TestTerminalPromptInsidePanelAndScrollbackBottomAnchored(t *testing.T) {
 	}
 }
 
+func TestTerminalHyphenDoesNotWrapPrompt(t *testing.T) {
+	w := game.NewWorld()
+	mod := newSized(w)
+	mod = typeLine(mod, "use deck")
+
+	mod, _ = mod.Update(kr('-'))
+	mm := mod.(Model)
+	if got := mm.shellInput.Value(); got != "-" {
+		t.Fatalf("hyphen input=%q, want %q", got, "-")
+	}
+	if got, max := lipgloss.Width(mm.shellInput.View()), mm.shellVP.Width; got > max {
+		t.Fatalf("hyphen prompt width=%d exceeds panel width=%d", got, max)
+	}
+}
+
+func TestTerminalTabCompletesAndArrowsRecallHistory(t *testing.T) {
+	w := game.NewWorld()
+	mod := newSized(w)
+	mod = typeLine(mod, "use deck")
+
+	mod = typeRunes(mod, "sca")
+	mod, _ = mod.Update(spec(tea.KeyTab))
+	if got := mod.(Model).shellInput.Value(); got != "scan " {
+		t.Fatalf("tab completion=%q, want %q", got, "scan ")
+	}
+	mod = typeRunes(mod, "sunfarm.arc")
+	mod, _ = mod.Update(spec(tea.KeyEnter))
+	mod = typeLine(mod, "pwd")
+
+	mod = typeRunes(mod, "draft")
+	mod, _ = mod.Update(spec(tea.KeyUp))
+	if got := mod.(Model).shellInput.Value(); got != "pwd" {
+		t.Fatalf("first up=%q, want most recent command", got)
+	}
+	mod, _ = mod.Update(spec(tea.KeyUp))
+	if got := mod.(Model).shellInput.Value(); got != "scan sunfarm.arc" {
+		t.Fatalf("second up=%q, want previous command", got)
+	}
+	mod, _ = mod.Update(spec(tea.KeyDown))
+	mod, _ = mod.Update(spec(tea.KeyDown))
+	if got := mod.(Model).shellInput.Value(); got != "draft" {
+		t.Fatalf("down should restore draft, got %q", got)
+	}
+}
+
+func TestTerminalMasksPasswordsAndExcludesThemFromHistory(t *testing.T) {
+	w := game.NewWorld()
+	mod := newSized(w)
+	mod = typeLine(mod, "use deck")
+	mod = typeLine(mod, "ssh microslop")
+	if !mod.(Model).shell.AwaitingPassword() {
+		t.Fatalf("ssh should await a password")
+	}
+
+	mod = typeRunes(mod, "wrong")
+	if view := stripANSI(mod.View()); strings.Contains(view, "wrong") || !strings.Contains(view, "*****") {
+		t.Fatalf("password input should be masked: %q", view)
+	}
+	mod, _ = mod.Update(spec(tea.KeyEnter))
+	mm := mod.(Model)
+	if joined := stripANSI(strings.Join(mm.shellEntries, "\n")); strings.Contains(joined, "password: wrong") {
+		t.Fatalf("scrollback leaked password: %q", joined)
+	}
+	mod, _ = mod.Update(spec(tea.KeyUp))
+	if got := mod.(Model).shellInput.Value(); got != "ssh microslop" {
+		t.Fatalf("history should skip password, got %q", got)
+	}
+}
+
+func TestPanelShortcutHintsAreVisible(t *testing.T) {
+	w := game.NewWorld()
+	mod := newSized(w)
+	if view := stripANSI(mod.View()); !strings.Contains(view, "shift+tab: focus") {
+		t.Fatalf("overworld should show panel focus shortcut: %q", view)
+	}
+
+	mod = typeLine(mod, "use deck")
+	view := stripANSI(mod.View())
+	if !strings.Contains(view, "Tab: complete") || !strings.Contains(view, "Shift+Tab: panel") {
+		t.Fatalf("deck should show completion and panel shortcuts: %q", view)
+	}
+	mod, _ = mod.Update(spec(tea.KeyShiftTab))
+	if !mod.(Model).readerFocus || !strings.Contains(stripANSI(mod.View()), "Shift+Tab: terminal") {
+		t.Fatalf("shift+tab should select the deck panel and show the return shortcut")
+	}
+}
+
 func TestTerminalScreenRowsAlignToWindowWidth(t *testing.T) {
 	w := game.NewWorld()
 	mod := newSized(w)
@@ -181,7 +268,7 @@ func TestTextCatOpensReaderPanel(t *testing.T) {
 	mod = typeLine(mod, "touch myNotes.txt")
 	mod = typeLine(mod, "edit myNotes.txt")
 	mod = typeRunes(mod, "plain note")
-	mod, _ = mod.Update(spec(tea.KeyTab))
+	mod, _ = mod.Update(spec(tea.KeyShiftTab))
 	mod = typeLine(mod, "cat myNotes.txt")
 	mm := mod.(Model)
 	joined := stripANSI(strings.Join(mm.shellEntries, "\n"))
@@ -214,7 +301,7 @@ func TestNonMarkdownCatStaysInTerminalScrollback(t *testing.T) {
 	}
 }
 
-func TestTerminalEditorAutosavesOnTab(t *testing.T) {
+func TestTerminalEditorAutosavesOnShiftTab(t *testing.T) {
 	w := game.NewWorld()
 	mod := newSized(w)
 	mod = typeLine(mod, "use deck")
@@ -227,10 +314,10 @@ func TestTerminalEditorAutosavesOnTab(t *testing.T) {
 	mod = typeRunes(mod, "# Mine")
 	mod, _ = mod.Update(spec(tea.KeyEnter))
 	mod = typeRunes(mod, "hello")
-	mod, _ = mod.Update(spec(tea.KeyTab))
+	mod, _ = mod.Update(spec(tea.KeyShiftTab))
 	mm = mod.(Model)
 	if mm.editorPath != "" || mm.readerFocus {
-		t.Fatalf("tab should save and return focus, path=%q focus=%v", mm.editorPath, mm.readerFocus)
+		t.Fatalf("shift+tab should save and return focus, path=%q focus=%v", mm.editorPath, mm.readerFocus)
 	}
 	if joined := stripANSI(strings.Join(mm.shellEntries, "\n")); !strings.Contains(joined, "saved ~/myNotes.md") {
 		t.Fatalf("save notice missing: %q", joined)
@@ -264,9 +351,9 @@ func TestTerminalReaderFocusScrollsWithArrows(t *testing.T) {
 	mod := newSized(w)
 	mod = typeLine(mod, "use deck")
 	mod = typeLine(mod, "cat ~/notes/notes.md")
-	mod, _ = mod.Update(spec(tea.KeyTab))
+	mod, _ = mod.Update(spec(tea.KeyShiftTab))
 	if !mod.(Model).readerFocus {
-		t.Fatalf("tab should focus reader")
+		t.Fatalf("shift+tab should focus reader")
 	}
 	mod, _ = mod.Update(kr('x'))
 	if got := mod.(Model).shellInput.Value(); got != "" {
@@ -277,9 +364,9 @@ func TestTerminalReaderFocusScrollsWithArrows(t *testing.T) {
 	if after := mod.(Model).shellReader.YOffset; after < before {
 		t.Fatalf("reader down should not move upward: before=%d after=%d", before, after)
 	}
-	mod, _ = mod.Update(spec(tea.KeyTab))
+	mod, _ = mod.Update(spec(tea.KeyShiftTab))
 	if mod.(Model).readerFocus {
-		t.Fatalf("second tab should return focus to terminal")
+		t.Fatalf("second shift+tab should return focus to terminal")
 	}
 	mod, _ = mod.Update(kr('x'))
 	if got := mod.(Model).shellInput.Value(); got != "x" {
@@ -298,7 +385,7 @@ func TestDeckLoginFromPanel(t *testing.T) {
 	}
 
 	// Focus the panel, arrow to the deck (last item), Enter logs in.
-	mod, _ = mod.Update(spec(tea.KeyTab))
+	mod, _ = mod.Update(spec(tea.KeyShiftTab))
 	items := mod.(Model).panelItems()
 	if items[len(items)-1].kind != panelDeck {
 		t.Fatalf("deck should be the last focusable panel item")

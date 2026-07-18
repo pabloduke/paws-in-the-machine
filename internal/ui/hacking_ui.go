@@ -41,10 +41,10 @@ func (shellSurface) Intercept(m *Model, cmd engine.Command) bool {
 	return true
 }
 
-// HandleKey drives the terminal: enter executes a command, esc closes
-// the terminal outright, PgUp/PgDn scroll, everything else types.
+// HandleKey drives the terminal: Enter executes, Tab completes,
+// Shift+Tab moves panel focus, and Up/Down recall command history.
 func (shellSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
-	if m.editorPath != "" && m.editorVim && msg.Type != tea.KeyCtrlC {
+	if m.editorPath != "" && m.editorVim && msg.Type != tea.KeyCtrlC && msg.Type != tea.KeyShiftTab {
 		// A vim buffer owns every key until :q or :wq — including esc,
 		// which switches modes instead of closing the terminal.
 		return m.vimEditorKey(msg)
@@ -59,15 +59,38 @@ func (shellSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 		m.shellEntries = append(m.shellEntries, m.shell.End())
 		m.closeShell()
 		return nil
-	case tea.KeyTab:
+	case tea.KeyShiftTab:
 		if m.editorPath != "" {
 			m.saveShellEditor()
 			m.readerFocus = false
+			m.shellInput.Focus()
 			m.refreshShell()
 			return nil
 		}
-		if m.hasReaderContent() {
-			m.readerFocus = !m.readerFocus
+		m.readerFocus = !m.readerFocus
+		if m.readerFocus {
+			m.shellInput.Blur()
+		} else {
+			m.shellInput.Focus()
+		}
+		return nil
+	case tea.KeyTab:
+		if m.editorPath != "" {
+			var cmd tea.Cmd
+			m.shellEditor, cmd = m.shellEditor.Update(msg)
+			return cmd
+		}
+		if m.readerFocus {
+			return nil
+		}
+		before := m.shellInput.Value()
+		completed, matches := m.shell.Complete(before)
+		m.shellInput.SetValue(completed)
+		m.shellInput.CursorEnd()
+		if len(matches) > 1 && completed == before {
+			m.shellEntries = append(m.shellEntries,
+				termDimStyle.Render(strings.Join(matches, "  ")))
+			m.refreshShell()
 		}
 		return nil
 	case tea.KeyPgUp, tea.KeyPgDown:
@@ -82,14 +105,21 @@ func (shellSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 		}
 		if m.readerFocus {
 			var cmd tea.Cmd
-			m.shellReader, cmd = m.shellReader.Update(msg)
+			if m.msgOpen {
+				m.msgVP, cmd = m.msgVP.Update(msg)
+			} else {
+				m.shellReader, cmd = m.shellReader.Update(msg)
+			}
 			return cmd
 		}
-		if m.msgOpen {
-			var cmd tea.Cmd
-			m.msgVP, cmd = m.msgVP.Update(msg)
-			return cmd
+		if !m.shell.AwaitingPassword() {
+			if msg.Type == tea.KeyUp {
+				m.recallShell(1)
+			} else {
+				m.recallShell(-1)
+			}
 		}
+		return nil
 	case tea.KeyEnter:
 		if m.editorPath != "" {
 			var cmd tea.Cmd
@@ -100,12 +130,21 @@ func (shellSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 			return nil
 		}
 		line := strings.TrimSpace(m.shellInput.Value())
+		secret := m.shell.AwaitingPassword()
 		m.shellInput.Reset()
+		m.shellHistPos, m.shellDraft = 0, ""
 		if line == "" {
 			return nil
 		}
+		if !secret {
+			m.rememberShell(line)
+		}
+		echoed := line
+		if secret {
+			echoed = strings.Repeat("*", len([]rune(line)))
+		}
 		m.shellEntries = append(m.shellEntries,
-			termEchoStyle.Render(m.shell.Prompt()+line))
+			termEchoStyle.Render(m.shell.Prompt()+echoed))
 		result := m.shell.ExecDetailed(line)
 		if result.Edit != nil {
 			m.openShellEditor(result.Edit)
@@ -128,7 +167,7 @@ func (shellSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 			return nil
 		}
 		m.syncMessenger()
-		m.shellInput.Prompt = termPromptStyle.Render(m.shell.Prompt())
+		m.syncShellInput()
 		m.resizeShellInput()
 		m.refreshShell()
 		return nil
@@ -144,6 +183,38 @@ func (shellSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 	var cmd tea.Cmd
 	m.shellInput, cmd = m.shellInput.Update(msg)
 	return cmd
+}
+
+func (m *Model) rememberShell(line string) {
+	if len(m.shellHistory) == 0 || m.shellHistory[len(m.shellHistory)-1] != line {
+		m.shellHistory = append(m.shellHistory, line)
+	}
+}
+
+func (m *Model) recallShell(dir int) {
+	pos := m.shellHistPos + dir
+	if pos < 0 || pos > len(m.shellHistory) {
+		return
+	}
+	if m.shellHistPos == 0 {
+		m.shellDraft = m.shellInput.Value()
+	}
+	m.shellHistPos = pos
+	if pos == 0 {
+		m.shellInput.SetValue(m.shellDraft)
+	} else {
+		m.shellInput.SetValue(m.shellHistory[len(m.shellHistory)-pos])
+	}
+	m.shellInput.CursorEnd()
+}
+
+func (m *Model) syncShellInput() {
+	m.shellInput.Prompt = termPromptStyle.Render(m.shell.Prompt())
+	m.shellInput.EchoMode = textinput.EchoNormal
+	if m.shell.AwaitingPassword() {
+		m.shellInput.EchoMode = textinput.EchoPassword
+		m.shellInput.EchoCharacter = '*'
+	}
 }
 
 // Screen is the full-screen terminal layout: dominant terminal with an
@@ -241,6 +312,9 @@ func (m *Model) openShell(d hacking.Deck) {
 	}
 	m.shell = s
 	m.deckCfg = d
+	m.shellHistory = nil
+	m.shellHistPos = 0
+	m.shellDraft = ""
 	m.shellEntries = []string{termDimStyle.Render(
 		"CantOS — 'help' lists commands · 'exit' (or esc) leaves the terminal")}
 	m.readerTitle = ""
@@ -257,6 +331,7 @@ func (m *Model) openShell(d hacking.Deck) {
 	ti.Cursor.Style = termPromptStyle
 	ti.Focus()
 	m.shellInput = ti
+	m.syncShellInput()
 	m.input.Blur()
 
 	m.resizeShell()
@@ -309,7 +384,10 @@ func (m *Model) resizeShell() {
 }
 
 func (m *Model) resizeShellInput() {
-	m.shellInput.Width = m.shellVP.Width - lipgloss.Width(m.shell.Prompt())
+	// textinput.Width covers the visible value, but View also draws the
+	// cursor in one more cell. Reserve that cell so typing does not push
+	// the prompt one column past the panel and soft-wrap it.
+	m.shellInput.Width = m.shellVP.Width - lipgloss.Width(m.shell.Prompt()) - 1
 	if m.shellInput.Width < 1 {
 		m.shellInput.Width = 1
 	}
@@ -351,7 +429,11 @@ func (m Model) readerPanel() string {
 		Width(m.shellReader.Width).
 		MaxWidth(m.shellReader.Width).
 		Render(titleText)
-	hintText := ansi.Truncate("tab: terminal · up/down: scroll", m.shellReader.Width, "")
+	hintText := "shift+tab: focus · tab: complete"
+	if m.readerFocus {
+		hintText = "shift+tab: terminal · up/down: scroll"
+	}
+	hintText = ansi.Truncate(hintText, m.shellReader.Width, "")
 	hint := termDimStyle.
 		Width(m.shellReader.Width).
 		MaxWidth(m.shellReader.Width).
@@ -515,7 +597,7 @@ func (m *Model) vimExec() {
 }
 
 func (m Model) editorPanel() string {
-	name, hint := "EDITOR", "tab: save · esc: save+close"
+	name, hint := "EDITOR", "shift+tab: save · esc: save+close"
 	if m.editorVim {
 		// The hint line doubles as vim's bottom row: pending :-command,
 		// status flash, or the mode indicator.
@@ -570,7 +652,11 @@ const idleArt = ` /\_/\
 // nothing else — no objectives, no status, no state.
 func (m Model) idlePanel() string {
 	_, statusW, panelH := m.shellDims()
-	art := termDimStyle.Render(idleArt + "\n\n CantOS")
+	hint := "Tab: complete\n Shift+Tab: panel"
+	if m.readerFocus {
+		hint = "Shift+Tab: terminal"
+	}
+	art := termDimStyle.Render(idleArt + "\n\n CantOS\n\n " + hint)
 	return lipgloss.Place(statusW-4, panelH-4, lipgloss.Center, lipgloss.Center, art)
 }
 
@@ -650,7 +736,11 @@ func (m Model) messengerPanel() string {
 		Width(m.msgVP.Width).
 		MaxWidth(m.msgVP.Width).
 		Render(titleText)
-	hintText := ansi.Truncate("'messenger' closes · up/down: scroll", m.msgVP.Width, "")
+	hintText := "shift+tab: focus · tab: complete"
+	if m.readerFocus {
+		hintText = "shift+tab: terminal · up/down: scroll"
+	}
+	hintText = ansi.Truncate(hintText, m.msgVP.Width, "")
 	hint := termDimStyle.
 		Width(m.msgVP.Width).
 		MaxWidth(m.msgVP.Width).

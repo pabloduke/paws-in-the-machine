@@ -2,7 +2,7 @@
 // Layout ("Option E"): city hub panel (left), live room view (center),
 // reserved panel (right), a full-width LOG panel carrying the rolling
 // command/output transcript, and a slim prompt at the bottom.
-// Tab focuses the city panel for hub travel (docs/systems/hubs.md);
+// Shift+Tab focuses the city panel for hub travel (docs/systems/hubs.md);
 // Up/Down recall previous commands; PgUp/PgDn scroll the LOG.
 //
 // Layout of this package (docs/BOUNDARIES.md): this file holds the
@@ -118,6 +118,9 @@ type Model struct {
 	shellEntries []string // terminal scrollback, separate from the LOG
 	shellVP      viewport.Model
 	shellInput   textinput.Model
+	shellHistory []string
+	shellHistPos int
+	shellDraft   string
 	shellReader  viewport.Model
 	shellEditor  textarea.Model
 	readerTitle  string
@@ -235,12 +238,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		// Keystrokes go to exactly one component: PgUp/PgDn scroll the
-		// LOG, Tab focuses the city panel, Up/Down browse command
+		// LOG, Shift+Tab focuses the city panel, Up/Down browse command
 		// history, everything else belongs to the prompt.
 		switch msg.Type {
 		case tea.KeyCtrlC:
 			return m, tea.Quit
-		case tea.KeyTab:
+		case tea.KeyShiftTab:
 			m.focusCityPanel()
 			return m, nil
 		case tea.KeyPgUp, tea.KeyPgDown:

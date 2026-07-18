@@ -88,8 +88,8 @@ burning that invitation but remains open at a penalty.
 
 - Expand Microslop's filesystem into a real mini puzzle instead of one log and
   one archive file.
-- Decide whether terminal history should persist across deck sessions or
-  reset per login.
+- Decide whether the terminal's currently session-local history should
+  persist across deck sessions.
 
 ## Overworld lane
 

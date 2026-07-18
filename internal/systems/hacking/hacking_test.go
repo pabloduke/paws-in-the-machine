@@ -101,6 +101,38 @@ func newShell(t *testing.T) (*engine.World, *hacking.Session) {
 	return w, s
 }
 
+func TestCompletionCommandsAliasesHostsAndPaths(t *testing.T) {
+	_, s := newShell(t)
+
+	if line, matches := s.Complete("sca"); line != "scan " || len(matches) != 1 {
+		t.Fatalf("command completion: line=%q matches=%v", line, matches)
+	}
+	if line, matches := s.Complete("lis"); line != "list " || len(matches) != 1 {
+		t.Fatalf("alias completion: line=%q matches=%v", line, matches)
+	}
+	if line, matches := s.Complete("ssh rel"); line != "ssh relay.net " || len(matches) != 1 {
+		t.Fatalf("host completion: line=%q matches=%v", line, matches)
+	}
+	if line, matches := s.Complete("cat ~/notes/no"); line != "cat ~/notes/notes.md " || len(matches) != 1 {
+		t.Fatalf("path completion: line=%q matches=%v", line, matches)
+	}
+	if line, matches := s.Complete("cd ~/no"); line != "cd ~/notes/" || len(matches) != 1 {
+		t.Fatalf("directory completion: line=%q matches=%v", line, matches)
+	}
+}
+
+func TestCompletionIsDisabledForPasswords(t *testing.T) {
+	w, s := newShell(t)
+	w.Flags["test_route_open"] = true
+	s.Exec("ssh microslop")
+	if !s.AwaitingPassword() {
+		t.Fatal("ssh should leave the session waiting for a password")
+	}
+	if line, matches := s.Complete("app"); line != "app" || len(matches) != 0 {
+		t.Fatalf("password input must not complete: line=%q matches=%v", line, matches)
+	}
+}
+
 func exec(t *testing.T, s *hacking.Session, line string) string {
 	t.Helper()
 	out, done := s.Exec(line)

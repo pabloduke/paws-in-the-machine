@@ -100,7 +100,7 @@ panel.
 | `cd <path>` | change directory (within the current host) |
 | `pwd` | print the working directory |
 | `cat <file>` | print file text; `.md` and `.txt` files open in the reader panel; fires `OnRead` |
-| `edit <file>` | open a static `.md` or `.txt` file in the right-panel editor; autosaves on Tab |
+| `edit <file>` | open a static `.md` or `.txt` file in the right-panel editor; autosaves on Shift+Tab |
 | `vi` / `vim` / `nvim <file>` | the same editor, run modal: opens in normal mode, `i` inserts, Esc returns to normal, `h/j/k/l` and arrows move, `:w` writes, `:q` quits without saving, `:wq`/`:x` both. The easter egg behind the help table's `edit → vim` Linux-equivalent column |
 | `grep [-ir] <pat> [path...]` | case-insensitive recursive substring search; a match fires `OnRead` |
 | `cp <src> <dst>` | copy a file; copying to the deck fires `OnCopy`. `~` always resolves to the deck's home from any host — no scp needed |
@@ -399,7 +399,7 @@ as the story turns flags on.
 
 A deck in scope appears in the left panel (the hub-travel panel) under
 a green `// UPLINK` subhead, set apart from the city districts to read
-as a log-in target rather than a place you walk to. Tab focuses the
+as a log-in target rather than a place you walk to. Shift+Tab focuses the
 panel, arrows move, Enter on the deck row opens the terminal — the same
 navigation as hub travel. `DecksInScope` includes visible decks and the
 deck Buddy carries, so the terminal is available outside the lair when
@@ -433,9 +433,13 @@ close.
   as wrapped plain output. `edit` opens the same panel as a multiline text
   editor. The terminal scrollback keeps the typed command plus a short
   `opened <path> in reader` or save notice instead of duplicating the full
-  document. Tab toggles reader focus; in the editor, Tab autosaves and
-  returns focus to the terminal. Up/Down scroll the focused reader or move
-  the editor cursor.
+  document. Shift+Tab moves focus between the terminal and right panel; in
+  the editor, Shift+Tab autosaves and returns focus to the terminal. Up/Down
+  scroll the focused reader or move the editor cursor. When the terminal has
+  focus, Tab completes commands, aliases, hosts, and fake-filesystem paths,
+  while Up/Down recalls the session's command history. Passwords are masked
+  and excluded from history. The Shift+Tab and Tab bindings are shown in the
+  right panel's idle and active footers.
 - Narrow terminals keep the terminal usable first; the reader panel
   shrinks. Widths are clamped — no negative-width rendering.
 

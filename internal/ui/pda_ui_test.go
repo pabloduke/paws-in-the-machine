@@ -99,9 +99,9 @@ func TestPanelOffersPDAOutsideTheLair(t *testing.T) {
 		t.Fatalf("away from the lair the panel should offer the PDA under UPLINK: %q", v)
 	}
 
-	// Tab to the panel, arrow down from the current hub to the PDA
+	// Shift+Tab to the panel, arrow down from the current hub to the PDA
 	// row, Enter thumbs it awake.
-	mod, _ = mod.Update(spec(tea.KeyTab))
+	mod, _ = mod.Update(spec(tea.KeyShiftTab))
 	mod, _ = mod.Update(spec(tea.KeyDown)) // okuda hub row -> the PDA row
 	mod, _ = mod.Update(spec(tea.KeyEnter))
 	mm := mod.(Model)
