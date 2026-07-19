@@ -35,3 +35,18 @@ When declared content and an existing system disagree, say so and ask
 — the user decides. Repo conventions (boundaries, flags, seeds,
 testing) live in `docs/BOUNDARIES.md` and `docs/systems/*.md`; state
 of the world in `docs/PROJECT_STATE.md`.
+
+## Diagram traceability
+
+6. **Keep all game logic integrated into Mermaid diagrams.** Any change
+   that adds, removes, or changes player-visible behavior or game-state
+   transitions must update `docs/GAME_FLOW.md` in the same change. This
+   includes actions, gates, flags, success and failure forks, mission
+   progression, and terminal/overworld handoffs. Derive the diagram from
+   executable code, not from planned behavior in prose. A logic change is
+   not complete until its code, tests, and Mermaid representation agree.
+   If a subsystem becomes too detailed for the overview, add a focused
+   Mermaid diagram under a clearly named section in the same file and link
+   it from the overview; do not omit the behavior. Pure prose edits,
+   cosmetic-only UI changes, and refactors with no behavior change are
+   exempt.
