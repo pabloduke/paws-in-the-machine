@@ -40,7 +40,9 @@ Okuda's archive door, released by `run unlock.bin` on `okuda.grid`.
 **RULED 2026-07-10, spec'd, not built** — implementation gets its own
 branch after the mission-1 branch merges.
 
-The world is two-level:
+The world was originally ruled two-level (amended 2026-08-16 to
+arbitrary depth — see "Nesting" below; both levels below survive the
+amendment unchanged, they are simply no longer the only two):
 
 - **Between hubs: a graph.** Hubs are nodes; travel is the edges. No
   geometric promise between hubs, ever — the subway model: nobody
@@ -52,6 +54,56 @@ The world is two-level:
   `(x, y, z, w)` — and walkable exits **derive from adjacency**:
   north is `y+1`, up is `z+1`. Reciprocity and geometric consistency
   hold by construction; the compass cannot lie.
+
+## Nesting: charts inside charts
+
+**RULED 2026-08-16 (user-declared), spec'd, not built.** Amends the
+two-level model above to arbitrary depth. The containment chain:
+
+    metamap → node → location → room → (optional metamap) → …
+
+- **metamap** — a *directionless* container of nodes. No geometric
+  promise between its children, ever. This is the subway model above,
+  named and generalized: the existing hub graph is a metamap, and the
+  rule that protected it now protects every metamap at every depth.
+- **node** — a vertex of a metamap. Carries a grid; locations sit at
+  `(x, y)` within it.
+- **location** — a cell of a node's grid. Carries a grid of its own;
+  rooms sit at `(x, y)` within it.
+- **room** — a cell of a location's grid. Holds prose and objects, and
+  is where the player stands. A room **may contain a metamap**, which
+  is what makes the chain recursive rather than four fixed levels.
+
+Node and location are the same structure at different depths — a grid
+whose cells hold children. Metamap-in-a-room therefore needs no special
+case; it is the recursion closing on itself.
+
+**Nesting is containment, not subdivision.** Each grid has its own
+local coordinate space, with no arithmetic relationship to its parent.
+An interior may be larger than its exterior. This is required, not
+incidental: aisle 410 sits one step ana of the Okuda archive, and the
+whole fold system depends on space not being globally Euclidean. A
+single global coordinate space would outlaw the game's own content.
+
+**Level changes are gluings.** Descending from a location into a room's
+metamap, or crossing between charts, uses the same gluing table that
+authors folds — the table already permits identifications "possibly
+across charts." One mechanism serves both, so a door into a building
+and a fold into aisle 410 are the same kind of declaration, differing
+only in what they connect.
+
+**Coordinates live in nodes, never in metamaps (ruled 2026-08-16).** A
+metamap has no coordinate space at all — not in play, and not as an
+authoring convenience. Its nodes are an unordered set joined by travel,
+exactly as the subway model requires. Everything positional happens one
+level down, inside a node's grid. The editor follows suit: a metamap
+screen lists and links its nodes; only a node screen draws a grid.
+
+**Open questions (parked, not ruled):**
+
+- Whether the existing `hubs.Hub` becomes the `node` level outright, or
+  the two coexist.
+- How deep act one actually goes; nothing requires using every level.
 
 **Design rule: geometry is lawful.** The scrambled-exit fakery of
 70s/80s text adventures (Zork mazes: north from A reaches B, south
@@ -90,7 +142,7 @@ coordinates, one step ana (`w+1`).
 
 **Retrofit notes (for the build branch):**
 
-- Existing rooms across 3 hubs need coordinates.
+- 12 existing rooms across 3 hubs need coordinates.
 - Okuda already uses `up`/`down` correctly; its two check/gate
   passages (fire escape, archive door) map onto real adjacencies.
 - Hub travel is untouched: the chart replaces hand-wired `Exits.Dirs`
