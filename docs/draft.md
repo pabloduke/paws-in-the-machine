@@ -96,7 +96,8 @@ the brief drops the mission file in `~/notes`.
 5. The badge/post-it look (declared 2026-07-09; built). The barista's
    old Microslop badge is clipped to the backpack she keeps behind
    the counter. The badge is laminated, and tucked behind the card is
-   a post-it with her employee ID (`1008476`) and the password. Buddy
+   a post-it with her username (`jane_doe`), employee ID (`1008476`),
+   and the password. Buddy
    doesn't steal anything — he reads the post-it and the info lands in his
    notes on its own (flag → generated `~/notes/notes.md`, which the
    PDA mirrors live; all built machinery). She never speaks the
@@ -117,7 +118,8 @@ the brief drops the mission file in `~/notes`.
      wall.
    - Employee ID `1008476` is the filesystem breadcrumb: searching
      for it points to her entry in `/srv/hr/rif_q3.txt`.
-6. Return to the lair, scan Microslop, and connect with `apple`
+6. Return to the lair, scan Microslop, run `ssh jane_doe@microslop`,
+   and connect with `apple`
    (built). Microslop is the intentionally careless tutorial host:
    its SSH service is directly reachable.
 7. Explore the filesystem; search for `1008476` and locate the layoff

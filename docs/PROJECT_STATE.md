@@ -33,8 +33,9 @@ game takes shape.
 Rough-draft phase (docs/draft.md): the whole game with Resistance-lite
 (marduk, a mission-giver over the deck messenger — nothing more).
 Mission 1's opening slice is built: the game boots into the terminal
-with marduk's brief unread; the badge → return home → `ssh microslop`
-chain is the mission body; employee ID `1008476` locates the target,
+with marduk's brief unread; the badge → return home →
+`ssh jane_doe@microslop` chain is the mission body; employee ID `1008476`
+locates the target,
 the layoff plans at `/srv/hr/rif_q3.txt`; `send` (alias `scp`) delivers
 them and marduk's payoff closes the mission. Looking at the post-it has two
 routes: `meow barista` can earn an invited look behind the counter; stealth risks
@@ -60,12 +61,15 @@ burning that invitation but remains open at a penalty.
   okuda.grid from the field, see it open, go home to hack. UI is a
   centered overlay (`internal/ui/pda_ui.go`), overworld styles.
   Tests: `pda_test.go` (game), `pda_ui_test.go` (UI).
-- SSH hosts can require a route flag and/or a fake password.
+- SSH hosts can require a route flag and/or fake username/password.
 - Hosts can declare fake services/ports, `scan <host>` lists configured port
-  states, and `ssh <host> -p <port>` targets SSH on a specific port.
+  states, and `ssh [username@]<host> -p <port>` targets SSH on a specific port.
 - `grep -ir` searches recursively and case-insensitively through fake host
   filesystems.
-- The hacking terminal has a terminal-only green phosphor CRT look.
+- The hacking terminal uses a green phosphor CRT look on the deck. A
+  successful SSH connection switches the main terminal pane to amber while
+  the right-side reader/editor/messenger panel remains green; returning to
+  the deck restores the green main pane.
 - The terminal right panel is modal and idles blank (screen-saver
   only, no objectives/status — user ruling 2026-07-10), claimed by
   the reader, the editor, or the messenger — the deck's IM
@@ -87,7 +91,8 @@ burning that invitation but remains open at a penalty.
   events shown mid-scan. An unrouted host reports down, not a wall of
   closed ports.
 - Microslop is the directly reachable tutorial host. The fired barista's old
-  badge supplies employee ID `1008476` and password `apple`: meowing can earn
+  badge supplies username `jane_doe`, employee ID `1008476`, and password
+  `apple`: meowing can earn
   an invited look, or stealth reaches the post-it; she never speaks the password.
 - Once connected, Microslop has a small fake filesystem with logs pointing to
   `/srv/archive/sun_notice.txt`.

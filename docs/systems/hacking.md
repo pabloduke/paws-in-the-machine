@@ -47,7 +47,8 @@ panel.
 - **Node** — one entry in a host's filesystem: a directory (children)
   or a file (text). Files may carry hooks (below) and a `RunText` if
   they're executable.
-- **Host** — a named system: a filesystem root, a process table,
+- **Host** — a named system with an optional SSH username: a filesystem
+  root, a process table,
   `curl`-served resources, configured services/ports, an optional fake
   password, an optional route flag, and a connect banner. The deck itself
   is a host (the local one). The set of hosts is a **net**, declared by
@@ -107,7 +108,7 @@ panel.
 | `mkdir <dir...>` | create fake directories; parent directories must already exist |
 | `touch <file...>` | create empty fake files; existing files are unchanged |
 | `scan <host>` | port table for a host: `PORT SERVICE \| STATE`, state binary open/closed. The standard four (21 FTP, 22 SSH, 23 TELNET, 80 HTTP) always appear — a bare host still reads like a real machine — with configured services overlaid and extra ports appended. **scan is pure recon: it always lists ports and their real states** (user ruling 2026-07-10). A port's state is a fact of the machine — 22 open on a box running SSH — never something the story flips; the route flag gates *connecting*, not the scan |
-| `ssh <host> [-p port]` | connect to SSH, defaulting to port 22 |
+| `ssh [username@]<host> [-p port]` | connect to SSH, defaulting to port 22; hosts with a configured username require it |
 | `exit` / `logout` | pop back one connection; at the deck, closes the terminal and returns to the room |
 | `curl <host>[/path]` | print a served resource — the recon tool |
 | `ps` | list the current host's processes |
@@ -183,7 +184,7 @@ Design line held deliberately (see the conversation that shaped it):
   the terminal-persistence work in #28.
 
 Some hosts can require a story route before they answer. If the route
-flag is missing, `ssh microslop` prints a fake network-unreachable error
+flag is missing, `ssh username@host` prints a fake network-unreachable error
 and leaves Buddy on the deck. `scan` still lists the ports (recon is
 never gated); only connecting is. This models the non-terminal part of a
 hack: social engineering, stealth, and physically bridging local
@@ -216,25 +217,29 @@ maintenance VLAN, tricking someone into remote support, or physically
 bridging forgotten hardware. The terminal reports the wall; Buddy changes
 the world so a service becomes reachable.
 
-Some hosts can also ask for a fake password. `ssh microslop` and
-`ssh microslop -p 22` both target SSH on port 22 unless content config says
-otherwise. A password-required line changes the prompt to `password: `. The
-next line is compared to the service or host's content-declared password. A
-correct password connects; a wrong one prints `Permission denied, please try
-again.` and leaves Buddy on the current host. Passwords are intentionally
-simple puzzle words, not real authentication.
+Some hosts can also declare a fake username and password. A configured
+username requires `ssh username@host`; bare `ssh host` is rejected before
+password entry. `-p 22` may follow either target form. A password-required
+line changes the prompt to `password: `. The next line is compared against
+both the attempted username and the service or host's content-declared
+password. Either credential being wrong prints `Permission denied, please
+try again.` and leaves Buddy on the current host. Passwords are intentionally
+simple puzzle words, not real authentication. Hosts without an authored
+username retain bare-host SSH syntax until their accounts are declared.
 
 For the first Microslop beat, the intended setup is:
 
 - The barista was fired from Microslop. Her old badge is clipped to the
-  backpack behind the coffee-shop counter, with the simple password on a
+  backpack behind the coffee-shop counter, with username `jane_doe` and the
+  simple password on a
   post-it behind the laminated card. Buddy can meow for an invited look or
   sneak past her; `look post-it`, `examine post-it`, and `read post-it`
   work. She never speaks the password.
 - Buddy's deck stays in the lair; the PDA carries the discovered credential
   home through the shared notes view.
 - Microslop's SSH service is directly reachable from the lair. After the
-  post-it look, Buddy returns home, connects with `apple`, and searches for
+  post-it look, Buddy returns home, runs `ssh jane_doe@microslop`, connects
+  with `apple`, and searches for
   employee ID `1008476` to locate the layoff plans.
 
 ## Hooks — the progression surface
@@ -419,11 +424,15 @@ LOG are hidden, not destroyed — closing the terminal restores them
 exactly):
 
 - **Terminal** (~60% width when the reader is active, otherwise dominant):
-  bordered, titled `CYBERDECK // <host>`, with scrollback bottom-anchored above the in-panel prompt —
-  `paws_in_the_machine@host:path $` — where all typing lands in CRT green.
+  bordered, titled `CYBERDECK // <host>`, with scrollback bottom-anchored
+  above the in-panel prompt.
+  The deck renders `paws_in_the_machine@deck:path $` in CRT green. A successful
+  SSH connection renders the configured `username@host:path $` and recolors
+  the complete main terminal pane amber; returning to the deck restores green.
 The right panel is modal and **idles blank** (user ruling 2026-07-10:
 no objectives, no status, no game state — just a dim screen-saver
-mark). It's claimed wholesale by the reader, the editor, or the
+mark). It stays green even while the main terminal is amber. It's claimed
+wholesale by the reader, the editor, or the
 messenger — whichever the player brought up last (opening a document
 closes the messenger and vice versa) — and returns to idle when they
 close.

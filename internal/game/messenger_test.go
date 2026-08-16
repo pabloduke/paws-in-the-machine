@@ -95,7 +95,7 @@ func TestMissionOneLayoffPlans(t *testing.T) {
 	}
 
 	// The terminal half for real: in, read, copy home, send.
-	s.Exec("ssh microslop")
+	s.Exec("ssh jane_doe@microslop")
 	s.Exec("apple")
 	if out, _ := s.Exec("grep -ir 1008476 /"); !strings.Contains(out, "/srv/hr/rif_q3.txt") {
 		t.Fatalf("the employee ID should breadcrumb the layoff plans: %q", out)

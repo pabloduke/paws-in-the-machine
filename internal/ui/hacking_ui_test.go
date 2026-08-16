@@ -166,7 +166,7 @@ func TestTerminalMasksPasswordsAndExcludesThemFromHistory(t *testing.T) {
 	w := game.NewWorld()
 	mod := newSized(w)
 	mod = typeLine(mod, "use deck")
-	mod = typeLine(mod, "ssh microslop")
+	mod = typeLine(mod, "ssh jane_doe@microslop")
 	if !mod.(Model).shell.AwaitingPassword() {
 		t.Fatalf("ssh should await a password")
 	}
@@ -181,7 +181,7 @@ func TestTerminalMasksPasswordsAndExcludesThemFromHistory(t *testing.T) {
 		t.Fatalf("scrollback leaked password: %q", joined)
 	}
 	mod, _ = mod.Update(spec(tea.KeyUp))
-	if got := mod.(Model).shellInput.Value(); got != "ssh microslop" {
+	if got := mod.(Model).shellInput.Value(); got != "ssh jane_doe@microslop" {
 		t.Fatalf("history should skip password, got %q", got)
 	}
 }
@@ -473,9 +473,12 @@ func TestMicroslopPasswordPuzzle(t *testing.T) {
 	// The deck lives in the lair (deck_test.go), so the credential comes home.
 	mod = typeLine(mod, "south")
 	mod = typeLine(mod, "use deck")
-	mod = typeLine(mod, "ssh microslop")
+	mod = typeLine(mod, "ssh jane_doe@microslop")
 	if view := mod.View(); !strings.Contains(view, "password:") {
-		t.Fatalf("ssh microslop should show password prompt after route opens: %q", view)
+		t.Fatalf("ssh jane_doe@microslop should show password prompt after route opens: %q", view)
+	}
+	if got := mod.(Model).mainTerminalTheme().bright; got != termGreen {
+		t.Fatalf("password prompt should retain local green theme, got %v", got)
 	}
 	mod = typeLine(mod, "wrong")
 	if mod.(Model).shell.HostName() != "deck" {
@@ -485,10 +488,20 @@ func TestMicroslopPasswordPuzzle(t *testing.T) {
 		t.Fatalf("wrong password should log refusal: %q", joined)
 	}
 
-	mod = typeLine(mod, "ssh microslop")
+	mod = typeLine(mod, "ssh jane_doe@microslop")
 	mod = typeLine(mod, "apple")
 	if mod.(Model).shell.HostName() != "microslop" {
 		t.Fatalf("correct password should connect to microslop")
+	}
+	mm := mod.(Model)
+	if got := mm.mainTerminalTheme().bright; got != termAmber {
+		t.Fatalf("remote terminal should use amber theme, got %v", got)
+	}
+	if got := mm.shellInput.TextStyle.GetForeground(); got != termAmber {
+		t.Fatalf("remote terminal input should be amber, got %v", got)
+	}
+	if got := termTitleStyle.GetForeground(); got != termGreen {
+		t.Fatalf("right-side terminal panels should remain green, got %v", got)
 	}
 	if view := mod.View(); !strings.Contains(view, "CYBERDECK // MICROSLOP") {
 		t.Fatalf("microslop title missing: %q", view)
@@ -509,11 +522,17 @@ func TestMicroslopPasswordPuzzle(t *testing.T) {
 	mod = typeLine(mod, "cat ~/notes/notes.md")
 	// The full source, not the viewport: the mission checklist above
 	// the field notes pushes these below the visible fold.
-	if notes := mod.(Model).readerMD; !strings.Contains(notes, "1008476") ||
+	if notes := mod.(Model).readerMD; !strings.Contains(notes, "jane_doe") ||
+		!strings.Contains(notes, "1008476") ||
 		!strings.Contains(notes, "apple") ||
 		!strings.Contains(notes, "SUNFARM-ARC") ||
 		!strings.Contains(notes, "sunlight") || !strings.Contains(notes, "liability notice") {
 		t.Fatalf("notes should record the badge and Microslop discoveries: %q", notes)
+	}
+	mod = typeLine(mod, "exit")
+	mm = mod.(Model)
+	if got := mm.mainTerminalTheme().bright; got != termGreen {
+		t.Fatalf("returning to deck should restore green theme, got %v", got)
 	}
 }
 

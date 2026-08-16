@@ -182,6 +182,7 @@ type Service struct {
 // itself is a host; remote ones are reached with the ssh alias.
 type Host struct {
 	Name     string
+	Username string            // fake shell account; non-empty requires username@host for SSH
 	Root     *Node             // fake filesystem root (a Dir)
 	Home     string            // path of the shell's home dir, e.g. "/home/paws_in_the_machine"
 	Banner   string            // printed on connect
@@ -210,6 +211,7 @@ type Session struct {
 	stack          []conn
 	pending        *Host
 	pendingService *Service
+	pendingUser    string
 }
 
 // ExecResult is the structured result of a fake shell command.
@@ -263,10 +265,13 @@ func NewSession(w *engine.World, net map[string]*Host, deckHost string) (*Sessio
 // HostName is the current fake host, for the terminal title bar.
 func (s *Session) HostName() string { return s.host.Name }
 
+// IsRemote reports whether the active shell is connected beyond the deck.
+func (s *Session) IsRemote() bool { return s.host != s.deck }
+
 // Path is the current fake working directory, for the terminal status panel.
 func (s *Session) Path() string { return "/" + strings.Join(s.cwd, "/") }
 
-// login is Buddy's handle — the name the net knows him by.
+// login is the compatibility fallback for content without a declared deck user.
 const login = "paws_in_the_machine"
 
 // Prompt renders the shell prompt, home shown as ~ on the deck.
@@ -280,7 +285,14 @@ func (s *Session) Prompt() string {
 			path = "~" + rest
 		}
 	}
-	return login + "@" + s.host.Name + ":" + path + " $ "
+	username := s.host.Username
+	if username == "" {
+		username = s.deck.Username
+	}
+	if username == "" {
+		username = login
+	}
+	return username + "@" + s.host.Name + ":" + path + " $ "
 }
 
 // AwaitingPassword reports whether the next input line is a credential,
@@ -316,9 +328,13 @@ func (s *Session) Complete(line string) (string, []string) {
 		}
 		argIndex := len(prior) - 1
 		switch cmd {
-		case "scan", "ssh", "curl":
+		case "scan", "curl":
 			if argIndex == 0 {
 				matches = s.hostMatches(active)
+			}
+		case "ssh":
+			if argIndex == 0 {
+				matches = s.sshTargetMatches(active)
 			}
 		case "grep":
 			// Options and the search pattern come before path operands.
@@ -370,6 +386,21 @@ func (s *Session) hostMatches(prefix string) []string {
 	for name := range s.net {
 		if strings.HasPrefix(name, prefix) {
 			out = append(out, name)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+func (s *Session) sshTargetMatches(prefix string) []string {
+	var out []string
+	for name, host := range s.net {
+		target := name
+		if host.Username != "" {
+			target = host.Username + "@" + name
+		}
+		if strings.HasPrefix(target, prefix) {
+			out = append(out, target)
 		}
 	}
 	sort.Strings(out)
@@ -1251,14 +1282,21 @@ func portReport(w *engine.World, host *Host) string {
 
 func (s *Session) ssh(args []string) string {
 	if len(args) == 0 {
-		return "usage: ssh <host> [-p port]"
+		return "usage: ssh [username@]<host> [-p port]"
 	}
-	hostName := args[0]
+	target := args[0]
+	username, hostName, hasUsername := strings.Cut(target, "@")
+	if !hasUsername {
+		hostName = target
+		username = ""
+	} else if username == "" || hostName == "" || strings.Contains(hostName, "@") {
+		return "usage: ssh [username@]<host> [-p port]"
+	}
 	port := 22
 	args = args[1:]
 	for len(args) > 0 {
 		if len(args) != 2 || args[0] != "-p" {
-			return "usage: ssh <host> [-p port]"
+			return "usage: ssh [username@]<host> [-p port]"
 		}
 		parsed, err := strconv.Atoi(args[1])
 		if err != nil || parsed < 1 || parsed > 65535 {
@@ -1271,6 +1309,12 @@ func (s *Session) ssh(args []string) string {
 	host, ok := s.net[hostName]
 	if !ok {
 		return "ssh: Could not resolve hostname " + hostName
+	}
+	if host.Username != "" && !hasUsername {
+		return "(Placeholder) ssh: username required for " + host.Name
+	}
+	if host.Username == "" && hasUsername {
+		return "(Placeholder) ssh: username not configured for " + host.Name
 	}
 	if host == s.host {
 		return "already connected to " + host.Name
@@ -1292,7 +1336,11 @@ func (s *Session) ssh(args []string) string {
 	if s.servicePassword(host, svc) != "" {
 		s.pending = host
 		s.pendingService = svc
+		s.pendingUser = username
 		return fmt.Sprintf("password required for %s:%d", host.Name, port)
+	}
+	if host.Username != "" && username != host.Username {
+		return "Permission denied, please try again."
 	}
 	return s.connect(host)
 }
@@ -1300,9 +1348,12 @@ func (s *Session) ssh(args []string) string {
 func (s *Session) password(input string) string {
 	host := s.pending
 	svc := s.pendingService
+	username := s.pendingUser
 	s.pending = nil
 	s.pendingService = nil
-	if strings.TrimSpace(input) != s.servicePassword(host, svc) {
+	s.pendingUser = ""
+	if (host.Username != "" && username != host.Username) ||
+		strings.TrimSpace(input) != s.servicePassword(host, svc) {
 		return "Permission denied, please try again."
 	}
 	return s.connect(host)
@@ -1321,6 +1372,7 @@ func (s *Session) connect(host *Host) string {
 func (s *Session) exit() (string, bool) {
 	s.pending = nil
 	s.pendingService = nil
+	s.pendingUser = ""
 	if len(s.stack) == 0 {
 		return "logout", true // closing the deck session drops back to the room
 	}
@@ -1419,7 +1471,7 @@ const helpText = `deck shell:
   edit <file>          | edit .md/.txt, autosave on tab | vim
   cd <path> / pwd      | move around / where am I       |
   scan <host>          | list a host's ports            | nmap
-  connect <host>       | jack into a host               | ssh
+  connect [user@]host  | jack into a host               | ssh
   messenger            | your messages (right panel)    | talk
   send <file>          | hand a file to your contact    | scp
   run <file>           | execute something              |

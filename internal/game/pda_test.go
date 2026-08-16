@@ -83,7 +83,7 @@ func TestPDASeesCopiedFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("opening the deck session: %v", err)
 	}
-	s.Exec("ssh microslop")
+	s.Exec("ssh jane_doe@microslop")
 	s.Exec("apple")
 	if out, _ := s.Exec("cp /srv/archive/sun_notice.txt ~/notes/"); out != "" && strings.Contains(out, "cp:") {
 		t.Fatalf("copying the notice home should work: %q", out)

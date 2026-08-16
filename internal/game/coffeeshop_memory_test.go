@@ -115,7 +115,8 @@ func TestBaristaInvitationReachesBadge(t *testing.T) {
 	}
 	eng := engine.New(w)
 	eng.Execute("north")
-	if out := eng.Execute("look post-it"); !strings.Contains(out, "password `apple`") {
+	if out := eng.Execute("look post-it"); !strings.Contains(out, "username `jane_doe`") ||
+		!strings.Contains(out, "password `apple`") {
 		t.Fatalf("looking at the post-it should expose its credential: %q", out)
 	}
 	if !w.Flags["read_microslop_badge"] {

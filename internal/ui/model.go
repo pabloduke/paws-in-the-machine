@@ -113,21 +113,22 @@ type Model struct {
 	// Hacking terminal (docs/systems/hacking.md). While shell is
 	// non-nil the whole screen swaps to the terminal layout; the
 	// normal panels and LOG are untouched underneath.
-	shell        *hacking.Session
-	deckCfg      hacking.Deck
-	shellEntries []string // terminal scrollback, separate from the LOG
-	shellVP      viewport.Model
-	shellInput   textinput.Model
-	shellHistory []string
-	shellHistPos int
-	shellDraft   string
-	shellReader  viewport.Model
-	shellEditor  textarea.Model
-	readerTitle  string
-	readerMD     string
-	readerText   string
-	readerFocus  bool
-	editorPath   string
+	shell           *hacking.Session
+	deckCfg         hacking.Deck
+	shellEntries    []string // raw terminal scrollback, separate from the LOG
+	shellEntryKinds []shellEntryKind
+	shellVP         viewport.Model
+	shellInput      textinput.Model
+	shellHistory    []string
+	shellHistPos    int
+	shellDraft      string
+	shellReader     viewport.Model
+	shellEditor     textarea.Model
+	readerTitle     string
+	readerMD        string
+	readerText      string
+	readerFocus     bool
+	editorPath      string
 	// vim-mode editor state (vi/vim/nvim): modal instead of autosave.
 	editorVim bool   // the open buffer came from vim, not edit
 	vimInsert bool   // insert mode (i); false = normal mode (esc)

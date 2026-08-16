@@ -22,6 +22,14 @@ import (
 
 type shellSurface struct{}
 
+type shellEntryKind uint8
+
+const (
+	shellOutput shellEntryKind = iota
+	shellEcho
+	shellDim
+)
+
 func (shellSurface) Active(m *Model) bool { return m.shell != nil }
 
 // Intercept claims "use <deck>" and logs in.
@@ -56,7 +64,7 @@ func (shellSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 		// Close the whole terminal from any depth — like shutting the
 		// window; the shell narrates the disconnect first.
 		m.saveShellEditor()
-		m.shellEntries = append(m.shellEntries, m.shell.End())
+		m.appendShell(shellOutput, m.shell.End())
 		m.closeShell()
 		return nil
 	case tea.KeyShiftTab:
@@ -88,8 +96,7 @@ func (shellSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 		m.shellInput.SetValue(completed)
 		m.shellInput.CursorEnd()
 		if len(matches) > 1 && completed == before {
-			m.shellEntries = append(m.shellEntries,
-				termDimStyle.Render(strings.Join(matches, "  ")))
+			m.appendShell(shellDim, strings.Join(matches, "  "))
 			m.refreshShell()
 		}
 		return nil
@@ -143,24 +150,22 @@ func (shellSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 		if secret {
 			echoed = strings.Repeat("*", len([]rune(line)))
 		}
-		m.shellEntries = append(m.shellEntries,
-			termEchoStyle.Render(m.shell.Prompt()+echoed))
+		m.appendShell(shellEcho, m.shell.Prompt()+echoed)
 		result := m.shell.ExecDetailed(line)
 		if result.Edit != nil {
 			m.openShellEditor(result.Edit)
 			if result.Output != "" {
-				m.shellEntries = append(m.shellEntries, termDimStyle.Render(result.Output))
+				m.appendShell(shellDim, result.Output)
 			}
 		} else if result.Document != nil {
 			m.openShellDocument(result.Document)
 			m.resizeShell()
 			m.refreshShellReader()
-			m.shellEntries = append(m.shellEntries,
-				termDimStyle.Render("opened "+result.Document.Path+" in reader"))
+			m.appendShell(shellDim, "opened "+result.Document.Path+" in reader")
 		} else if result.Messenger {
 			m.toggleMessenger()
 		} else if result.Output != "" {
-			m.shellEntries = append(m.shellEntries, result.Output)
+			m.appendShell(shellOutput, result.Output)
 		}
 		if result.Done {
 			m.closeShell()
@@ -209,7 +214,11 @@ func (m *Model) recallShell(dir int) {
 }
 
 func (m *Model) syncShellInput() {
-	m.shellInput.Prompt = termPromptStyle.Render(m.shell.Prompt())
+	theme := m.mainTerminalTheme()
+	style := theme.promptStyle()
+	m.shellInput.Prompt = style.Render(m.shell.Prompt())
+	m.shellInput.TextStyle = style
+	m.shellInput.Cursor.Style = style
 	m.shellInput.EchoMode = textinput.EchoNormal
 	if m.shell.AwaitingPassword() {
 		m.shellInput.EchoMode = textinput.EchoPassword
@@ -222,22 +231,20 @@ func (m *Model) syncShellInput() {
 // messenger — never game state; user ruling 2026-07-10).
 func (shellSurface) Screen(m *Model) string {
 	termW, statusW, panelH := m.shellDims()
+	theme := m.mainTerminalTheme()
 
 	titleText := ansi.Truncate("CYBERDECK // "+strings.ToUpper(m.shell.HostName()), m.shellVP.Width, "")
-	title := termTitleStyle.
+	title := theme.titleStyle().
 		Width(m.shellVP.Width).
 		MaxWidth(m.shellVP.Width).
 		Render(titleText)
 	prompt := lipgloss.NewStyle().
 		Width(m.shellVP.Width).
 		MaxWidth(m.shellVP.Width).
-		Background(termDark).
+		Background(theme.dark).
 		Render(m.shellInput.View())
 	content := lipgloss.JoinVertical(lipgloss.Left, title, m.shellVP.View(), prompt)
-	termStyle := termPanelFocusStyle
-	if m.readerFocus || m.editorPath != "" {
-		termStyle = termPanelStyle
-	}
+	termStyle := theme.panelStyle(!m.readerFocus && m.editorPath == "")
 	term := termStyle.Width(termW - 2).Height(panelH - 2).
 		Render(content)
 	statusStyle := termPanelStyle
@@ -315,8 +322,8 @@ func (m *Model) openShell(d hacking.Deck) {
 	m.shellHistory = nil
 	m.shellHistPos = 0
 	m.shellDraft = ""
-	m.shellEntries = []string{termDimStyle.Render(
-		"CantOS — 'help' lists commands · 'exit' (or esc) leaves the terminal")}
+	m.shellEntries = []string{"CantOS — 'help' lists commands · 'exit' (or esc) leaves the terminal"}
+	m.shellEntryKinds = []shellEntryKind{shellDim}
 	m.readerTitle = ""
 	m.readerMD = ""
 	m.readerText = ""
@@ -326,9 +333,10 @@ func (m *Model) openShell(d hacking.Deck) {
 	m.msgSeen = 0
 
 	ti := textinput.New()
-	ti.Prompt = termPromptStyle.Render(s.Prompt())
-	ti.TextStyle = termPromptStyle
-	ti.Cursor.Style = termPromptStyle
+	theme := m.mainTerminalTheme()
+	ti.Prompt = theme.promptStyle().Render(s.Prompt())
+	ti.TextStyle = theme.promptStyle()
+	ti.Cursor.Style = theme.promptStyle()
 	ti.Focus()
 	m.shellInput = ti
 	m.syncShellInput()
@@ -395,13 +403,40 @@ func (m *Model) resizeShellInput() {
 
 // refreshShell re-renders the terminal scrollback, pinned to newest.
 func (m *Model) refreshShell() {
-	wrapped := termOutputStyle.Width(m.shellVP.Width).
-		Render(strings.Join(m.shellEntries, "\n"))
+	theme := m.mainTerminalTheme()
+	entries := make([]string, 0, len(m.shellEntries))
+	for i, entry := range m.shellEntries {
+		kind := shellOutput
+		if i < len(m.shellEntryKinds) {
+			kind = m.shellEntryKinds[i]
+		}
+		style := theme.outputStyle()
+		switch kind {
+		case shellEcho:
+			style = theme.echoStyle()
+		case shellDim:
+			style = theme.dimStyle()
+		}
+		entries = append(entries, style.Width(m.shellVP.Width).Render(entry))
+	}
+	wrapped := strings.Join(entries, "\n")
 	if missing := m.shellVP.Height - lipgloss.Height(wrapped); missing > 0 {
 		wrapped = strings.Repeat("\n", missing) + wrapped
 	}
 	m.shellVP.SetContent(wrapped)
 	m.shellVP.GotoBottom()
+}
+
+func (m Model) mainTerminalTheme() terminalTheme {
+	if m.shell != nil && m.shell.IsRemote() {
+		return remoteTerminalTheme
+	}
+	return localTerminalTheme
+}
+
+func (m *Model) appendShell(kind shellEntryKind, text string) {
+	m.shellEntries = append(m.shellEntries, text)
+	m.shellEntryKinds = append(m.shellEntryKinds, kind)
 }
 
 func (m *Model) refreshShellReader() {
@@ -499,7 +534,7 @@ func (m *Model) saveShellEditor() {
 	}
 	out := m.shell.SaveEdit(m.editorPath, m.shellEditor.Value())
 	if out != "" {
-		m.shellEntries = append(m.shellEntries, termDimStyle.Render(out))
+		m.appendShell(shellDim, out)
 	}
 	m.closeShellEditor("saved " + m.editorPath)
 }
@@ -666,8 +701,7 @@ func (m Model) idlePanel() string {
 func (m *Model) toggleMessenger() {
 	mgr := m.deckCfg.Messenger
 	if !mgr.Enabled() {
-		m.shellEntries = append(m.shellEntries,
-			termDimStyle.Render("messenger: no service on this deck"))
+		m.appendShell(shellDim, "messenger: no service on this deck")
 		return
 	}
 	if m.msgOpen {
@@ -703,8 +737,8 @@ func (m *Model) syncMessenger() {
 		return
 	}
 	if n := mgr.Unread(m.eng.World); n > m.msgSeen {
-		m.shellEntries = append(m.shellEntries, termDimStyle.Render(
-			fmt.Sprintf("[messenger] %d unread — 'messenger' opens it", n)))
+		m.appendShell(shellDim,
+			fmt.Sprintf("[messenger] %d unread — 'messenger' opens it", n))
 		m.msgSeen = n
 	}
 }
