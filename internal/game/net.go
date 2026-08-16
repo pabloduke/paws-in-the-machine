@@ -33,8 +33,9 @@ alias scp=send
 func starterNet() map[string]*hacking.Host {
 	return map[string]*hacking.Host{
 		"deck": {
-			Name: "deck",
-			Home: "/home/paws_in_the_machine",
+			Name:     "deck",
+			Username: "paws_in_the_machine",
+			Home:     "/home/paws_in_the_machine",
 			Root: hacking.Dir("/",
 				hacking.Dir("home",
 					hacking.Dir("paws_in_the_machine",
@@ -91,6 +92,7 @@ func starterNet() map[string]*hacking.Host {
 		},
 		"microslop": {
 			Name:     "microslop",
+			Username: "jane_doe",
 			Home:     "/",
 			Password: "apple",
 			Banner:   "(Placeholder) MICROSLOP CORP intranet. everything asks permission except the dust.",
@@ -286,7 +288,7 @@ func netEvents() []engine.When {
 
 func netJournal() []engine.Entry {
 	return []engine.Entry{
-		{Flag: flagReadMicroslopBadge, Text: "The barista's old Microslop badge has employee ID `1008476` and password `apple` tucked behind it."},
+		{Flag: flagReadMicroslopBadge, Text: "The barista's old Microslop badge has username `jane_doe`, employee ID `1008476`, and password `apple` tucked behind it."},
 		{Flag: flagReadLayoffPlans, Text: "Found Microslop's Q3 layoff plans in /srv/hr/rif_q3.txt — \"role realignment,\" wave two pending."},
 		{Flag: flagGotLayoffPlans, Text: "Copied the layoff plans onto the deck."},
 		{Flag: flagLayoffPlansDelivered, Text: "Sent the layoff plans to marduk's drop. Mission one complete."},
@@ -317,7 +319,7 @@ var missionMicroslopSteps = []struct {
 	text string
 }{
 	{flagReadMicroslopBadge, "meow at the barista, then look at the post-it behind her old badge; or sneak to the post-it"},
-	{flagGotLayoffPlans, "return to the lair, connect to microslop, search for employee 1008476, and copy the layoff plans home"},
+	{flagGotLayoffPlans, "return to the lair, connect with ssh jane_doe@microslop, search for employee 1008476, and copy the layoff plans home"},
 	{flagLayoffPlansDelivered, "send the plans to marduk: send <file>"},
 }
 

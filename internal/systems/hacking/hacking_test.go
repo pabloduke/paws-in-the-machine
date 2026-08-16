@@ -18,8 +18,9 @@ func stripANSI(s string) string {
 func testNet() map[string]*hacking.Host {
 	return map[string]*hacking.Host{
 		"deck": {
-			Name: "deck",
-			Home: "/home/paws_in_the_machine",
+			Name:     "deck",
+			Username: "paws_in_the_machine",
+			Home:     "/home/paws_in_the_machine",
 			Root: hacking.Dir("/",
 				hacking.Dir("home",
 					hacking.Dir("paws_in_the_machine",
@@ -63,6 +64,7 @@ func testNet() map[string]*hacking.Host {
 		},
 		"microslop": {
 			Name:     "microslop",
+			Username: "jane_doe",
 			Home:     "/",
 			Password: "apple",
 			Require:  "test_route_open",
@@ -113,6 +115,9 @@ func TestCompletionCommandsAliasesHostsAndPaths(t *testing.T) {
 	if line, matches := s.Complete("ssh rel"); line != "ssh relay.net " || len(matches) != 1 {
 		t.Fatalf("host completion: line=%q matches=%v", line, matches)
 	}
+	if line, matches := s.Complete("ssh ja"); line != "ssh jane_doe@microslop " || len(matches) != 1 {
+		t.Fatalf("username host completion: line=%q matches=%v", line, matches)
+	}
 	if line, matches := s.Complete("cat ~/notes/no"); line != "cat ~/notes/notes.md " || len(matches) != 1 {
 		t.Fatalf("path completion: line=%q matches=%v", line, matches)
 	}
@@ -124,7 +129,7 @@ func TestCompletionCommandsAliasesHostsAndPaths(t *testing.T) {
 func TestCompletionIsDisabledForPasswords(t *testing.T) {
 	w, s := newShell(t)
 	w.Flags["test_route_open"] = true
-	s.Exec("ssh microslop")
+	s.Exec("ssh jane_doe@microslop")
 	if !s.AwaitingPassword() {
 		t.Fatal("ssh should leave the session waiting for a password")
 	}
@@ -265,7 +270,7 @@ func TestEditTouchedTextAndMarkdownFiles(t *testing.T) {
 func TestEditExistingTextFileCreatesOneBackup(t *testing.T) {
 	w, s := newShell(t)
 	w.Flags["test_route_open"] = true
-	exec(t, s, "ssh microslop")
+	exec(t, s, "ssh jane_doe@microslop -p 22")
 	exec(t, s, "apple")
 
 	result := s.ExecDetailed("edit /home/readme.txt")
@@ -495,7 +500,7 @@ func TestPasswordGatedSSH(t *testing.T) {
 	if out := exec(t, s, "scan microslop"); !strings.Contains(out, "22    SSH      | open") {
 		t.Fatalf("scan should list port 22 open regardless of route: %q", out)
 	}
-	if out := exec(t, s, "ssh microslop"); !strings.Contains(out, "Network is unreachable") {
+	if out := exec(t, s, "ssh jane_doe@microslop"); !strings.Contains(out, "Network is unreachable") {
 		t.Fatalf("ssh without local route: %q", out)
 	}
 	if got := s.Prompt(); got != "paws_in_the_machine@deck:~ $ " {
@@ -503,10 +508,28 @@ func TestPasswordGatedSSH(t *testing.T) {
 	}
 
 	w.Flags["test_route_open"] = true
+	if out := exec(t, s, "ssh microslop"); out != "(Placeholder) ssh: username required for microslop" {
+		t.Fatalf("configured host should require username@host syntax: %q", out)
+	}
+	if s.AwaitingPassword() {
+		t.Fatal("missing username must not enter password mode")
+	}
+	if out := exec(t, s, "ssh wrong_user@microslop"); !strings.Contains(out, "password required") {
+		t.Fatalf("syntactically valid username should reach masked authentication: %q", out)
+	}
+	if out := exec(t, s, "apple"); out != "Permission denied, please try again." {
+		t.Fatalf("wrong username with correct password should be denied: %q", out)
+	}
+	if s.HostName() != "deck" {
+		t.Fatalf("wrong username should stay on deck, host=%q", s.HostName())
+	}
+	if out := exec(t, s, "ssh someone@relay.net"); out != "(Placeholder) ssh: username not configured for relay.net" {
+		t.Fatalf("undeclared hosts should reject invented usernames: %q", out)
+	}
 	if out := exec(t, s, "scan microslop"); !strings.Contains(out, "22    SSH      | open") {
 		t.Fatalf("port 22 stays open after the route opens: %q", out)
 	}
-	if out := exec(t, s, "ssh microslop"); !strings.Contains(out, "password required") {
+	if out := exec(t, s, "ssh jane_doe@microslop"); !strings.Contains(out, "password required") {
 		t.Fatalf("ssh password prompt: %q", out)
 	}
 	if got := s.Prompt(); got != "password: " {
@@ -519,12 +542,15 @@ func TestPasswordGatedSSH(t *testing.T) {
 		t.Fatalf("wrong password should stay on deck, host=%q", s.HostName())
 	}
 
-	exec(t, s, "ssh microslop")
+	exec(t, s, "ssh jane_doe@microslop -p 22")
 	if out := exec(t, s, "apple"); !strings.Contains(out, "MICROSLOP") {
 		t.Fatalf("correct password banner: %q", out)
 	}
-	if s.HostName() != "microslop" || s.Prompt() != "paws_in_the_machine@microslop:/ $ " {
+	if s.HostName() != "microslop" || s.Prompt() != "jane_doe@microslop:/ $ " {
 		t.Fatalf("connected host=%q prompt=%q", s.HostName(), s.Prompt())
+	}
+	if !s.IsRemote() {
+		t.Fatal("connected Microslop session should report remote context")
 	}
 	if out := exec(t, s, "grep sun /var/log/access.log"); !strings.Contains(out, "/srv/archive/sun_notice.txt") {
 		t.Fatalf("grep microslop logs: %q", out)
@@ -540,6 +566,12 @@ func TestPasswordGatedSSH(t *testing.T) {
 	}
 	if !w.Flags["got_notice"] {
 		t.Fatalf("copying notice should set flag; flags=%v", w.Flags)
+	}
+	if out, done := s.Exec("exit"); done || !strings.Contains(out, "closed") {
+		t.Fatalf("exit should return to deck: out=%q done=%v", out, done)
+	}
+	if s.IsRemote() {
+		t.Fatal("deck session should not report remote context")
 	}
 }
 

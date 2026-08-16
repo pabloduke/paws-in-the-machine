@@ -127,11 +127,11 @@ func buildCoffeeshop() *engine.Entity {
 			switch {
 			case w.Flags[flagReadMicroslopBadge]:
 				return "(Placeholder) The post-it behind the badge reads: " +
-					"employee ID `1008476`, password `apple`."
+					"username `jane_doe`, employee ID `1008476`, password `apple`."
 			case w.Flags[flagBaristaSoftened] && !w.Flags[flagBaristaBurned]:
 				w.Flags[flagReadMicroslopBadge] = true
 				return "(Placeholder) From the invited saucer, you look at the post-it " +
-					"behind the laminated badge: employee ID `1008476`, password `apple`."
+					"behind the laminated badge: username `jane_doe`, employee ID `1008476`, password `apple`."
 			default:
 				return "(Placeholder) The post-it is behind the counter and the " +
 					"barista is watching. Meow at her or sneak to the post-it."
@@ -144,7 +144,7 @@ func buildCoffeeshop() *engine.Entity {
 				checks.Sneak: {
 					Difficulty: 22,
 					Success: "(Placeholder) You slip behind the counter and look at the post-it " +
-						"through the badge laminate: employee ID `1008476`, password `apple`.",
+						"through the badge laminate: username `jane_doe`, employee ID `1008476`, password `apple`.",
 					Failure: "(Placeholder) The barista catches your nose at her backpack. " +
 						"The invitation in her face disappears; next time she watches for you.",
 					OnSuccess: []string{flagReadMicroslopBadge},

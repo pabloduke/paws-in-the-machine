@@ -42,18 +42,21 @@ flowchart TD
         Sneak -->|Success| Badge[Set read_microslop_badge]
         Sneak -->|Failure| Burned
         Examine --> Badge
-        Badge --> Intel[Notes expose employee 1008476 and password apple]
+        Badge --> Intel[Notes expose username jane_doe, employee 1008476, and password apple]
     end
 
     subgraph Mission1[Microslop delivery]
         Intel --> Return[Return south to the lair]
         Return --> UseDeck[use deck]
         UseDeck -.-> Scan[scan microslop]
-        Scan -.-> SSH[ssh microslop]
+        Scan -.-> SSH[ssh jane_doe@microslop]
         UseDeck --> SSH
-        Deck -.->|Player already knows apple| SSH
-        SSH --> Password[Enter apple]
-        Password --> Connected[Connected to microslop]
+        Deck -.->|Player already knows jane_doe and apple| SSH
+        UseDeck -.-> BareSSH[ssh microslop]
+        BareSSH --> UserRequired[(Placeholder) username required; remain on deck]
+        SSH --> Password[Masked password prompt; enter apple]
+        Password -->|Username and password match| Connected[Connected as jane_doe; main terminal turns amber]
+        Password -->|Either credential is wrong| Denied[Permission denied; remain on green deck terminal]
         Connected -.-> Search[grep -ir 1008476 /]
         Search --> Target["/srv/hr/rif_q3.txt"]
         Target -.-> ReadPlans[cat file sets read_layoff_plans]
@@ -64,6 +67,8 @@ flowchart TD
         Send --> Delivered[Set layoff_plans_delivered]
         Delivered --> Reply[marduk reply arrives]
         Reply --> Complete[Mission file renders Mission complete]
+        Connected -.-> RemoteExit[exit or logout]
+        RemoteExit --> DeckTheme[Return to deck prompt; main terminal turns green]
     end
 
     subgraph Independent[Independent executable branches]
@@ -99,8 +104,8 @@ flowchart TD
 ## Runtime properties exposed by the diagram
 
 - The bootstrap note and `scan microslop` are guidance, not gates.
-- `read_microslop_badge` does not gate SSH; knowing `apple` bypasses the
-  coffee-shop route.
+- `read_microslop_badge` does not gate SSH; knowing `jane_doe` and `apple`
+  bypasses the coffee-shop route.
 - `mission_microslop` does not gate the target file or its hooks, so the
   delivery flags can land before the briefing is read.
 - Okuda, sunfarm, and Plaza behavior is independently reachable rather than
