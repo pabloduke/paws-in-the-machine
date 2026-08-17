@@ -89,6 +89,60 @@ that opens or closes is a flag on a gate, not a mutated coordinate —
 which is what keeps positions derivable, saves small, and the editor's
 flag-state view honest.
 
+## Okuda is not lattice-realizable as wired (raised 2026-08-16)
+
+Charting the existing rooms surfaced a contradiction in Okuda HQ that
+predates charts. Two hubs retrofitted cleanly; Okuda cannot, and the
+fix is a content decision.
+
+Okuda's six rooms carry these connections today — three plain exits and
+three `checks.Guarded` passages, which the lawful-geometry rule says
+must also join genuinely adjacent cells:
+
+| From | To | How |
+|---|---|---|
+| street | lobby | plain, north |
+| street | alley | plain, east |
+| office | lobby | plain, down |
+| corridor | alley | plain, down |
+| lobby | office | Guarded — receptionist charm |
+| alley | corridor | Guarded — fire escape |
+| **corridor** | **office** | **Guarded — past the guard** |
+
+The first four pin every coordinate. Taking street as the origin:
+
+    lobby    = street + north      = (0, 1, 0)
+    alley    = street + east       = (1, 0, 0)
+    office   = lobby  + up         = (0, 1, 1)
+    corridor = alley  + up         = (1, 0, 1)
+
+That leaves the corridor and the office **diagonal** — two steps apart,
+never adjacent — so the guard's passage between them cannot be a
+lawful edge. The layout is over-constrained: no assignment of
+coordinates satisfies all seven connections at once.
+
+Worse, the only placement that keeps the annex east of the office puts
+it at `(1, 1, 1)`, directly north of the corridor — which would
+*derive* a brand-new corridor↔annex exit, bypassing the flag-gated
+archive door and breaking the closed-ports puzzle.
+
+Resolutions, all of them content decisions and none taken here:
+
+1. **Add a connecting cell** — a landing or hallway between the
+   corridor and the office, making the guard's passage a real edge.
+   This is new content (a room), which is user-owned.
+2. **Move a room** — e.g. re-site the alley or the corridor so the
+   second floor closes. Changes the map players walk.
+3. **Re-route the guard** — have that passage lead somewhere adjacent
+   instead. Changes the puzzle's shape.
+4. **Leave Okuda uncharted** — hand-declared exits keep working
+   indefinitely; charts and hand-wiring coexist by design.
+
+Until it is ruled, Okuda keeps its hand-declared exits and is absent
+from `gameCharts()`. Nothing is broken: this is the chart system doing
+its job, catching geometry that a notebook-mapping player would
+eventually have caught instead.
+
 ## Boundaries
 
 - `internal/systems/charts/` + `docs/systems/charts.md` — owned outright

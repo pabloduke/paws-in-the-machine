@@ -142,7 +142,12 @@ coordinates, one step ana (`w+1`).
 
 **Retrofit notes (for the build branch):**
 
-- 12 existing rooms across 3 hubs need coordinates.
+- 10 existing rooms across 3 hubs need coordinates. The Neighborhood
+  and the Plaza are charted (2026-08-16). **Okuda is not realizable on
+  a lattice as wired** — the guard's passage joins two cells the other
+  exits force diagonal; see docs/systems/charts.md "Okuda is not
+  lattice-realizable" for the four possible resolutions, all of them
+  content decisions.
 - Okuda already uses `up`/`down` correctly; its two check/gate
   passages (fire escape, archive door) map onto real adjacencies.
 - Hub travel is untouched: the chart replaces hand-wired `Exits.Dirs`

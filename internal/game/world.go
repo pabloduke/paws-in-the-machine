@@ -52,6 +52,11 @@ func NewWorld() *engine.World {
 	w.Journal = append(w.Journal, coffeeshopJournal()...)
 	w.Journal = append(w.Journal, okudaJournal()...)
 
+	// Geometry: charted nodes derive their exits from adjacency
+	// (docs/systems/charts.md). Authored Blocked prose and Gated locks
+	// survive; uncharted nodes keep their hand-declared exits.
+	w.Pending = append(w.Pending, gameCharts().Apply(w)...)
+
 	// Idioms a player will reach for that the generic parser can't guess.
 	w.Rewrites["log in"] = "use deck"
 
