@@ -120,6 +120,15 @@ func (c *Chart) Find(entity string) (Coord, bool) {
 type Weave struct {
 	charts  map[string]*Chart
 	gluings map[gkey]target
+	// declared keeps gluings in authored order so a weave round-trips
+	// through a file unchanged. The resolved map above is derived from
+	// it (each declaration installs its reverse).
+	declared []declaration
+}
+
+type declaration struct {
+	chart string
+	g     Gluing
 }
 
 // gkey identifies one face: a cell in a chart, and the direction out of
@@ -178,7 +187,31 @@ func (w *Weave) Glue(fromChart string, g Gluing) []string {
 	}
 	w.set(fromChart, g.From, g.Dir, target{toChart, g.To})
 	w.set(toChart, g.To, opposites[g.Dir], target{fromChart, g.From})
+	w.declared = append(w.declared, declaration{fromChart, g})
 	return nil
+}
+
+// Charts returns every chart in the weave, ordered by ID — for the
+// editor, validators, and serialization.
+func (w *Weave) Charts() []*Chart {
+	out := make([]*Chart, 0, len(w.charts))
+	for _, c := range w.charts {
+		out = append(out, c)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
+}
+
+// Gluings returns the declared gluings in authored order, each paired
+// with the chart it leaves from. Reverses are not included: they are
+// installed by Glue, not authored.
+func (w *Weave) Gluings() ([]string, []Gluing) {
+	from := make([]string, len(w.declared))
+	gs := make([]Gluing, len(w.declared))
+	for i, d := range w.declared {
+		from[i], gs[i] = d.chart, d.g
+	}
+	return from, gs
 }
 
 func (w *Weave) set(chart string, at Coord, dir string, to target) {

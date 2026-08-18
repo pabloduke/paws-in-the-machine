@@ -203,3 +203,57 @@ func TestApplyReportsUnknownEntities(t *testing.T) {
 		t.Fatal("a cell naming an entity that isn't in the world is a content bug")
 	}
 }
+
+// Round-tripping is the editor's core contract: load, save, and the
+// bytes must not move. Anything else manufactures diff noise in
+// content review.
+func TestFileRoundTripsByteIdentical(t *testing.T) {
+	here := charts.Coord{X: 1, Y: 1}
+	w := charts.NewWeave(
+		charts.New("okuda", map[charts.Coord]string{
+			{X: 1, Y: 0}: "lobby",
+			here:         "office",
+			{X: 2, Y: 1}: "annex",
+		}),
+		charts.New("aisle", map[charts.Coord]string{{}: "aisle410"}),
+	)
+	if bugs := w.Glue("okuda", charts.Gluing{
+		From: here, Dir: "north", To: charts.Coord{}, Chart: "aisle",
+	}); bugs != nil {
+		t.Fatalf("gluing: %v", bugs)
+	}
+
+	first, err := charts.Marshal(w)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	back, bugs, err := charts.Unmarshal(first)
+	if err != nil || bugs != nil {
+		t.Fatalf("unmarshal: err=%v bugs=%v", err, bugs)
+	}
+	second, err := charts.Marshal(back)
+	if err != nil {
+		t.Fatalf("re-marshal: %v", err)
+	}
+	if string(first) != string(second) {
+		t.Fatalf("round trip moved bytes:\n--- first ---\n%s\n--- second ---\n%s",
+			first, second)
+	}
+
+	// And the geometry survives, gluing included.
+	if got := back.Exits("okuda", here)["north"]; got != "aisle410" {
+		t.Fatalf("glued exit lost in the round trip, got %q", got)
+	}
+	if got := back.Exits("aisle", charts.Coord{})["south"]; got != "office" {
+		t.Fatalf("reverse gluing lost in the round trip, got %q", got)
+	}
+	if got := back.Exits("okuda", charts.Coord{X: 1, Y: 0})["north"]; got != "office" {
+		t.Fatalf("derived adjacency lost in the round trip, got %q", got)
+	}
+}
+
+func TestUnmarshalRejectsAnotherVersion(t *testing.T) {
+	if _, _, err := charts.Unmarshal([]byte(`{"version":99,"charts":[]}`)); err == nil {
+		t.Fatal("a file from another version must not load silently")
+	}
+}

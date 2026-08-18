@@ -89,6 +89,51 @@ that opens or closes is a flag on a gate, not a mutated coordinate —
 which is what keeps positions derivable, saves small, and the editor's
 flag-state view honest.
 
+## Content file
+
+Geometry is data, not Go — the first content to cross that line. The
+file is versioned JSON (stdlib only, the same discipline as
+`engine.SaveState`), embedded with `go:embed` so the shipped binary
+stays self-contained while the editor reads and writes the same file on
+disk. One format, one source of truth, no generated Go to clobber.
+
+    {
+      "version": 1,
+      "charts": [
+        {
+          "id": "neighborhood",
+          "cells": {
+            "0,0": "lair",
+            "0,1": "coffeeshop"
+          }
+        }
+      ]
+    }
+
+Cells are keyed by coordinate — `"x,y"`, `"x,y,z"` or `"x,y,z,w"`, with
+trailing zeros dropped — so a room is one line and moving one is a
+one-line diff. Content review is done by a human; the format is shaped
+for that.
+
+`Marshal` is deterministic, so saving an unchanged weave is
+byte-identical and the editor never manufactures diff noise. A
+round-trip test pins it.
+
+## The editor
+
+    go run ./cmd/editor [path/to/charts.json]
+
+A Bubbletea grid over one z/w slice at a time, north up — the way a
+player sketches a map in a notebook, which is what lawful geometry is
+for. Keys: `hjkl`/arrows move, `n` names the cell under the cursor, `d`
+deletes, `tab` cycles charts, `<`/`>` change floor, `[`/`]` step
+kata/ana, `s` saves, `q` quits (refusing while there is unsaved work).
+
+The inspector under the grid shows the exits that *derive* from the
+cursor's cell, gluings included — so authoring and the game's actual
+geometry stay in one window, and an isolated room announces itself
+immediately.
+
 ## Okuda is not lattice-realizable as wired (raised 2026-08-16)
 
 Charting the existing rooms surfaced a contradiction in Okuda HQ that

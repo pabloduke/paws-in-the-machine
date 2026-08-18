@@ -55,7 +55,9 @@ func NewWorld() *engine.World {
 	// Geometry: charted nodes derive their exits from adjacency
 	// (docs/systems/charts.md). Authored Blocked prose and Gated locks
 	// survive; uncharted nodes keep their hand-declared exits.
-	w.Pending = append(w.Pending, gameCharts().Apply(w)...)
+	weave, chartBugs := gameCharts()
+	w.Pending = append(w.Pending, chartBugs...)
+	w.Pending = append(w.Pending, weave.Apply(w)...)
 
 	// Idioms a player will reach for that the generic parser can't guess.
 	w.Rewrites["log in"] = "use deck"

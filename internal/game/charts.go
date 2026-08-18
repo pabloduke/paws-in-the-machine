@@ -1,40 +1,34 @@
 package game
 
-import "github.com/pabloduke/paws-in-the-machine/internal/systems/charts"
+import (
+	_ "embed"
 
-// Geometry for the existing nodes (docs/systems/charts.md): rooms sit
-// at coordinates and their exits derive from adjacency, so the compass
-// cannot lie and reciprocity is free.
+	"github.com/pabloduke/paws-in-the-machine/internal/systems/charts"
+)
+
+// Geometry lives in a content file, not in Go (docs/systems/charts.md).
+// It is embedded so the shipped binary stays self-contained, while the
+// editor reads and writes the same file on disk — one format, one
+// source of truth, no generated Go to clobber.
 //
-// Okuda is deliberately absent. Its six rooms are not realizable on a
-// lattice as currently wired — the guard's passage joins the corridor
-// and the office, but those two cells are forced diagonal by the
-// exits already authored (see gameCharts's note below and
-// docs/systems/charts.md "Okuda"). Charting it would either invent a
-// room or move one, both of which are content decisions. Until then
-// Okuda keeps its hand-declared exits, which is why charts and
-// hand-wiring have to coexist.
-func gameCharts() *charts.Weave {
-	// The Neighborhood: the lair, and the coffee shop one step north.
-	//
-	//	y
-	//	1   coffeeshop
-	//	0   lair
-	//	    0            x
-	neighborhood := charts.New("neighborhood", map[charts.Coord]string{
-		{}:     "lair",
-		{Y: 1}: "coffeeshop",
-	})
+//go:embed content/charts.json
+var chartsJSON []byte
 
-	// The Plaza: the square, and the arcade one step east.
-	//
-	//	y
-	//	0   plaza_square   arcade
-	//	    0              1      x
-	plaza := charts.New("plaza", map[charts.Coord]string{
-		{}:     "plaza_square",
-		{X: 1}: "arcade",
-	})
-
-	return charts.NewWeave(neighborhood, plaza)
+// gameCharts loads the charted nodes. Malformed geometry is reported
+// rather than fatal: a content bug should surface as a visible
+// complaint, not a panic on startup.
+//
+// Okuda is deliberately absent from the file. Its six rooms are not
+// realizable on a lattice as currently wired — the guard's passage
+// joins the corridor and the office, which the other exits force
+// diagonal. Charting it means adding a room, moving one, or re-routing
+// the guard, all content decisions. Until one is taken, Okuda keeps its
+// hand-declared exits; charts and hand-wiring coexist by design. See
+// docs/systems/charts.md "Okuda is not lattice-realizable".
+func gameCharts() (*charts.Weave, []string) {
+	w, bugs, err := charts.Unmarshal(chartsJSON)
+	if err != nil {
+		return charts.NewWeave(), []string{"(bug) charts: " + err.Error()}
+	}
+	return w, bugs
 }

@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "charts": [
+    {
+      "id": "neighborhood",
+      "cells": {
+        "0,0": "lair",
+        "0,1": "coffeeshop"
+      }
+    },
+    {
+      "id": "plaza",
+      "cells": {
+        "0,0": "plaza_square",
+        "1,0": "arcade"
+      }
+    }
+  ]
+}
