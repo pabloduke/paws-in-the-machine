@@ -121,6 +121,11 @@ round-trip test pins it.
 
 ## The editor
 
+The complete current scope, deletion semantics, limitations, and future work
+are documented in [`docs/EDITOR.md`](../EDITOR.md). The editor is currently a
+geometry tool: deleting a cell unplaces its room ID from the chart; it does
+not delete the room entity or other game content.
+
     go run ./cmd/editor [path/to/charts.json]
 
 A Bubbletea grid over one z/w slice at a time, north up — the way a

@@ -96,8 +96,9 @@ only in what they connect.
 metamap has no coordinate space at all — not in play, and not as an
 authoring convenience. Its nodes are an unordered set joined by travel,
 exactly as the subway model requires. Everything positional happens one
-level down, inside a node's grid. The editor follows suit: a metamap
-screen lists and links its nodes; only a node screen draws a grid.
+level down, inside a node's grid. The planned editor follows suit: a metamap
+screen will list and link its nodes; only a node screen draws a grid. The
+current chart editor implements only the node grid; see `docs/EDITOR.md`.
 
 **Open questions (parked, not ruled):**
 
