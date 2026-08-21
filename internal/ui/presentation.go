@@ -45,6 +45,11 @@ type presentationTheme struct {
 const defaultThemeID = "wet-neon"
 
 var themeRegistry = map[string]presentationTheme{
+	"chrome": {
+		ID:        "chrome",
+		Overworld: chromeOverworldStyles(),
+		Terminal:  chromeTerminalStyles(),
+	},
 	defaultThemeID: {
 		ID:        defaultThemeID,
 		Overworld: defaultOverworldStyles(),

@@ -84,6 +84,55 @@ func defaultOverworldStyles() overworldStyles {
 	}
 }
 
+// chromeOverworldStyles is the first alternate look: cold silver body text,
+// cyan structure, and magenta electronic accents. Effects such as gradients
+// and shimmer will layer on these semantic colors in a later slice.
+func chromeOverworldStyles() overworldStyles {
+	cyan := lipgloss.Color("#7df9ff")
+	magenta := lipgloss.Color("#ff4fd8")
+	silver := lipgloss.Color("#eefaff")
+	body := lipgloss.Color("#d7e5ee")
+	dim := lipgloss.Color("#526777")
+	border := lipgloss.Color("#355c66")
+	glow := lipgloss.Color("#264d59")
+
+	drizzle := lipgloss.NormalBorder()
+	drizzle.Top = "━░━━ ━░━ ━━░━ ━━ ░━ "
+	panel := lipgloss.NewStyle().
+		Border(lipgloss.ThickBorder()).
+		BorderForeground(border).
+		Padding(0, 1)
+
+	return overworldStyles{
+		body:       lipgloss.NewStyle().Padding(0, 1).Foreground(body),
+		logBody:    lipgloss.NewStyle().Foreground(body),
+		echo:       lipgloss.NewStyle().Foreground(magenta).Bold(true),
+		prompt:     lipgloss.NewStyle().Foreground(cyan),
+		dim:        lipgloss.NewStyle().Foreground(dim),
+		rain:       lipgloss.NewStyle().Foreground(dim).Faint(true),
+		panel:      panel,
+		panelFocus: panel.BorderForeground(cyan),
+		logPanel: lipgloss.NewStyle().
+			Border(drizzle).
+			BorderForeground(border).
+			Padding(0, 1),
+		panelTitle: lipgloss.NewStyle().Bold(true).Foreground(cyan),
+		roomTitle:  lipgloss.NewStyle().Bold(true).Foreground(silver),
+		selection:  lipgloss.NewStyle().Background(cyan).Foreground(lipgloss.Color("#071014")).Bold(true),
+		deckTitle:  lipgloss.NewStyle().Bold(true).Foreground(magenta),
+		deckRow:    lipgloss.NewStyle().Foreground(magenta),
+		signGlow:   lipgloss.NewStyle().Foreground(glow),
+		signFade:   lipgloss.NewStyle().Bold(true).Foreground(dim),
+		rainShades: [5][3]lipgloss.Style{
+			{},
+			shadeRow("#45616b", "#22343c", "#152229"),
+			shadeRow("#7896a1", "#36515c", "#22363e"),
+			shadeRow("#b7d2dc", "#526f7a", "#344b54"),
+			shadeRow("#effcff", "#7ba3b0", "#4b6973"),
+		},
+	}
+}
+
 const (
 	defaultRainLevel = 3
 	maxRainLevel     = 4

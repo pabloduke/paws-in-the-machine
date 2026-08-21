@@ -32,7 +32,8 @@ or layout.
   one selected application theme.
 - Theme definitions are immutable after registration.
 - The shipped `wet-neon` theme reproduces the appearance that existed before
-  the presentation layer.
+  the presentation layer. The alternate `chrome` theme uses cold silver,
+  cyan, and magenta styling.
 
 The existing presentation-only `Model.phase` clock remains the animation
 source. Future shimmer or glow animation must obey the same rule as rain: a
@@ -70,11 +71,33 @@ stable order. Runtime switching rebuilds cached rendered views from their raw
 semantic data, so existing transcript and terminal history do not retain the
 old theme's ANSI colors.
 
+## Runtime command
+
+The hacking terminal intercepts `theme` as a machine-local UI command before
+input reaches the fake shell. It works while connected to a remote host but
+never becomes a capability of that host. When the shell is waiting for a
+password, interception is disabled and the text remains a credential.
+
+```text
+theme                    show the current theme and usage
+theme list               list registered themes; `*` marks the current one
+theme next               select the next registered theme
+theme previous           select the previous registered theme
+theme <id>               select a theme directly
+```
+
+Tab completion merges `theme` and its arguments with the shell's existing
+completion results without adding presentation concerns to the hacking
+system. The shell's `help` output gets a UI-owned local-display footer.
+
+Selection currently lasts for the running UI session. It is not written to
+game saves or world state.
+
 ## Current boundary
 
-This first slice establishes the layer and routes the existing UI through it.
-It intentionally adds no new visual theme and no player command yet. The only
-registered theme is `wet-neon`.
+The presentation layer and runtime selection are implemented. Two themes are
+registered: `wet-neon` and `chrome`. Theme command response strings are marked
+`(Placeholder)` for the user to replace or approve.
 
 Markdown rendered by Glamour keeps its existing renderer-owned style for now.
 If themes need to control Markdown later, that renderer must receive a
@@ -82,11 +105,11 @@ theme-specific style rather than post-processing its ANSI output.
 
 ## Next work
 
-- [ ] Add at least one alternate theme.
-- [ ] Add a local `theme` terminal command for listing, selecting, and cycling
+- [x] Add at least one alternate theme.
+- [x] Add a local `theme` terminal command for listing, selecting, and cycling
   registered themes.
-- [ ] Decide whether the selected theme lasts only for the session or is
-  stored in a separate UI preferences file.
+- [ ] Decide whether to keep the current session-only selection or store it in
+  a separate UI preferences file.
 - [ ] Add theme-owned gradient, highlight, shadow, glow, and shimmer settings.
 - [ ] Add reduced-motion and simplified-Unicode presentation options.
 - [ ] Route Markdown styling through the active theme if alternate themes

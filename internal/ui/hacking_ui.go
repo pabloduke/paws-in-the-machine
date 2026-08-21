@@ -92,7 +92,7 @@ func (shellSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 			return nil
 		}
 		before := m.shellInput.Value()
-		completed, matches := m.shell.Complete(before)
+		completed, matches := m.completeShellLine(before)
 		m.shellInput.SetValue(completed)
 		m.shellInput.CursorEnd()
 		if len(matches) > 1 && completed == before {
@@ -151,7 +151,19 @@ func (shellSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 			echoed = strings.Repeat("*", len([]rune(line)))
 		}
 		m.appendShell(shellEcho, m.shell.Prompt()+echoed)
+		if !secret {
+			if out, handled := m.handleThemeCommand(line); handled {
+				m.appendShell(shellOutput, out)
+				m.syncShellInput()
+				m.resizeShellInput()
+				m.refreshShell()
+				return nil
+			}
+		}
 		result := m.shell.ExecDetailed(line)
+		if line == "help" {
+			result.Output += "\n\n(Placeholder) local display:\n  " + themeUsage
+		}
 		if result.Edit != nil {
 			m.openShellEditor(result.Edit)
 			if result.Output != "" {

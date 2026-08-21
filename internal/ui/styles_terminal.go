@@ -34,6 +34,23 @@ func defaultTerminalStyles() terminalStyles {
 	}
 }
 
+func chromeTerminalStyles() terminalStyles {
+	cyan := terminalTheme{
+		bright: lipgloss.Color("#73f7ff"),
+		dim:    lipgloss.Color("#247c86"),
+		dark:   lipgloss.Color("#02080b"),
+	}
+	return terminalStyles{
+		local: cyan,
+		remote: terminalTheme{
+			bright: lipgloss.Color("#ff4fd8"),
+			dim:    lipgloss.Color("#8a285f"),
+			dark:   lipgloss.Color("#0b0208"),
+		},
+		panel: cyan,
+	}
+}
+
 func (t terminalTheme) echoStyle() lipgloss.Style {
 	return lipgloss.NewStyle().Foreground(t.bright).Background(t.dark).Bold(true)
 }
