@@ -22,7 +22,7 @@ func newSaving(t *testing.T, w *engine.World) tea.Model {
 // lastEntry returns the newest LOG line.
 func lastEntry(mod tea.Model) string {
 	mm := mod.(Model)
-	return mm.entries[len(mm.entries)-1]
+	return mm.entries[len(mm.entries)-1].Text
 }
 
 // Save mid-run, keep playing, load — the world snaps back.

@@ -54,7 +54,7 @@ func (m *Model) openPDA(p hacking.PDA) {
 	m.pdaMode = pdaMenu
 	m.pdaSel = 0
 	m.input.Blur()
-	m.entries = append(m.entries, dimStyle.Render("[you thumb the PDA awake]"))
+	m.appendLog(textDim, "[you thumb the PDA awake]")
 	m.refreshLog()
 }
 
@@ -129,7 +129,7 @@ func (m *Model) pdaClose() {
 	m.pdaCfg = hacking.PDA{}
 	m.pdaFiles, m.pdaHosts = nil, nil
 	m.input.Focus()
-	m.entries = append(m.entries, dimStyle.Render("[you pocket the PDA]"))
+	m.appendLog(textDim, "[you pocket the PDA]")
 	m.eng.World.CheckEvents()
 	m.refreshLog()
 	m.maybeLevelUp()
@@ -180,14 +180,15 @@ func (m *Model) pdaPick() {
 
 // pdaView renders the current PDA screen.
 func (m Model) pdaView() string {
+	styles := m.presentation().Overworld
 	var b strings.Builder
-	b.WriteString(roomTitleStyle.Render("◧ PDA"))
+	b.WriteString(styles.roomTitle.Render("◧ PDA"))
 	switch m.pdaMode {
 	case pdaMenu:
 		b.WriteString("\n")
 		m.pdaList(&b, pdaMenuItems)
 	case pdaNotes:
-		b.WriteString("  " + dimStyle.Render("· notes on the deck") + "\n")
+		b.WriteString("  " + styles.dim.Render("· notes on the deck") + "\n")
 		rows := make([]string, 0, len(m.pdaFiles)+1)
 		for _, f := range m.pdaFiles {
 			rows = append(rows, f.Path)
@@ -195,19 +196,20 @@ func (m Model) pdaView() string {
 		rows = append(rows, "Back")
 		m.pdaList(&b, rows)
 	case pdaHosts:
-		b.WriteString("  " + dimStyle.Render("· port sniffer") + "\n")
+		b.WriteString("  " + styles.dim.Render("· port sniffer") + "\n")
 		rows := append(append([]string{}, m.pdaHosts...), "Back")
 		m.pdaList(&b, rows)
 	case pdaReading, pdaReport:
-		b.WriteString("  " + dimStyle.Render("· "+m.pdaDocTitle) + "\n\n")
+		b.WriteString("  " + styles.dim.Render("· "+m.pdaDocTitle) + "\n\n")
 		b.WriteString(m.pdaDocText)
 	}
-	b.WriteString("\n\n" + dimStyle.Render(m.pdaHint()))
+	b.WriteString("\n\n" + styles.dim.Render(m.pdaHint()))
 	return b.String()
 }
 
 // pdaList writes a highlighted menu list.
 func (m Model) pdaList(b *strings.Builder, rows []string) {
+	styles := m.presentation().Overworld
 	sel := m.pdaSel
 	if sel >= len(rows) {
 		sel = 0
@@ -215,7 +217,7 @@ func (m Model) pdaList(b *strings.Builder, rows []string) {
 	for i, row := range rows {
 		line := strconv.Itoa(i+1) + ". " + row
 		if i == sel {
-			line = hubSelStyle.Render(line)
+			line = styles.selection.Render(line)
 		}
 		b.WriteString("\n" + line)
 	}

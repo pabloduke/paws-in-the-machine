@@ -19,15 +19,16 @@ const flickerMod = 53
 // each end, and a rare phase-based flicker. Style only ever changes;
 // the text itself is constant.
 func (m Model) neonSign(name string) string {
+	styles := m.presentation().Overworld
 	h := uint32(2166136261)
 	for _, r := range m.eng.World.Room().ID {
 		h = (h ^ uint32(r)) * 16777619
 	}
-	title := roomTitleStyle
+	title := styles.roomTitle
 	if (int(h%flickerMod)+m.phase)%flickerMod == 0 {
-		title = signFadeStyle
+		title = styles.signFade
 	}
-	halo := signGlowStyle.Render("▒")
+	halo := styles.signGlow.Render("▒")
 	return halo + " " + title.Render("◈ "+name) + " " + halo
 }
 
@@ -35,6 +36,7 @@ func (m Model) neonSign(name string) string {
 // world state — always current, never a transcript. Dead space below
 // the prose carries the rain (rain.go), driven by the render phase.
 func (m Model) roomPanel() string {
+	styles := m.presentation().Overworld
 	width := m.width - leftPanelWidth - rightPanelWidth
 	name, body, _ := strings.Cut(engine.Look(m.eng.World), "\n\n")
 	content := m.neonSign(strings.ToUpper(name))
@@ -42,35 +44,37 @@ func (m Model) roomPanel() string {
 		content += "\n\n" + body
 	}
 	innerH := m.mainRowHeight() - 2
-	prose := bodyStyle.Width(width - 4).Render(content)
+	prose := styles.body.Width(width - 4).Render(content)
 	if free := innerH - lipgloss.Height(prose); free >= 3 {
 		// One blank gap line, then rain to the bottom of the panel.
-		rows := rainField(m.eng.World.Room().ID, m.phase, width-6, free-1, m.rainLevel)
-		prose += "\n" + bodyStyle.Width(width-4).
+		rows := themedRainField(m.eng.World.Room().ID, m.phase, width-6, free-1,
+			m.rainLevel, styles.rainShades)
+		prose += "\n" + styles.body.Width(width-4).
 			Render("\n"+strings.Join(rows, "\n"))
 	}
-	return panelStyle.Width(width - 2).Height(innerH).Render(prose)
+	return styles.panel.Width(width - 2).Height(innerH).Render(prose)
 }
 
 // rightPanel: BUDDY (level and XP — the full sheet and inventory live
 // in their modals), YOU SEE (only obvious entities — scenery is
 // discovered through prose), and EXITS. See docs/systems/visibility.md.
 func (m Model) rightPanel() string {
+	styles := m.presentation().Overworld
 	w := m.eng.World
 
 	var b strings.Builder
-	b.WriteString(panelTitleStyle.Render("▸ BUDDY"))
+	b.WriteString(styles.panelTitle.Render("▸ BUDDY"))
 	b.WriteString(fmt.Sprintf("\n  Lv %d · XP %d/%d", w.Level, w.XP, w.NextLevelCost()))
 	if w.StatPoints > 0 {
-		b.WriteString("\n  " + dimStyle.Render(fmt.Sprintf("● %d to spend", w.StatPoints)))
+		b.WriteString("\n  " + styles.dim.Render(fmt.Sprintf("● %d to spend", w.StatPoints)))
 	}
 
-	b.WriteString("\n\n" + panelTitleStyle.Render("▸ YOU SEE"))
+	b.WriteString("\n\n" + styles.panelTitle.Render("▸ YOU SEE"))
 	for _, e := range w.Obvious() {
 		b.WriteString("\n  " + engine.DisplayName(w, e))
 	}
 	if x, ok := engine.Part[engine.Exits](w.Room()); ok && len(x.Dirs) > 0 {
-		b.WriteString("\n\n" + panelTitleStyle.Render("▸ EXITS"))
+		b.WriteString("\n\n" + styles.panelTitle.Render("▸ EXITS"))
 		dirs := make([]string, 0, len(x.Dirs))
 		for dir := range x.Dirs {
 			dirs = append(dirs, dir)
@@ -80,11 +84,12 @@ func (m Model) rightPanel() string {
 			b.WriteString("\n  " + dir)
 		}
 	}
-	return panelStyle.Width(rightPanelWidth - 2).Height(m.mainRowHeight() - 2).Render(b.String())
+	return styles.panel.Width(rightPanelWidth - 2).Height(m.mainRowHeight() - 2).Render(b.String())
 }
 
 // logPanel renders the transcript viewport.
 func (m Model) logPanel() string {
-	content := panelTitleStyle.Render("▸ LOG") + "\n" + m.log.View()
-	return logPanelStyle.Width(m.width - 2).Render(content)
+	styles := m.presentation().Overworld
+	content := styles.panelTitle.Render("▸ LOG") + "\n" + m.log.View()
+	return styles.logPanel.Width(m.width - 2).Render(content)
 }

@@ -79,12 +79,15 @@ var surfaces = []surface{
 // persistent transcript. Per-system fields are appended by the system
 // that owns them; the surface registry above dispatches to them.
 type Model struct {
-	eng    *engine.Engine
-	log    viewport.Model
-	input  textinput.Model
-	ready  bool
-	width  int
-	height int
+	eng *engine.Engine
+	// themeID selects immutable presentation data. It is UI preference,
+	// never engine or world state.
+	themeID string
+	log     viewport.Model
+	input   textinput.Model
+	ready   bool
+	width   int
+	height  int
 
 	panelFocused bool
 	selected     int
@@ -140,10 +143,10 @@ type Model struct {
 	msgVP   viewport.Model
 	msgSeen int // unread count already announced in the scrollback
 
-	entries  []string // transcript lines shown in the LOG
-	commands []string // executed commands, oldest first
-	histPos  int      // 0 = live input; n = n commands back
-	draft    string   // live input stashed while browsing history
+	entries  []textElement // raw semantic transcript lines shown in the LOG
+	commands []string      // executed commands, oldest first
+	histPos  int           // 0 = live input; n = n commands back
+	draft    string        // live input stashed while browsing history
 
 	// phase is the render phase for the ambient weather (rain.go) —
 	// presentation state only, advanced by the rain ticker. The game
@@ -167,16 +170,26 @@ func rainTicker() tea.Cmd {
 
 // New builds a session around the engine, seeding the LOG with the
 // intro text.
-func New(eng *engine.Engine, intro string) Model {
+func New(eng *engine.Engine, intro string, options ...Option) Model {
+	opts := modelOptions{themeID: defaultThemeID}
+	for _, option := range options {
+		option(&opts)
+	}
+	theme, ok := themeByID(opts.themeID)
+	if !ok {
+		opts.themeID = defaultThemeID
+		theme, _ = themeByID(defaultThemeID)
+	}
 	ti := textinput.New()
-	ti.Prompt = promptStyle.Render("> ")
+	ti.Prompt = theme.Overworld.prompt.Render("> ")
 	ti.Placeholder = "what does Buddy do?"
 	ti.Focus()
 
 	return Model{
 		eng:       eng,
+		themeID:   opts.themeID,
 		input:     ti,
-		entries:   []string{intro},
+		entries:   []textElement{{Role: textBody, Text: intro}},
 		SavePath:  defaultSavePath(),
 		rainLevel: defaultRainLevel,
 	}
@@ -265,7 +278,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			m.commands = append(m.commands, line)
-			m.entries = append(m.entries, echoStyle.Render("> "+line))
+			m.appendLog(textEcho, "> "+line)
 			m.executeLine(line)
 			m.refreshLog()
 			if m.eng.World.Quitting() {
@@ -303,15 +316,16 @@ func (m *Model) executeLine(line string) {
 		}
 	}
 	if out := m.eng.Execute(line); out != "" {
-		m.entries = append(m.entries, out)
+		m.appendLog(textBody, out)
 	}
 	m.maybeLevelUp()
 }
 
 func (m Model) View() string {
+	styles := m.presentation().Overworld
 	if !m.ready {
-		return panelTitleStyle.Render("PAWS IN THE MACHINE") + "\n" +
-			rainStyle.Render("rain on the window.")
+		return styles.panelTitle.Render("PAWS IN THE MACHINE") + "\n" +
+			styles.rain.Render("rain on the window.")
 	}
 	for _, s := range surfaces {
 		if fs, ok := s.(fullscreenSurface); ok && s.Active(&m) {
@@ -366,7 +380,7 @@ func (m *Model) refreshLog() {
 		return
 	}
 	wrapped := lipgloss.NewStyle().Width(m.log.Width).
-		Render(strings.Join(m.entries, "\n"))
+		Render(renderLog(m.entries, m.presentation().Overworld))
 	m.log.SetContent(wrapped)
 	m.log.GotoBottom()
 }
@@ -374,14 +388,15 @@ func (m *Model) refreshLog() {
 // centerModal composites content in a focused box centered over the
 // main row, leaving the panels visible around it.
 func (m Model) centerModal(bg, content string, modalW int) string {
+	styles := m.presentation().Overworld
 	if max := m.width - 8; modalW > max {
 		modalW = max
 	}
 	if modalW < 20 {
 		modalW = 20 // absurdly narrow terminals get a clipped box, not negative widths
 	}
-	box := panelFocusStyle.Width(modalW).
-		Render(bodyStyle.Width(modalW - 4).Render(content))
+	box := styles.panelFocus.Width(modalW).
+		Render(styles.body.Width(modalW - 4).Render(content))
 	x := (m.width - lipgloss.Width(box)) / 2
 	y := (m.mainRowHeight() - lipgloss.Height(box)) / 2
 	if x < 0 {
