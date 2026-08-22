@@ -1,7 +1,7 @@
 # Charts
 
 Status: spec agreed (from the hubs.md chart ruling 2026-07-10 and the
-nesting amendment 2026-08-16); building.
+nesting amendment 2026-08-16); core geometry and first editor slice built.
 
 The lattice under a node. `docs/systems/hubs.md` owns the *rulings*
 (subway model, lawful geometry, folds, vocabulary, the cat clause);
@@ -133,6 +133,11 @@ player sketches a map in a notebook, which is what lawful geometry is
 for. Keys: `hjkl`/arrows move, `n` names the cell under the cursor, `d`
 deletes, `tab` cycles charts, `<`/`>` change floor, `[`/`]` step
 kata/ana, `s` saves, `q` quits (refusing while there is unsaved work).
+
+Entity references are checked against a read-only catalog of the assembled
+game. Unknown IDs and duplicate placement of one entity within or across
+charts are hard validation errors: an existing invalid file opens for repair,
+but cannot be saved over until it is valid.
 
 The inspector under the grid shows the exits that *derive* from the
 cursor's cell, gluings included — so authoring and the game's actual

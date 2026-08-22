@@ -37,8 +37,8 @@ Okuda's archive door, released by `run unlock.bin` on `okuda.grid`.
 
 ## Charts: the lattice under each hub
 
-**RULED 2026-07-10, spec'd, not built** — implementation gets its own
-branch after the mission-1 branch merges.
+**RULED 2026-07-10; core geometry and the first editor slice are built.**
+Metamap/node reconciliation and the broader authoring workflows remain open.
 
 The world was originally ruled two-level (amended 2026-08-16 to
 arbitrary depth — see "Nesting" below; both levels below survive the

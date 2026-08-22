@@ -24,7 +24,13 @@ func main() {
 		path = os.Args[1]
 	}
 
-	m, err := newModel(path)
+	entities, err := assembledGameCatalog()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "editor:", err)
+		os.Exit(1)
+	}
+
+	m, err := newModel(path, entities)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "editor:", err)
 		os.Exit(1)

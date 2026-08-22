@@ -21,19 +21,23 @@ const (
 )
 
 type model struct {
-	path   string
-	weave  *charts.Weave
-	ids    []string // chart IDs, sorted — tab cycles them
-	ci     int      // index into ids
-	cur    charts.Coord
-	mode   mode
-	input  textinput.Model
-	status string
-	dirty  bool
-	w, h   int
+	path     string
+	weave    *charts.Weave
+	entities entityCatalog
+	ids      []string // chart IDs, sorted — tab cycles them
+	ci       int      // index into ids
+	cur      charts.Coord
+	mode     mode
+	input    textinput.Model
+	status   string
+	dirty    bool
+	w, h     int
 }
 
-func newModel(path string) (*model, error) {
+func newModel(path string, entities entityCatalog) (*model, error) {
+	if entities == nil {
+		return nil, fmt.Errorf("editor requires an entity catalog")
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -57,10 +61,15 @@ func newModel(path string) (*model, error) {
 	in.CharLimit = 64
 
 	status := fmt.Sprintf("loaded %s", path)
-	if len(bugs) > 0 {
-		status = strings.Join(bugs, "; ")
+	problems := append([]string{}, bugs...)
+	problems = append(problems, validateWeave(weave, entities)...)
+	if len(problems) > 0 {
+		status = "validation failed: " + strings.Join(problems, "; ")
 	}
-	return &model{path: path, weave: weave, ids: ids, input: in, status: status}, nil
+	return &model{
+		path: path, weave: weave, entities: entities, ids: ids,
+		input: in, status: status,
+	}, nil
 }
 
 func (m *model) Init() tea.Cmd { return nil }
@@ -95,6 +104,10 @@ func (m *model) updateNaming(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.mode = browsing
 		if id == "" {
 			m.status = "cancelled"
+			return m, nil
+		}
+		if problem := validatePlacement(m.weave, m.entities, m.ids[m.ci], m.cur, id); problem != "" {
+			m.status = "placement rejected: " + problem
 			return m, nil
 		}
 		m.chart().Cells[m.cur] = id
@@ -167,6 +180,10 @@ func (m *model) updateBrowsing(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) save() {
+	if problems := validateWeave(m.weave, m.entities); len(problems) > 0 {
+		m.status = "save blocked: " + strings.Join(problems, "; ")
+		return
+	}
 	out, err := charts.Marshal(m.weave)
 	if err != nil {
 		m.status = "save failed: " + err.Error()

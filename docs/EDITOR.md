@@ -68,6 +68,10 @@ The editor also:
 
 - displays only the occupied cells on the current slice, plus working space
   around them;
+- validates chart references against a read-only catalog of the assembled game
+  world;
+- rejects unknown entity IDs and prevents one entity ID from being placed at
+  more than one coordinate across the entire weave;
 - marks unsaved work in the title;
 - preserves deterministic JSON ordering, so an unchanged save is
   byte-identical; and
@@ -77,9 +81,15 @@ The editor also:
 
 A room ID entered with `n` is a **reference to an existing game entity**. The
 editor does not create that entity or any description, interaction, gate,
-character, item, flag, or other content belonging to it. At present the
-editor accepts the entered string without checking it against the game world;
-an unknown ID is reported later when the game applies the charts.
+character, item, flag, or other content belonging to it. The editor resolves
+the entered ID against the assembled game world before placing it. Unknown IDs
+are rejected, as are IDs already placed at another coordinate in any chart.
+
+An existing file containing an unknown ID or duplicate placement still opens
+so it can be repaired. The editor reports every invalid location, but saving is
+blocked until the errors are fixed; a blocked save leaves the file on disk
+unchanged. This validates identity, not entity kind: the catalog does not yet
+provide a room-type schema or make non-room content editable.
 
 Likewise, `d` means **unplace this room ID from this coordinate**. It does not
 delete the room entity or any content that refers to it. Unplacing a room can
@@ -105,7 +115,6 @@ The current editor does not:
   flags, events, journal entries, missions, or network content;
 - show or edit authored `Blocked`, `Gated`, or `Guarded` behavior;
 - author, change, or remove gluings;
-- validate room IDs against the assembled game world;
 - show every downstream reference before a geometry change;
 - provide a metamap/node-management screen;
 - provide undo/redo; or
@@ -118,7 +127,9 @@ grow beyond geometry into a full game editor.
 
 `internal/game/content/charts.json` is the geometry source of truth. The game
 embeds it with `go:embed`, and the editor reads and writes the same format.
-There is no generated Go copy.
+There is no generated Go copy. The editor's read-only entity catalog comes
+from `game.NewWorld`, so an alternate chart path is still checked against the
+identity of the assembled game rather than treated as a separate game.
 
 Editor saves should be reviewed like code. Moving or unplacing one room can
 change exits for that room and every adjacent room. Relevant verification is:
@@ -139,9 +150,11 @@ These are capability gaps, not declarations of new world content or missions.
 
 ### Make geometry editing safer
 
-- [ ] Validate entered room IDs against the assembled game world before save.
-- [ ] Report duplicate placements and downstream references affected by an
-  unplacement.
+- [x] Validate entered entity IDs against the assembled game world during
+  placement, load, and save.
+- [x] Reject duplicate placements within or across charts and report every
+  conflicting coordinate.
+- [ ] Report downstream references affected by an unplacement.
 - [ ] Add undo/redo for placement and deletion.
 - [ ] Make saves atomic and offer a recoverable backup.
 - [ ] Distinguish the UI wording for **unplace** from deletion of game
