@@ -18,6 +18,10 @@ The implementation lives in `cmd/editor/`. The chart model and file format
 live in `internal/systems/charts/`; shipped geometry lives in
 `internal/game/content/charts.json`.
 
+The declared shared frame, hierarchy, and interpretation rules for editor
+menu sketches live in [`EDITOR_MENUS.md`](EDITOR_MENUS.md). Future sketches may
+omit their borders; the shared bordered presentation is still implied.
+
 ## What it is for
 
 The editor makes lawful map geometry visible while it is authored:
@@ -189,6 +193,9 @@ These are capability gaps, not declarations of new world content or missions.
   model.
 - [ ] Create world items, place them in the world, and author how they can be
   used, manipulated, and put into inventory.
+- [ ] Create terminals with separate usernames and host names, use the host
+  name as the network-map key, enter them from the editor, and author their
+  fake directories and files from a deck-structured starting point.
 - [ ] Author room descriptions and item descriptions.
 - [ ] Author NPC dialogue.
 - [ ] Add and manage world keywords.
