@@ -1,18 +1,20 @@
 # Editor menu pattern
 
-Status: user-declared editor UI convention (2026-08-22).
+Status: Bubble Tea prototype reference. The bordered TUI presentation was
+superseded by the local browser-editor design in `EDITOR.md` on 2026-08-22;
+the declared workflow and field decisions remain design input.
 
 ## Purpose
 
-Editor menu sketches declare menu content, hierarchy, form fields, and general
-composition. They are not diagrams drawn to scale. Panel width, height,
-padding, and blank lines are responsive implementation details.
+These editor menu sketches declared the prototype's content, hierarchy, form
+fields, and general composition. They were not diagrams drawn to scale. Panel
+width, height, padding, and blank lines were responsive implementation details.
 
-Future menu sketches may omit the surrounding frame. Every editor menu and
-form is still assumed to use the shared bordered presentation described here.
-The border does not need to be repeated in each sketch.
+The browser editor replaces the numbered menu hierarchy with routable Header
+tabs, Detail tabs, and Assignment screens. Future browser sketches do not
+implicitly carry the TUI border or keyboard-selection rules below.
 
-## Shared presentation
+## TUI prototype presentation
 
 Every editor menu or form has:
 
@@ -144,9 +146,9 @@ description therefore requires a deliberate model/rendering seam rather than
 overloading or rewriting the authored item name.
 
 The current engine also requires every entity to have a stable ID and may give
-it aliases. Those values are not declared by this first form. The editor must
-not guess whether the ID is derived from the item name, generated separately,
-or entered through another field until that behavior is ruled.
+it aliases. The browser-editor design rules that the editor generates an
+immutable UUID and keeps it out of the normal designer-facing form; editable
+names remain the visible identity. Alias authoring is still undeclared.
 
 ### Item-kind implementation
 
@@ -232,7 +234,8 @@ entry.
 The visual pattern does not yet declare:
 
 - whether successful saves need confirmation beyond returning to a menu;
-- validation and error presentation;
+- validation error presentation (the integrity-only validation scope is ruled
+  in `EDITOR.md`);
 - the forms beneath most creation choices;
 - the contents of `Edit` and `Place`;
 - whether `Create Quest` authors the existing mission-file/flag/event
@@ -245,10 +248,8 @@ The visual pattern does not yet declare:
   template;
 - default services, ports, password, route requirement, banner, and process
   table for a created terminal;
-- the data file/schema that makes editor-created hosts and filesystem nodes
-  available to `game.NewWorld`;
+- the exact terminal and filesystem schema and its loading into `game.NewWorld`;
 - how a created terminal is placed into the overworld after its filesystem is
   authored;
-- how a world item's stable entity ID is chosen and validated;
 - whether world items can have aliases or world keywords at creation time;
 - whether short and full item descriptions use multiline editors.
