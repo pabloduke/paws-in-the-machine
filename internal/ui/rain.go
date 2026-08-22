@@ -1,6 +1,10 @@
 package ui
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/charmbracelet/lipgloss"
+)
 
 // Rain is presentation only (the timer ruling): the tick in model.go
 // advances Model.phase and nothing else — World never sees weather,
@@ -23,13 +27,18 @@ const (
 // fades upward: bright head, grey mid, faint tail. level picks a
 // rung of the opacity ladder (styles.go); 0 renders nothing.
 func rainField(roomID string, phase, width, height, level int) []string {
+	return themedRainField(roomID, phase, width, height, level,
+		defaultOverworldStyles().rainShades)
+}
+
+func themedRainField(roomID string, phase, width, height, level int, shades [5][3]lipgloss.Style) []string {
 	if width < 1 || height < 1 || level < 1 {
 		return nil
 	}
 	if level > maxRainLevel {
 		level = maxRainLevel
 	}
-	shades := rainShades[level]
+	shade := shades[level]
 	// Brightness level per cell: 0 empty, 1 tail, 2 mid, 3 head.
 	grid := make([][]int, height)
 	for r := range grid {
@@ -63,7 +72,7 @@ func rainField(roomID string, phase, width, height, level int) []string {
 			if lvl := grid[r][c]; lvl == 0 {
 				b.WriteByte(' ')
 			} else {
-				b.WriteString(shades[3-lvl].Render("·"))
+				b.WriteString(shade[3-lvl].Render("·"))
 			}
 		}
 		rows[r] = strings.TrimRight(b.String(), " ")

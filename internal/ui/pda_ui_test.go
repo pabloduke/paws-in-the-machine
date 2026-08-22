@@ -77,7 +77,7 @@ func TestPDAMenusInTheField(t *testing.T) {
 	if mod.(Model).pdaMode != pdaClosed {
 		t.Fatalf("esc from the menu should pocket the PDA")
 	}
-	if joined := strings.Join(mod.(Model).entries, "\n"); !strings.Contains(joined, "pocket the PDA") {
+	if joined := rawLog(mod.(Model).entries); !strings.Contains(joined, "pocket the PDA") {
 		t.Fatalf("pocketing should land in the LOG: %q", joined)
 	}
 }

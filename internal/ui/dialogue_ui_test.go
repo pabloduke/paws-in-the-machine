@@ -49,7 +49,7 @@ func TestDialogueMenuFlow(t *testing.T) {
 	if mm.dialogue == nil {
 		t.Fatalf("locked pick should stay in dialogue")
 	}
-	joined := strings.Join(mm.entries, "\n")
+	joined := rawLog(mm.entries)
 	if !strings.Contains(joined, "isn't up to that yet") {
 		t.Fatalf("expected locked refusal in log")
 	}

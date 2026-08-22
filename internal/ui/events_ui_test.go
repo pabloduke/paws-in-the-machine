@@ -58,7 +58,7 @@ func TestWhisperEventBeat(t *testing.T) {
 	if len(w.Pending) != 0 {
 		t.Fatalf("dismissal should drain the beats: %v", w.Pending)
 	}
-	joined := strings.Join(mm.entries, "\n")
+	joined := rawLog(mm.entries)
 	if !strings.Contains(joined, "fans spin down") || !strings.Contains(joined, "+3 XP") {
 		t.Fatalf("dismissed beats should be in the LOG")
 	}

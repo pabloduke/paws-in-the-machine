@@ -106,7 +106,7 @@ func (m *Model) updateLevelUp(msg tea.KeyMsg) {
 		m.lvlSel = (m.lvlSel + 1) % len(trainOrder)
 	case tea.KeyEnter:
 		if out := engine.Train(m.eng.World, trainOrder[m.lvlSel]); out != "" {
-			m.entries = append(m.entries, out)
+			m.appendLog(textBody, out)
 		}
 		m.refreshLog()
 		if m.eng.World.StatPoints == 0 {
@@ -154,9 +154,10 @@ func (m Model) modalListHeight() int {
 // levelUpView is the must-spend stat picker: each row shows the stat
 // and what training it would make it.
 func (m Model) levelUpView() string {
+	styles := m.presentation().Overworld
 	w := m.eng.World
 	var b strings.Builder
-	b.WriteString(roomTitleStyle.Render("LEVEL UP!"))
+	b.WriteString(styles.roomTitle.Render("LEVEL UP!"))
 	plural := "point"
 	if w.StatPoints != 1 {
 		plural = "points"
@@ -166,19 +167,20 @@ func (m Model) levelUpView() string {
 		v := *w.Stats.ByName(name)
 		row := fmt.Sprintf("%-8s %d → %d", engine.Capitalize(name), v, v+1)
 		if i == m.lvlSel {
-			row = hubSelStyle.Render(row)
+			row = styles.selection.Render(row)
 		}
 		b.WriteString("\n" + row)
 	}
-	b.WriteString("\n\n" + dimStyle.Render("up/down to highlight · enter to train"))
+	b.WriteString("\n\n" + styles.dim.Render("up/down to highlight · enter to train"))
 	return b.String()
 }
 
 // inventoryLines is the inventory modal's full list, pre-scroll.
 func (m Model) inventoryLines() []string {
+	styles := m.presentation().Overworld
 	w := m.eng.World
 	if len(w.Player.Contents) == 0 {
-		return []string{dimStyle.Render("nothing — traveling light")}
+		return []string{styles.dim.Render("nothing — traveling light")}
 	}
 	var lines []string
 	for _, e := range w.Player.Contents {
@@ -189,13 +191,14 @@ func (m Model) inventoryLines() []string {
 
 // inventoryView renders the scrollable carried-items modal.
 func (m Model) inventoryView() string {
+	styles := m.presentation().Overworld
 	lines := m.inventoryLines()
 	rows := m.modalListHeight()
 
 	var b strings.Builder
-	b.WriteString(roomTitleStyle.Render("INVENTORY") + "\n")
+	b.WriteString(styles.roomTitle.Render("INVENTORY") + "\n")
 	if m.invOff > 0 {
-		b.WriteString("\n" + dimStyle.Render("▲ more"))
+		b.WriteString("\n" + styles.dim.Render("▲ more"))
 	}
 	end := m.invOff + rows
 	if end > len(lines) {
@@ -205,17 +208,18 @@ func (m Model) inventoryView() string {
 		b.WriteString("\n" + line)
 	}
 	if end < len(lines) {
-		b.WriteString("\n" + dimStyle.Render("▼ more"))
+		b.WriteString("\n" + styles.dim.Render("▼ more"))
 	}
-	b.WriteString("\n\n" + dimStyle.Render("up/down to scroll · esc to close"))
+	b.WriteString("\n\n" + styles.dim.Render("up/down to scroll · esc to close"))
 	return b.String()
 }
 
 // statsView is the read-only character sheet modal.
 func (m Model) statsView() string {
+	styles := m.presentation().Overworld
 	var b strings.Builder
-	b.WriteString(roomTitleStyle.Render("BUDDY") + "\n\n")
+	b.WriteString(styles.roomTitle.Render("BUDDY") + "\n\n")
 	b.WriteString(engine.StatSheet(m.eng.World))
-	b.WriteString("\n\n" + dimStyle.Render("esc to close"))
+	b.WriteString("\n\n" + styles.dim.Render("esc to close"))
 	return b.String()
 }

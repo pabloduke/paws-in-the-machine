@@ -92,7 +92,7 @@ func (shellSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 			return nil
 		}
 		before := m.shellInput.Value()
-		completed, matches := m.shell.Complete(before)
+		completed, matches := m.completeShellLine(before)
 		m.shellInput.SetValue(completed)
 		m.shellInput.CursorEnd()
 		if len(matches) > 1 && completed == before {
@@ -151,7 +151,19 @@ func (shellSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 			echoed = strings.Repeat("*", len([]rune(line)))
 		}
 		m.appendShell(shellEcho, m.shell.Prompt()+echoed)
+		if !secret {
+			if out, handled := m.handleThemeCommand(line); handled {
+				m.appendShell(shellOutput, out)
+				m.syncShellInput()
+				m.resizeShellInput()
+				m.refreshShell()
+				return nil
+			}
+		}
 		result := m.shell.ExecDetailed(line)
+		if line == "help" {
+			result.Output += "\n\n(Placeholder) local display:\n  " + themeUsage
+		}
 		if result.Edit != nil {
 			m.openShellEditor(result.Edit)
 			if result.Output != "" {
@@ -234,10 +246,7 @@ func (shellSurface) Screen(m *Model) string {
 	theme := m.mainTerminalTheme()
 
 	titleText := ansi.Truncate("CYBERDECK // "+strings.ToUpper(m.shell.HostName()), m.shellVP.Width, "")
-	title := theme.titleStyle().
-		Width(m.shellVP.Width).
-		MaxWidth(m.shellVP.Width).
-		Render(titleText)
+	title := renderTerminalTitle(titleText, m.shellVP.Width, m.phase, theme)
 	prompt := lipgloss.NewStyle().
 		Width(m.shellVP.Width).
 		MaxWidth(m.shellVP.Width).
@@ -247,9 +256,10 @@ func (shellSurface) Screen(m *Model) string {
 	termStyle := theme.panelStyle(!m.readerFocus && m.editorPath == "")
 	term := termStyle.Width(termW - 2).Height(panelH - 2).
 		Render(content)
-	statusStyle := termPanelStyle
+	panelTheme := m.presentation().Terminal.panel
+	statusStyle := panelTheme.panelStyle(false)
 	if m.readerFocus || m.editorPath != "" {
-		statusStyle = termPanelFocusStyle
+		statusStyle = panelTheme.panelStyle(true)
 	}
 	panel := m.idlePanel()
 	if m.msgOpen {
@@ -260,6 +270,22 @@ func (shellSurface) Screen(m *Model) string {
 	}
 	status := statusStyle.Width(statusW - 2).Height(panelH - 2).Render(panel)
 	return lipgloss.JoinHorizontal(lipgloss.Top, term, status)
+}
+
+// renderTerminalTitle keeps the original path exact for themes without the
+// effect. Effected text is laid into the same fixed-width background only
+// after its grapheme-safe inline rendering is complete.
+func renderTerminalTitle(text string, width, phase int, theme terminalTheme) string {
+	base := theme.titleStyle()
+	if !theme.titleEffect.enabled {
+		return base.Width(width).MaxWidth(width).Render(text)
+	}
+	effected := renderInlineEffect(text, phase, base, theme.titleEffect)
+	return lipgloss.NewStyle().
+		Width(width).
+		MaxWidth(width).
+		Background(theme.dark).
+		Render(effected)
 }
 
 // Resize refits the terminal to the window.
@@ -314,7 +340,7 @@ func (m *Model) BootIntoDeck() {
 func (m *Model) openShell(d hacking.Deck) {
 	s, err := hacking.NewSession(m.eng.World, d.Net, d.Host)
 	if err != nil {
-		m.entries = append(m.entries, err.Error())
+		m.appendLog(textBody, err.Error())
 		return
 	}
 	m.shell = s
@@ -428,10 +454,11 @@ func (m *Model) refreshShell() {
 }
 
 func (m Model) mainTerminalTheme() terminalTheme {
+	styles := m.presentation().Terminal
 	if m.shell != nil && m.shell.IsRemote() {
-		return remoteTerminalTheme
+		return styles.remote
 	}
-	return localTerminalTheme
+	return styles.local
 }
 
 func (m *Model) appendShell(kind shellEntryKind, text string) {
@@ -447,7 +474,7 @@ func (m *Model) refreshShellReader() {
 	if m.readerMD != "" {
 		rendered = hacking.RenderMarkdown(m.readerMD, m.shellReader.Width)
 	} else {
-		rendered = termOutputStyle.Width(m.shellReader.Width).Render(m.readerText)
+		rendered = m.presentation().Terminal.panel.outputStyle().Width(m.shellReader.Width).Render(m.readerText)
 	}
 	m.shellReader.SetContent(rendered)
 }
@@ -460,7 +487,8 @@ func (m Model) readerPanel() string {
 		return ""
 	}
 	titleText := ansi.Truncate("READER // "+m.readerTitle, m.shellReader.Width, "")
-	title := termTitleStyle.
+	panelTheme := m.presentation().Terminal.panel
+	title := panelTheme.titleStyle().
 		Width(m.shellReader.Width).
 		MaxWidth(m.shellReader.Width).
 		Render(titleText)
@@ -469,7 +497,7 @@ func (m Model) readerPanel() string {
 		hintText = "shift+tab: terminal · up/down: scroll"
 	}
 	hintText = ansi.Truncate(hintText, m.shellReader.Width, "")
-	hint := termDimStyle.
+	hint := panelTheme.dimStyle().
 		Width(m.shellReader.Width).
 		MaxWidth(m.shellReader.Width).
 		Render(hintText)
@@ -509,15 +537,20 @@ func (m *Model) openShellEditor(edit *hacking.EditBuffer) {
 		m.shellEditor = textarea.New()
 		m.shellEditor.Prompt = ""
 		m.shellEditor.ShowLineNumbers = false
-		m.shellEditor.FocusedStyle.Base = termPromptStyle
-		m.shellEditor.FocusedStyle.Text = termPromptStyle
-		m.shellEditor.BlurredStyle.Base = termPromptStyle
-		m.shellEditor.BlurredStyle.Text = termPromptStyle
-		m.shellEditor.Cursor.Style = termPromptStyle
 	}
+	m.styleShellEditor()
 	m.resizeShell()
 	m.shellEditor.SetValue(edit.Text)
 	m.shellEditor.Focus()
+}
+
+func (m *Model) styleShellEditor() {
+	prompt := m.presentation().Terminal.panel.promptStyle()
+	m.shellEditor.FocusedStyle.Base = prompt
+	m.shellEditor.FocusedStyle.Text = prompt
+	m.shellEditor.BlurredStyle.Base = prompt
+	m.shellEditor.BlurredStyle.Text = prompt
+	m.shellEditor.Cursor.Style = prompt
 }
 
 func (m *Model) resizeShellEditor() {
@@ -649,12 +682,13 @@ func (m Model) editorPanel() string {
 		}
 	}
 	titleText := ansi.Truncate(name+" // "+m.editorPath, m.shellReader.Width, "")
-	title := termTitleStyle.
+	panelTheme := m.presentation().Terminal.panel
+	title := panelTheme.titleStyle().
 		Width(m.shellReader.Width).
 		MaxWidth(m.shellReader.Width).
 		Render(titleText)
 	hintText := ansi.Truncate(hint, m.shellReader.Width, "")
-	hintRow := termDimStyle.
+	hintRow := panelTheme.dimStyle().
 		Width(m.shellReader.Width).
 		MaxWidth(m.shellReader.Width).
 		Render(hintText)
@@ -670,7 +704,7 @@ func (m *Model) closeShell() {
 	m.editorPath = ""
 	m.msgOpen = false
 	m.input.Focus()
-	m.entries = append(m.entries, dimStyle.Render("[left the terminal]"))
+	m.appendLog(textDim, "[left the terminal]")
 	m.eng.World.CheckEvents()
 	m.refreshLog()
 	m.maybeLevelUp()
@@ -691,7 +725,7 @@ func (m Model) idlePanel() string {
 	if m.readerFocus {
 		hint = "Shift+Tab: terminal"
 	}
-	art := termDimStyle.Render(idleArt + "\n\n CantOS\n\n " + hint)
+	art := m.presentation().Terminal.panel.dimStyle().Render(idleArt + "\n\n CantOS\n\n " + hint)
 	return lipgloss.Place(statusW-4, panelH-4, lipgloss.Center, lipgloss.Center, art)
 }
 
@@ -749,16 +783,17 @@ func (m *Model) refreshMessenger() {
 		return
 	}
 	mgr := m.deckCfg.Messenger
-	from := termPanelTitleStyle.Render(strings.ToUpper(mgr.Contact))
+	panelTheme := m.presentation().Terminal.panel
+	from := panelTheme.titleStyle().Render(strings.ToUpper(mgr.Contact))
 	var lines []string
 	for _, msg := range mgr.Thread(m.eng.World) {
 		lines = append(lines, from+"\n"+msg.Text)
 	}
-	content := termDimStyle.Render("no messages")
+	content := panelTheme.dimStyle().Render("no messages")
 	if len(lines) > 0 {
 		content = strings.Join(lines, "\n\n")
 	}
-	m.msgVP.SetContent(termOutputStyle.Width(m.msgVP.Width).Render(content))
+	m.msgVP.SetContent(panelTheme.outputStyle().Width(m.msgVP.Width).Render(content))
 	m.msgVP.GotoBottom()
 }
 
@@ -766,7 +801,8 @@ func (m *Model) refreshMessenger() {
 func (m Model) messengerPanel() string {
 	titleText := ansi.Truncate("MESSENGER // "+
 		strings.ToUpper(m.deckCfg.Messenger.Contact), m.msgVP.Width, "")
-	title := termTitleStyle.
+	panelTheme := m.presentation().Terminal.panel
+	title := panelTheme.titleStyle().
 		Width(m.msgVP.Width).
 		MaxWidth(m.msgVP.Width).
 		Render(titleText)
@@ -775,7 +811,7 @@ func (m Model) messengerPanel() string {
 		hintText = "shift+tab: terminal · up/down: scroll"
 	}
 	hintText = ansi.Truncate(hintText, m.msgVP.Width, "")
-	hint := termDimStyle.
+	hint := panelTheme.dimStyle().
 		Width(m.msgVP.Width).
 		MaxWidth(m.msgVP.Width).
 		Render(hintText)

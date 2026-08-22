@@ -33,10 +33,10 @@ func defaultSavePath() string {
 func (saveSurface) Intercept(m *Model, cmd engine.Command) bool {
 	switch cmd.Verb {
 	case "save":
-		m.entries = append(m.entries, m.doSave())
+		m.appendLog(textBody, m.doSave())
 		return true
 	case "load":
-		m.entries = append(m.entries, m.doLoad())
+		m.appendLog(textBody, m.doLoad())
 		return true
 	}
 	return false
