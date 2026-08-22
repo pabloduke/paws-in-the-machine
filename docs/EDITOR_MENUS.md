@@ -23,6 +23,11 @@ Every editor menu or form has:
 - spacing and dimensions fitted to the available terminal rather than copied
   literally from a sketch.
 
+Current presentation ruling (2026-08-22): the implemented baseline panel is
+50% larger than the original rough dimensions, both title lines are centered,
+and menus use a high-contrast truecolor cyberpunk palette. Actual glyph size is
+controlled by the terminal emulator and cannot be changed by Bubble Tea.
+
 A borderless declaration such as:
 
 ```text
@@ -199,6 +204,8 @@ selection and a visible `>` selector.
 - Pressing an entry's number activates that entry directly.
 - Up/Down moves the `>` selector through the available entries.
 - Enter activates the selected entry.
+- Escape returns one level from every submenu, form, or Back-only screen.
+- `q` exits from the main menu; Ctrl+C exits from anywhere.
 
 Creation forms present `Save` and `Cancel` as selectable actions rather than
 asking the designer to type either word:
@@ -211,12 +218,19 @@ asking the designer to type either word:
 Up/Down selects the action and Enter activates it. The exact spacing and
 placement remain responsive like the rest of the menu frame.
 
+In the navigation prototype, Up/Down or Tab/Shift+Tab moves between form
+fields and actions. Enter advances to the next row. Left/Right changes the
+selected world-item type. `Save` and `Cancel` both return to `Create Item`
+without retaining or writing form data; persistence is deliberately deferred.
+
+Until their forms are declared, `Edit`, `Place`, `Create NPC`, `Create Quest`,
+`Create Room`, and `Create Hub` open framed screens with one selectable `Back`
+entry.
+
 ## Open behavior gaps
 
 The visual pattern does not yet declare:
 
-- back-navigation behavior;
-- field-to-field focus controls on creation forms;
 - whether successful saves need confirmation beyond returning to a menu;
 - validation and error presentation;
 - the forms beneath most creation choices;

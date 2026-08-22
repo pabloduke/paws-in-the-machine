@@ -2,352 +2,453 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"sort"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-
-	"github.com/pabloduke/paws-in-the-machine/internal/systems/charts"
 )
 
-type mode int
+type screen int
 
 const (
-	browsing mode = iota
-	naming        // typing an entity ID into the cell under the cursor
+	mainMenu screen = iota
+	createMenu
+	createItemMenu
+	worldItemForm
+	terminalForm
+	createNPCScreen
+	createQuestScreen
+	createRoomScreen
+	createHubScreen
+	editScreen
+	placeScreen
+)
+
+type menuEntry struct {
+	label  string
+	target screen
+}
+
+var screenMenus = map[screen][]menuEntry{
+	mainMenu: {
+		{label: "Create", target: createMenu},
+		{label: "Edit", target: editScreen},
+		{label: "Place", target: placeScreen},
+	},
+	createMenu: {
+		{label: "Create Item", target: createItemMenu},
+		{label: "Create NPC", target: createNPCScreen},
+		{label: "Create Quest", target: createQuestScreen},
+		{label: "Create Room", target: createRoomScreen},
+		{label: "Create Hub", target: createHubScreen},
+	},
+	createItemMenu: {
+		{label: "Create World Item", target: worldItemForm},
+		{label: "Create Terminal", target: terminalForm},
+	},
+	createNPCScreen:   {{label: "Back", target: createMenu}},
+	createQuestScreen: {{label: "Back", target: createMenu}},
+	createRoomScreen:  {{label: "Back", target: createMenu}},
+	createHubScreen:   {{label: "Back", target: createMenu}},
+	editScreen:        {{label: "Back", target: mainMenu}},
+	placeScreen:       {{label: "Back", target: mainMenu}},
+}
+
+var screenTitles = map[screen]string{
+	mainMenu:          "GAME EDITOR",
+	createMenu:        "CREATE",
+	createItemMenu:    "CREATE ITEM",
+	worldItemForm:     "CREATE WORLD ITEM",
+	terminalForm:      "CREATE TERMINAL",
+	createNPCScreen:   "CREATE NPC",
+	createQuestScreen: "CREATE QUEST",
+	createRoomScreen:  "CREATE ROOM",
+	createHubScreen:   "CREATE HUB",
+	editScreen:        "EDIT",
+	placeScreen:       "PLACE",
+}
+
+var itemKinds = []string{"Takeable", "Fixed", "Scenery"}
+
+const (
+	worldNameRow = iota
+	worldKindRow
+	worldShortRow
+	worldFullRow
+	worldSaveRow
+	worldCancelRow
+	worldRowCount
+)
+
+const (
+	terminalUsernameRow = iota
+	terminalHostRow
+	terminalSaveRow
+	terminalCancelRow
+	terminalRowCount
 )
 
 type model struct {
-	path     string
-	weave    *charts.Weave
-	entities entityCatalog
-	ids      []string // chart IDs, sorted — tab cycles them
-	ci       int      // index into ids
-	cur      charts.Coord
-	mode     mode
-	input    textinput.Model
-	status   string
-	dirty    bool
-	w, h     int
+	screen screen
+	cursor int
+	w      int
+	h      int
+
+	itemName  textinput.Model
+	itemShort textinput.Model
+	itemFull  textinput.Model
+	itemKind  int
+
+	username textinput.Model
+	hostname textinput.Model
 }
 
-func newModel(path string, entities entityCatalog) (*model, error) {
-	if entities == nil {
-		return nil, fmt.Errorf("editor requires an entity catalog")
+func newModel() *model {
+	m := &model{
+		screen:    mainMenu,
+		itemName:  newInput(48),
+		itemShort: newInput(96),
+		itemFull:  newInput(256),
+		username:  newInput(48),
+		hostname:  newInput(96),
 	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	weave, bugs, err := charts.Unmarshal(data)
-	if err != nil {
-		return nil, err
-	}
+	return m
+}
 
-	ids := []string{}
-	for _, c := range weave.Charts() {
-		ids = append(ids, c.ID)
-	}
-	sort.Strings(ids)
-	if len(ids) == 0 {
-		return nil, fmt.Errorf("%s declares no charts", path)
-	}
-
+func newInput(limit int) textinput.Model {
 	in := textinput.New()
-	in.Prompt = "room id: "
-	in.CharLimit = 64
-
-	status := fmt.Sprintf("loaded %s", path)
-	problems := append([]string{}, bugs...)
-	problems = append(problems, validateWeave(weave, entities)...)
-	if len(problems) > 0 {
-		status = "validation failed: " + strings.Join(problems, "; ")
-	}
-	return &model{
-		path: path, weave: weave, entities: entities, ids: ids,
-		input: in, status: status,
-	}, nil
+	in.Prompt = ""
+	in.CharLimit = limit
+	in.Width = min(limit, 48)
+	in.TextStyle = inputTextStyle
+	in.Cursor.Style = inputCursorStyle
+	return in
 }
 
 func (m *model) Init() tea.Cmd { return nil }
-
-func (m *model) chart() *charts.Chart {
-	c, _ := m.weave.Chart(m.ids[m.ci])
-	return c
-}
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.w, m.h = msg.Width, msg.Height
+		inputWidth := min(48, max(1, msg.Width-36))
+		m.itemName.Width = inputWidth
+		m.itemShort.Width = inputWidth
+		m.itemFull.Width = inputWidth
+		m.username.Width = inputWidth
+		m.hostname.Width = inputWidth
 		return m, nil
 	case tea.KeyMsg:
-		if m.mode == naming {
-			return m.updateNaming(msg)
+		if msg.Type == tea.KeyCtrlC {
+			return m, tea.Quit
 		}
-		return m.updateBrowsing(msg)
+		if m.screen == worldItemForm {
+			return m.updateWorldItemForm(msg)
+		}
+		if m.screen == terminalForm {
+			return m.updateTerminalForm(msg)
+		}
+		return m.updateMenu(msg)
 	}
 	return m, nil
 }
 
-func (m *model) updateNaming(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.Type {
-	case tea.KeyEsc:
-		m.mode = browsing
-		m.status = "cancelled"
-		return m, nil
-	case tea.KeyEnter:
-		id := strings.TrimSpace(m.input.Value())
-		m.mode = browsing
-		if id == "" {
-			m.status = "cancelled"
-			return m, nil
-		}
-		if problem := validatePlacement(m.weave, m.entities, m.ids[m.ci], m.cur, id); problem != "" {
-			m.status = "placement rejected: " + problem
-			return m, nil
-		}
-		m.chart().Cells[m.cur] = id
-		m.dirty = true
-		m.status = fmt.Sprintf("placed %s at %s", id, coordText(m.cur))
+func (m *model) updateMenu(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	entries := screenMenus[m.screen]
+	if len(entries) == 0 {
 		return m, nil
 	}
+
+	switch msg.String() {
+	case "up":
+		m.cursor = (m.cursor - 1 + len(entries)) % len(entries)
+	case "down":
+		m.cursor = (m.cursor + 1) % len(entries)
+	case "enter":
+		return m.open(entries[m.cursor].target)
+	case "esc":
+		if m.screen != mainMenu {
+			return m.open(parentScreen(m.screen))
+		}
+	case "q":
+		if m.screen == mainMenu {
+			return m, tea.Quit
+		}
+	default:
+		if len(msg.Runes) == 1 {
+			n := int(msg.Runes[0] - '1')
+			if n >= 0 && n < len(entries) {
+				return m.open(entries[n].target)
+			}
+		}
+	}
+	return m, nil
+}
+
+func (m *model) open(next screen) (tea.Model, tea.Cmd) {
+	m.screen = next
+	m.cursor = 0
+	m.blurInputs()
+	switch next {
+	case worldItemForm:
+		m.resetWorldItemForm()
+		m.itemName.Focus()
+		return m, textinput.Blink
+	case terminalForm:
+		m.resetTerminalForm()
+		m.username.Focus()
+		return m, textinput.Blink
+	default:
+		return m, nil
+	}
+}
+
+func parentScreen(s screen) screen {
+	switch s {
+	case createMenu:
+		return mainMenu
+	case createItemMenu, createNPCScreen, createQuestScreen, createRoomScreen, createHubScreen:
+		return createMenu
+	case worldItemForm, terminalForm:
+		return createItemMenu
+	default:
+		return mainMenu
+	}
+}
+
+func (m *model) updateWorldItemForm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if msg.String() == "esc" {
+		return m.open(createItemMenu)
+	}
+	if moved := m.moveFormCursor(msg, worldRowCount); moved {
+		m.focusWorldItemRow()
+		return m, textinput.Blink
+	}
+	if m.cursor == worldKindRow {
+		switch msg.String() {
+		case "left":
+			m.itemKind = (m.itemKind - 1 + len(itemKinds)) % len(itemKinds)
+		case "right":
+			m.itemKind = (m.itemKind + 1) % len(itemKinds)
+		}
+	}
+	if msg.String() == "enter" {
+		switch m.cursor {
+		case worldSaveRow, worldCancelRow:
+			return m.open(createItemMenu)
+		default:
+			m.cursor++
+			m.focusWorldItemRow()
+			return m, textinput.Blink
+		}
+	}
+
 	var cmd tea.Cmd
-	m.input, cmd = m.input.Update(msg)
+	switch m.cursor {
+	case worldNameRow:
+		m.itemName, cmd = m.itemName.Update(msg)
+	case worldShortRow:
+		m.itemShort, cmd = m.itemShort.Update(msg)
+	case worldFullRow:
+		m.itemFull, cmd = m.itemFull.Update(msg)
+	}
 	return m, cmd
 }
 
-func (m *model) updateBrowsing(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "ctrl+c", "q":
-		if m.dirty {
-			m.status = "unsaved changes — press s to save, or Q to discard"
-			return m, nil
-		}
-		return m, tea.Quit
-	case "Q":
-		return m, tea.Quit
-
-	// Movement uses the game's own compass, so authoring and playing
-	// speak the same language: up is north (y+1), down is south.
-	case "up", "k":
-		m.cur.Y++
-	case "down", "j":
-		m.cur.Y--
-	case "left", "h":
-		m.cur.X--
-	case "right", "l":
-		m.cur.X++
-
-	// Vertical slices: a building's floors.
-	case "<":
-		m.cur.Z--
-	case ">":
-		m.cur.Z++
-
-	// The fourth axis. Dev-facing vocabulary only (hubs.md): the player
-	// never sees ana/kata, but the author has to stand there to build a
-	// fold.
-	case "[":
-		m.cur.W--
-	case "]":
-		m.cur.W++
-
-	case "tab":
-		m.ci = (m.ci + 1) % len(m.ids)
-		m.status = "chart: " + m.ids[m.ci]
-	case "n", "enter":
-		m.mode = naming
-		m.input.SetValue(m.chart().Cells[m.cur])
-		m.input.CursorEnd()
-		m.input.Focus()
+func (m *model) updateTerminalForm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if msg.String() == "esc" {
+		return m.open(createItemMenu)
+	}
+	if moved := m.moveFormCursor(msg, terminalRowCount); moved {
+		m.focusTerminalRow()
 		return m, textinput.Blink
-	case "d":
-		if _, ok := m.chart().At(m.cur); !ok {
-			m.status = "nothing here"
-			return m, nil
+	}
+	if msg.String() == "enter" {
+		switch m.cursor {
+		case terminalSaveRow, terminalCancelRow:
+			return m.open(createItemMenu)
+		default:
+			m.cursor++
+			m.focusTerminalRow()
+			return m, textinput.Blink
 		}
-		delete(m.chart().Cells, m.cur)
-		m.dirty = true
-		m.status = "deleted " + coordText(m.cur)
-	case "s":
-		m.save()
 	}
-	return m, nil
+
+	var cmd tea.Cmd
+	switch m.cursor {
+	case terminalUsernameRow:
+		m.username, cmd = m.username.Update(msg)
+	case terminalHostRow:
+		m.hostname, cmd = m.hostname.Update(msg)
+	}
+	return m, cmd
 }
 
-func (m *model) save() {
-	if problems := validateWeave(m.weave, m.entities); len(problems) > 0 {
-		m.status = "save blocked: " + strings.Join(problems, "; ")
-		return
+func (m *model) moveFormCursor(msg tea.KeyMsg, count int) bool {
+	switch msg.Type {
+	case tea.KeyUp, tea.KeyShiftTab:
+		m.cursor = (m.cursor - 1 + count) % count
+		return true
+	case tea.KeyDown, tea.KeyTab:
+		m.cursor = (m.cursor + 1) % count
+		return true
 	}
-	out, err := charts.Marshal(m.weave)
-	if err != nil {
-		m.status = "save failed: " + err.Error()
-		return
-	}
-	if err := os.WriteFile(m.path, out, 0o644); err != nil {
-		m.status = "save failed: " + err.Error()
-		return
-	}
-	m.dirty = false
-	m.status = "saved " + m.path
+	return false
 }
 
-func coordText(c charts.Coord) string {
-	s := fmt.Sprintf("(%d, %d", c.X, c.Y)
-	if c.Z != 0 || c.W != 0 {
-		s += fmt.Sprintf(", %d", c.Z)
+func (m *model) focusWorldItemRow() {
+	m.blurInputs()
+	switch m.cursor {
+	case worldNameRow:
+		m.itemName.Focus()
+	case worldShortRow:
+		m.itemShort.Focus()
+	case worldFullRow:
+		m.itemFull.Focus()
 	}
-	if c.W != 0 {
-		s += fmt.Sprintf(", %d", c.W)
-	}
-	return s + ")"
 }
 
-var (
-	dim     = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	bright  = lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
-	accent  = lipgloss.NewStyle().Foreground(lipgloss.Color("81"))
-	cursorS = lipgloss.NewStyle().Foreground(lipgloss.Color("232")).
-		Background(lipgloss.Color("81"))
-	warn = lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
-)
-
-const cellW = 14
-
-// bounds returns the rectangle to draw: everything occupied on this
-// slice, plus the cursor, padded by one so there is always somewhere to
-// grow into.
-func (m *model) bounds() (minX, maxX, minY, maxY int) {
-	minX, maxX, minY, maxY = m.cur.X, m.cur.X, m.cur.Y, m.cur.Y
-	for at := range m.chart().Cells {
-		if at.Z != m.cur.Z || at.W != m.cur.W {
-			continue
-		}
-		minX, maxX = min(minX, at.X), max(maxX, at.X)
-		minY, maxY = min(minY, at.Y), max(maxY, at.Y)
+func (m *model) focusTerminalRow() {
+	m.blurInputs()
+	switch m.cursor {
+	case terminalUsernameRow:
+		m.username.Focus()
+	case terminalHostRow:
+		m.hostname.Focus()
 	}
-	return minX - 1, maxX + 1, minY - 1, maxY + 1
+}
+
+func (m *model) blurInputs() {
+	m.itemName.Blur()
+	m.itemShort.Blur()
+	m.itemFull.Blur()
+	m.username.Blur()
+	m.hostname.Blur()
+}
+
+func (m *model) resetWorldItemForm() {
+	m.itemName.SetValue("")
+	m.itemShort.SetValue("")
+	m.itemFull.SetValue("")
+	m.itemKind = 0
+}
+
+func (m *model) resetTerminalForm() {
+	m.username.SetValue("")
+	m.hostname.SetValue("")
 }
 
 func (m *model) View() string {
-	var b strings.Builder
-
-	title := fmt.Sprintf("CHART EDITOR // %s", strings.ToUpper(m.ids[m.ci]))
-	if m.dirty {
-		title += " *"
-	}
-	b.WriteString(accent.Render(title) + "\n")
-	slice := fmt.Sprintf("slice z=%d w=%d", m.cur.Z, m.cur.W)
-	if m.cur.W != 0 {
-		slice += dim.Render(fmt.Sprintf("  (%d step%s ana)", m.cur.W,
-			plural(m.cur.W)))
-	}
-	b.WriteString(dim.Render(slice) + "\n\n")
-
-	b.WriteString(m.grid())
-	b.WriteString("\n")
-	b.WriteString(m.inspector())
-	b.WriteString("\n")
-
-	if m.mode == naming {
-		b.WriteString(m.input.View() + "\n")
+	var body []string
+	if m.screen == worldItemForm {
+		body = m.worldItemRows()
+	} else if m.screen == terminalForm {
+		body = m.terminalRows()
 	} else {
-		b.WriteString(dim.Render(
-			"hjkl/arrows move · n name · d delete · tab chart · "+
-				"< > floor · [ ] ana/kata · s save · q quit") + "\n")
+		body = m.menuRows()
 	}
-	if m.status != "" {
-		b.WriteString(warn.Render(m.status))
+
+	// The initial roughs used a 34x16 interior. The prototype deliberately
+	// scales that footprint by 50% while remaining responsive on smaller
+	// terminals.
+	innerWidth := 51
+	for _, line := range body {
+		innerWidth = max(innerWidth, lipgloss.Width(line))
 	}
-	return b.String()
+	if m.w > 0 {
+		innerWidth = min(innerWidth, max(20, m.w-6))
+	}
+	lines := []string{
+		center("PAWS_IN_THE_SHELL", innerWidth, brandStyle),
+		center(screenTitles[m.screen], innerWidth, titleStyle),
+		"",
+		"",
+	}
+	lines = append(lines, body...)
+	innerHeight := max(24, len(lines)+4)
+	if m.h > 0 {
+		innerHeight = min(innerHeight, max(len(lines), m.h-4))
+	}
+
+	panel := lipgloss.NewStyle().
+		Border(lipgloss.DoubleBorder()).
+		BorderForeground(cyberCyan).
+		Background(cyberPanel).
+		Padding(1, 2).
+		Width(innerWidth + 4).
+		Height(innerHeight + 2).
+		Render(strings.Join(lines, "\n"))
+	if m.w > 0 && m.h > 0 {
+		placed := lipgloss.Place(m.w, m.h, lipgloss.Center, lipgloss.Center, panel)
+		return lipgloss.NewStyle().
+			Background(cyberBackground).
+			Width(m.w).
+			Height(m.h).
+			Render(placed)
+	}
+	return panel
 }
 
-// grid draws one z/w slice, north up — the way a player would sketch it
-// in a notebook, which is the whole point of lawful geometry.
-func (m *model) grid() string {
-	minX, maxX, minY, maxY := m.bounds()
-	var b strings.Builder
-
-	for y := maxY; y >= minY; y-- {
-		b.WriteString(dim.Render(fmt.Sprintf("%3d ", y)))
-		for x := minX; x <= maxX; x++ {
-			at := charts.Coord{X: x, Y: y, Z: m.cur.Z, W: m.cur.W}
-			id, occupied := m.chart().At(at)
-			text := "."
-			if occupied {
-				text = id
-			}
-			text = fit(text, cellW-1)
-			switch {
-			case at == m.cur:
-				b.WriteString(cursorS.Render(pad(text, cellW)))
-			case occupied:
-				b.WriteString(bright.Render(pad(text, cellW)))
-			default:
-				b.WriteString(dim.Render(pad(text, cellW)))
-			}
+func (m *model) menuRows() []string {
+	entries := screenMenus[m.screen]
+	rows := make([]string, 0, len(entries))
+	for i, entry := range entries {
+		label := fmt.Sprintf("%d. %s", i+1, entry.label)
+		if i == m.cursor {
+			label = selectedMenuStyle.Render(label)
+		} else {
+			label = menuStyle.Render(label)
 		}
-		b.WriteString("\n")
+		rows = append(rows, selector(i == m.cursor)+" "+label)
 	}
-
-	b.WriteString("    ")
-	for x := minX; x <= maxX; x++ {
-		b.WriteString(dim.Render(pad(fmt.Sprintf("%d", x), cellW)))
-	}
-	return b.String() + "\n"
+	return rows
 }
 
-// inspector shows what the game will actually do here: the exits that
-// derive from this cell's neighbours, gluings included. Authoring and
-// truth stay in the same window.
-func (m *model) inspector() string {
-	id, occupied := m.chart().At(m.cur)
-	head := coordText(m.cur) + "  "
-	if !occupied {
-		return dim.Render(head + "empty")
+func (m *model) worldItemRows() []string {
+	return []string{
+		formRow(m.cursor == worldNameRow, "Enter Item Name:", m.itemName.View()),
+		formRow(m.cursor == worldKindRow, "Select Item Type:", choiceStyle.Render("< "+itemKinds[m.itemKind]+" >")),
+		formRow(m.cursor == worldShortRow, "Enter Short Description:", m.itemShort.View()),
+		formRow(m.cursor == worldFullRow, "Enter Full Description:", m.itemFull.View()),
+		actionRow(m.cursor == worldSaveRow, "Save"),
+		actionRow(m.cursor == worldCancelRow, "Cancel"),
 	}
-
-	exits := m.weave.Exits(m.ids[m.ci], m.cur)
-	if len(exits) == 0 {
-		return bright.Render(head+id) + dim.Render("  no exits — isolated")
-	}
-	dirs := make([]string, 0, len(exits))
-	for d := range exits {
-		dirs = append(dirs, d)
-	}
-	sort.Strings(dirs)
-	parts := make([]string, 0, len(dirs))
-	for _, d := range dirs {
-		parts = append(parts, fmt.Sprintf("%s→%s", d, exits[d]))
-	}
-	return bright.Render(head+id) + dim.Render("  "+strings.Join(parts, "  "))
 }
 
-func fit(s string, n int) string {
-	if len(s) <= n {
-		return s
+func (m *model) terminalRows() []string {
+	return []string{
+		formRow(m.cursor == terminalUsernameRow, "Enter Username:", m.username.View()),
+		formRow(m.cursor == terminalHostRow, "Enter Host Name:", m.hostname.View()),
+		actionRow(m.cursor == terminalSaveRow, "Save"),
+		actionRow(m.cursor == terminalCancelRow, "Cancel"),
 	}
-	if n <= 1 {
-		return s[:n]
-	}
-	return s[:n-1] + "…"
 }
 
-func pad(s string, n int) string {
-	if len(s) >= n {
-		return s
+func formRow(selected bool, label, value string) string {
+	labelText := fmt.Sprintf("%-25s", label)
+	if selected {
+		labelText = selectedFieldLabelStyle.Render(labelText)
+	} else {
+		labelText = fieldLabelStyle.Render(labelText)
 	}
-	return s + strings.Repeat(" ", n-len(s))
+	return fmt.Sprintf("%s %s %s", selector(selected), labelText, value)
 }
 
-func plural(n int) string {
-	if n == 1 || n == -1 {
-		return ""
+func actionRow(selected bool, label string) string {
+	if selected {
+		return selector(true) + " " + selectedMenuStyle.Render(label)
 	}
-	return "s"
+	return selector(false) + " " + menuStyle.Render(label)
+}
+
+func selector(selected bool) string {
+	if selected {
+		return selectorStyle.Render(">")
+	}
+	return " "
+}
+
+func center(s string, width int, style lipgloss.Style) string {
+	return style.Width(width).Align(lipgloss.Center).Render(s)
 }

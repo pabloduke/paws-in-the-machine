@@ -1,12 +1,12 @@
-// Command editor is the visual chart editor (docs/systems/charts.md).
+// Command editor is the navigation prototype for the full game editor.
 //
-// It edits the same content file the game embeds, so there is no
-// generated Go to clobber and no second source of truth. Place rooms on
-// a node's grid, page through z and w slices, and watch exits derive
-// from adjacency as you go — the geometry the game will actually use,
-// shown while you author it.
+// Run it from any directory with:
 //
-//	go run ./cmd/editor [path/to/charts.json]
+//	go run github.com/pabloduke/paws-in-the-machine/cmd/editor
+//
+// Or, from the repository root:
+//
+//	go run ./cmd/editor
 package main
 
 import (
@@ -16,27 +16,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-const defaultPath = "internal/game/content/charts.json"
-
 func main() {
-	path := defaultPath
-	if len(os.Args) > 1 {
-		path = os.Args[1]
-	}
-
-	entities, err := assembledGameCatalog()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "editor:", err)
-		os.Exit(1)
-	}
-
-	m, err := newModel(path, entities)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "editor:", err)
-		os.Exit(1)
-	}
-
-	if _, err := tea.NewProgram(m, tea.WithAltScreen()).Run(); err != nil {
+	if _, err := tea.NewProgram(newModel(), tea.WithAltScreen()).Run(); err != nil {
 		fmt.Fprintln(os.Stderr, "editor:", err)
 		os.Exit(1)
 	}

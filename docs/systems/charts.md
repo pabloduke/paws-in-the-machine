@@ -1,7 +1,9 @@
 # Charts
 
 Status: spec agreed (from the hubs.md chart ruling 2026-07-10 and the
-nesting amendment 2026-08-16); core geometry and first editor slice built.
+nesting amendment 2026-08-16); core geometry built. The original chart-editor
+slice was retired when `cmd/editor` restarted as a navigation prototype on
+2026-08-22.
 
 The lattice under a node. `docs/systems/hubs.md` owns the *rulings*
 (subway model, lawful geometry, folds, vocabulary, the cat clause);
@@ -115,34 +117,20 @@ trailing zeros dropped — so a room is one line and moving one is a
 one-line diff. Content review is done by a human; the format is shaped
 for that.
 
-`Marshal` is deterministic, so saving an unchanged weave is
-byte-identical and the editor never manufactures diff noise. A
-round-trip test pins it.
+`Marshal` is deterministic, so saving an unchanged weave is byte-identical and
+future authoring tools need not manufacture diff noise. A round-trip test pins
+it.
 
 ## The editor
 
-The complete current scope, deletion semantics, limitations, and future work
-are documented in [`docs/EDITOR.md`](../EDITOR.md). The editor is currently a
-geometry tool: deleting a cell unplaces its room ID from the chart; it does
-not delete the room entity or other game content.
+The current editor scope and future work are documented in
+[`docs/EDITOR.md`](../EDITOR.md). `cmd/editor` is presently a navigation-only
+prototype and does not read or write chart geometry.
 
-    go run ./cmd/editor [path/to/charts.json]
-
-A Bubbletea grid over one z/w slice at a time, north up — the way a
-player sketches a map in a notebook, which is what lawful geometry is
-for. Keys: `hjkl`/arrows move, `n` names the cell under the cursor, `d`
-deletes, `tab` cycles charts, `<`/`>` change floor, `[`/`]` step
-kata/ana, `s` saves, `q` quits (refusing while there is unsaved work).
-
-Entity references are checked against a read-only catalog of the assembled
-game. Unknown IDs and duplicate placement of one entity within or across
-charts are hard validation errors: an existing invalid file opens for repair,
-but cannot be saved over until it is valid.
-
-The inspector under the grid shows the exits that *derive* from the
-cursor's cell, gluings included — so authoring and the game's actual
-geometry stay in one window, and an isolated room announces itself
-immediately.
+The retired chart-grid implementation remains in Git history. When geometry
+authoring returns, it belongs beneath the editor's declared `Place` workflow.
+It must restore assembled-world identity validation, reject unknown IDs and
+duplicate placements, and keep invalid saves from modifying the chart file.
 
 ## Okuda is not lattice-realizable as wired (raised 2026-08-16)
 

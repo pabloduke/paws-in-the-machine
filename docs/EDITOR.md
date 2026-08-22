@@ -1,39 +1,22 @@
-# Level editor
+# Game editor
 
-Status: chart geometry editor implemented; expansion into a full game editor
-is the declared direction (2026-08-21).
+Status: navigation-only menu prototype implemented; content creation, editing,
+placement, and persistence are not implemented (2026-08-22).
 
 ## What the editor is
 
-The editor is a developer-facing terminal UI for authoring the game's chart
-geometry. It opens the versioned chart file used by the game, displays one
-`z`/`w` slice of one chart at a time, and writes changes back to that file.
+The editor is a developer-facing Bubble Tea terminal UI intended to grow into
+a full game editor. Its current executable is deliberately a menu and form
+prototype so navigation can be exercised before writable content schemas are
+chosen.
 
-Today it is specifically a **chart editor**, not a general-purpose game or
-level-content editor. A chart says where an existing room ID is placed and
-which compass exits follow from adjacency. Rooms and all of their content are
-defined elsewhere.
+The implementation lives in `cmd/editor/`. The declared shared frame, menu
+hierarchy, form fields, and interpretation rules live in
+[`EDITOR_MENUS.md`](EDITOR_MENUS.md).
 
-The implementation lives in `cmd/editor/`. The chart model and file format
-live in `internal/systems/charts/`; shipped geometry lives in
-`internal/game/content/charts.json`.
-
-The declared shared frame, hierarchy, and interpretation rules for editor
-menu sketches live in [`EDITOR_MENUS.md`](EDITOR_MENUS.md). Future sketches may
-omit their borders; the shared bordered presentation is still implied.
-
-## What it is for
-
-The editor makes lawful map geometry visible while it is authored:
-
-- rooms occupy integer `(x, y, z, w)` coordinates;
-- north is up on screen;
-- ordinary compass exits derive from neighboring cells;
-- the inspector shows the exits the chart system derives at the cursor; and
-- different floors and fourth-axis slices can be inspected separately.
-
-This lets a designer see isolated rooms, accidental adjacency, and reciprocal
-exits without maintaining a second map by hand.
+This prototype replaces the earlier chart-grid editor. The chart subsystem and
+its versioned geometry file still exist and remain part of the game, but the
+current editor command does not read or write them.
 
 ## Running it
 
@@ -43,172 +26,154 @@ From the repository root:
 go run ./cmd/editor
 ```
 
-That opens `internal/game/content/charts.json`. A different chart file can be
-passed explicitly:
+From `cmd/editor/`:
 
 ```sh
-go run ./cmd/editor path/to/charts.json
+go run .
 ```
 
-The game embeds the default file at build time. Saving in the editor changes
-the source file on disk; it does not hot-reload an already running game
-binary. Rebuild or restart the game to use the saved geometry.
+The command no longer depends on the process working directory to locate a
+content file.
 
-## What it does today
+## Implemented navigation
 
-| Key | Action |
-|---|---|
-| `h`/`j`/`k`/`l` or arrows | Move the cursor in `x`/`y` |
-| `n` or Enter | Place or replace a room ID at the cursor |
-| `d` | Remove the room ID from that chart coordinate |
-| Tab | Cycle through charts already present in the file |
-| `<` / `>` | Move between `z` floors |
-| `[` / `]` | Move between `w` slices (kata/ana) |
-| `s` | Save the chart file |
-| `q` | Quit when clean; refuse to discard unsaved changes |
-| `Q` | Quit and discard unsaved changes |
-
-The editor also:
-
-- displays only the occupied cells on the current slice, plus working space
-  around them;
-- validates chart references against a read-only catalog of the assembled game
-  world;
-- rejects unknown entity IDs and prevents one entity ID from being placed at
-  more than one coordinate across the entire weave;
-- marks unsaved work in the title;
-- preserves deterministic JSON ordering, so an unchanged save is
-  byte-identical; and
-- loads existing gluings and includes their resulting exits in the inspector.
-
-### Placement and deletion semantics
-
-A room ID entered with `n` is a **reference to an existing game entity**. The
-editor does not create that entity or any description, interaction, gate,
-character, item, flag, or other content belonging to it. The editor resolves
-the entered ID against the assembled game world before placing it. Unknown IDs
-are rejected, as are IDs already placed at another coordinate in any chart.
-
-An existing file containing an unknown ID or duplicate placement still opens
-so it can be repaired. The editor reports every invalid location, but saving is
-blocked until the errors are fixed; a blocked save leaves the file on disk
-unchanged. This validates identity, not entity kind: the catalog does not yet
-provide a room-type schema or make non-room content editable.
-
-Likewise, `d` means **unplace this room ID from this coordinate**. It does not
-delete the room entity or any content that refers to it. Unplacing a room can
-change derived exits and can make content unreachable, so deletion from a
-chart must not be treated as deletion from the game.
-
-Removing every cell in a chart also does not remove its containing hub or
-node. The editor cannot currently create, rename, or delete charts, hubs,
-nodes, rooms, or other game entities.
-
-For example, Okuda is not present in the chart file and therefore is not
-editable in this UI, but it remains in the game because its hub, rooms,
-network content, flags, events, journal entries, and tests are defined outside
-the chart file.
-
-## What it does not do
-
-The current editor does not:
-
-- create, rename, or delete game entities;
-- create, rename, or delete charts, hubs, or metamap nodes;
-- edit room prose, aliases, objects, characters, interactions, checks, gates,
-  flags, events, journal entries, missions, or network content;
-- show or edit authored `Blocked`, `Gated`, or `Guarded` behavior;
-- author, change, or remove gluings;
-- show every downstream reference before a geometry change;
-- provide a metamap/node-management screen;
-- provide undo/redo; or
-- hot-reload geometry into a running game.
-
-These limits describe only the current executable. The editor is intended to
-grow beyond geometry into a full game editor.
-
-## Source of truth and review
-
-`internal/game/content/charts.json` is the geometry source of truth. The game
-embeds it with `go:embed`, and the editor reads and writes the same format.
-There is no generated Go copy. The editor's read-only entity catalog comes
-from `game.NewWorld`, so an alternate chart path is still checked against the
-identity of the assembled game rather than treated as a separate game.
-
-Editor saves should be reviewed like code. Moving or unplacing one room can
-change exits for that room and every adjacent room. Relevant verification is:
-
-```sh
-go test ./...
-go vet ./...
-git diff --check
+```text
+Game Editor
+├── Create
+│   ├── Create Item
+│   │   ├── Create World Item
+│   │   └── Create Terminal
+│   ├── Create NPC
+│   ├── Create Quest
+│   ├── Create Room
+│   └── Create Hub
+├── Edit
+└── Place
 ```
 
-Any change that alters player-visible movement or game-state transitions must
-also update `docs/GAME_FLOW.md` under the repository's diagram-traceability
-rule. A byte-for-byte geometry refactor that preserves behavior is exempt.
+Every screen uses the shared bordered `PAWS_IN_THE_SHELL` frame. The baseline
+panel footprint is 50% larger than the original 34-by-16 rough, while sizing
+and spacing still adapt to the available terminal. Branding and screen titles
+are centered geometrically inside the padded frame.
+
+The menu prototype uses a truecolor cyberpunk palette: a near-black canvas,
+dark panel, bright cyan frame and branding, magenta screen titles and selector,
+white menu text, and a cyan inverse highlight on the selected entry. The
+terminal emulator owns actual font size; the application increases panel size,
+spacing, contrast, and text weight but cannot resize terminal glyphs.
+
+Menus support two selection styles:
+
+- press the displayed number to activate an entry directly; or
+- move the visible `>` selector with Up/Down and press Enter.
+
+Escape returns one menu level. `q` exits from the main menu, and Ctrl+C exits
+from anywhere.
+
+Choices whose forms have not been declared yet open a bordered, titled screen
+containing only a selectable `Back` entry. This makes every declared route
+navigable without inventing fields or behavior.
+
+## Implemented forms
+
+### Create World Item
+
+The prototype exposes:
+
+- item name;
+- item type (`Takeable`, `Fixed`, or `Scenery`), cycled with Left/Right;
+- short description;
+- full description; and
+- selectable `Save` and `Cancel` actions.
+
+### Create Terminal
+
+The prototype exposes:
+
+- username;
+- host name; and
+- selectable `Save` and `Cancel` actions.
+
+Within a form, Up/Down or Tab/Shift+Tab moves the `>` selector between fields
+and actions. Enter advances from a field to the next row. Enter on `Save` or
+`Cancel` returns to `Create Item`.
+
+The description controls are single-line inputs in this navigation prototype.
+The eventual multiline editing behavior remains undecided.
+
+## No persistence yet
+
+Neither `Save` nor `Cancel` writes game content. Both return to the parent menu,
+and reopening a form starts with empty fields and the default `Takeable` item
+type. The prototype does not create entities, terminals, filesystems, rooms,
+NPCs, quests, hubs, charts, or placements.
+
+This is intentional. It lets the menu structure and focus behavior be refined
+before selecting writable schemas and migration rules.
+
+## Existing systems left intact
+
+Removing the old chart-editor UI did not remove:
+
+- `internal/systems/charts/`;
+- `internal/game/content/charts.json`;
+- chart application during world construction;
+- lawful-geometry tests; or
+- the editor's prior commits in Git history.
+
+Chart authoring can return beneath the declared `Place` workflow once its new
+navigation and relationship to entity creation are specified.
 
 ## Future TODOs
 
-These are capability gaps, not declarations of new world content or missions.
+These are capability gaps, not declarations of world content or missions.
 
-### Make geometry editing safer
+### Refine the prototype
 
-- [x] Validate entered entity IDs against the assembled game world during
-  placement, load, and save.
-- [x] Reject duplicate placements within or across charts and report every
-  conflicting coordinate.
-- [ ] Report downstream references affected by an unplacement.
-- [ ] Add undo/redo for placement and deletion.
-- [ ] Make saves atomic and offer a recoverable backup.
-- [ ] Distinguish the UI wording for **unplace** from deletion of game
-  content.
+- [x] Add the shared bordered frame and branded title.
+- [x] Add numbered selection and the `>` selector.
+- [x] Add hierarchical Create, Edit, and Place navigation.
+- [x] Add navigation-only world-item and terminal forms.
+- [ ] Rule multiline field behavior.
+- [ ] Rule validation and error presentation.
+- [ ] Rule successful-save confirmation behavior.
+- [ ] Replace Back-only screens as their forms are declared.
 
-### Complete chart and weave authoring
+### Establish writable content
 
-- [ ] Add explicit creation, rename, and deletion workflows for charts.
-- [ ] Add gluing creation, inspection, editing, and deletion.
-- [ ] Visualize authored gates, guarded passages, and blocked directions on
-  top of derived geometry.
-- [ ] Add a validation view for isolated rooms, invalid gluing endpoints, and
-  unintended adjacency before save.
+- [ ] Define a versioned content schema and migration path before enabling
+  `Save`.
+- [ ] Define stable entity-ID generation, validation, rename, and reference
+  handling.
+- [ ] Implement world-item persistence and map `Takeable`, `Fixed`, and
+  `Scenery` back to engine behavior.
+- [ ] Add distinct short-listing and full-examine descriptions to the runtime
+  model.
+- [ ] Implement terminal persistence, default filesystem construction, and
+  filesystem authoring without copying undeclared story content.
+- [ ] Keep writes atomic and recoverable.
 
-### Reconcile the declared hierarchy
+### Restore placement and geometry authoring
 
-- [ ] Implement the metamap screen described in `docs/systems/hubs.md`, where
-  nodes can be listed and linked without assigning coordinates to the
-  metamap itself.
-- [ ] Decide how existing `hubs.Hub` values map to metamap nodes before making
-  node creation or deletion editable.
-- [ ] Implement a flag-state preview only after its inputs and UI behavior are
-  specified; the current editor has no flag-state view.
+- [ ] Put chart/node-grid authoring beneath `Place` rather than opening it at
+  program startup.
+- [ ] Restore assembled-world identity validation and duplicate-placement
+  checks when placement returns.
+- [ ] Add chart, gluing, metamap, and node authoring only after their screens
+  and relationships are declared.
+- [ ] Report downstream references affected by unplacement.
 
-### Full game editing (declared future direction)
+### Full game editing
 
-- [x] Establish that this command should grow into a full game editor rather
-  than remain a geometry-only tool (declared 2026-08-21).
 - [ ] Create NPCs and place them in the world.
 - [ ] Create basic, data-driven quest lines. Advanced quests may remain
-  hand-written in Go when their behavior does not fit the editor's quest
-  model.
-- [ ] Create world items, place them in the world, and author how they can be
-  used, manipulated, and put into inventory.
-- [ ] Create terminals with separate usernames and host names, use the host
-  name as the network-map key, enter them from the editor, and author their
-  fake directories and files from a deck-structured starting point.
-- [ ] Author room descriptions and item descriptions.
-- [ ] Author NPC dialogue.
+  hand-written in Go when their behavior does not fit the editor's model.
+- [ ] Author room, item, and NPC descriptions and dialogue.
 - [ ] Add and manage world keywords.
-- [ ] If full entity deletion is approved, define a dependency-aware workflow
-  that finds hub registration, exits, gates, network hosts, flags, events,
-  journal entries, mission references, tests, and diagrams before removal.
-- [ ] Define the data schemas, validation, and reference handling for each
-  content type before making it writable.
-- [ ] Define the supported basic-quest vocabulary and the boundary where a
-  quest should be implemented in Go instead.
-- [ ] Preserve content authority: the editor stores designer-authored lore,
-  dialogue, quests, and descriptions, but must not generate missing content
-  on its own.
+- [ ] Define dependency-aware deletion before allowing full entity removal.
+- [ ] Preserve content authority: the editor stores designer-authored prose and
+  structure but never generates missing lore or missions.
 
-Until those rulings and mechanisms exist, removing a place from the game is a
-coordinated code/content change, not an editor action.
+Any future executable change that alters player-visible game behavior or game
+state must update tests and `docs/GAME_FLOW.md` with the code. The present
+navigation prototype is developer tooling only and does not change game flow.
