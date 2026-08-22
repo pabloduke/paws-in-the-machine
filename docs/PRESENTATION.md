@@ -36,8 +36,8 @@ or layout.
   cyan, and magenta styling.
 
 The existing presentation-only `Model.phase` clock remains the animation
-source. Future shimmer or glow animation must obey the same rule as rain: a
-tick may advance presentation phase and nothing else.
+source. Chrome title shimmer obeys the same rule as rain: a tick may advance
+presentation phase and nothing else.
 
 ## Semantic text
 
@@ -99,6 +99,16 @@ The presentation layer and runtime selection are implemented. Two themes are
 registered: `wet-neon` and `chrome`. Theme command response strings are marked
 `(Placeholder)` for the user to replace or approve.
 
+The `chrome` theme adds a truecolor gradient and a narrow specular highlight
+that sweeps across the overworld room sign and the hacking terminal's main
+title. The effect is an inline, grapheme-aware renderer: it preserves the raw
+title, display width, alignment, and surrounding geometry at every phase.
+Wet-neon keeps its original title rendering. Gradient endpoints, highlight
+color and width, direction, and period are isolated as provisional theme data
+for later visual tuning. The renderer remains safe under terminals that reduce
+truecolor to a smaller color profile, although gradients will carry less
+detail there.
+
 Markdown rendered by Glamour keeps its existing renderer-owned style for now.
 If themes need to control Markdown later, that renderer must receive a
 theme-specific style rather than post-processing its ANSI output.
@@ -110,7 +120,8 @@ theme-specific style rather than post-processing its ANSI output.
   registered themes.
 - [ ] Decide whether to keep the current session-only selection or store it in
   a separate UI preferences file.
-- [ ] Add theme-owned gradient, highlight, shadow, glow, and shimmer settings.
+- [x] Add theme-owned title gradient, highlight, and shimmer settings.
+- [ ] Add spatial shadow and glow effects where layout allows them.
 - [ ] Add reduced-motion and simplified-Unicode presentation options.
 - [ ] Route Markdown styling through the active theme if alternate themes
   require it.

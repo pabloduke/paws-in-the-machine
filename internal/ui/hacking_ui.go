@@ -246,10 +246,7 @@ func (shellSurface) Screen(m *Model) string {
 	theme := m.mainTerminalTheme()
 
 	titleText := ansi.Truncate("CYBERDECK // "+strings.ToUpper(m.shell.HostName()), m.shellVP.Width, "")
-	title := theme.titleStyle().
-		Width(m.shellVP.Width).
-		MaxWidth(m.shellVP.Width).
-		Render(titleText)
+	title := renderTerminalTitle(titleText, m.shellVP.Width, m.phase, theme)
 	prompt := lipgloss.NewStyle().
 		Width(m.shellVP.Width).
 		MaxWidth(m.shellVP.Width).
@@ -273,6 +270,22 @@ func (shellSurface) Screen(m *Model) string {
 	}
 	status := statusStyle.Width(statusW - 2).Height(panelH - 2).Render(panel)
 	return lipgloss.JoinHorizontal(lipgloss.Top, term, status)
+}
+
+// renderTerminalTitle keeps the original path exact for themes without the
+// effect. Effected text is laid into the same fixed-width background only
+// after its grapheme-safe inline rendering is complete.
+func renderTerminalTitle(text string, width, phase int, theme terminalTheme) string {
+	base := theme.titleStyle()
+	if !theme.titleEffect.enabled {
+		return base.Width(width).MaxWidth(width).Render(text)
+	}
+	effected := renderInlineEffect(text, phase, base, theme.titleEffect)
+	return lipgloss.NewStyle().
+		Width(width).
+		MaxWidth(width).
+		Background(theme.dark).
+		Render(effected)
 }
 
 // Resize refits the terminal to the window.

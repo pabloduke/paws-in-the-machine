@@ -14,23 +14,24 @@ const (
 // Keeping the complete set on a theme lets the UI swap appearances without
 // changing game content or storing ANSI in the transcript.
 type overworldStyles struct {
-	body       lipgloss.Style
-	logBody    lipgloss.Style
-	echo       lipgloss.Style
-	prompt     lipgloss.Style
-	dim        lipgloss.Style
-	rain       lipgloss.Style
-	panel      lipgloss.Style
-	panelFocus lipgloss.Style
-	logPanel   lipgloss.Style
-	panelTitle lipgloss.Style
-	roomTitle  lipgloss.Style
-	selection  lipgloss.Style
-	deckTitle  lipgloss.Style
-	deckRow    lipgloss.Style
-	signGlow   lipgloss.Style
-	signFade   lipgloss.Style
-	rainShades [5][3]lipgloss.Style
+	body            lipgloss.Style
+	logBody         lipgloss.Style
+	echo            lipgloss.Style
+	prompt          lipgloss.Style
+	dim             lipgloss.Style
+	rain            lipgloss.Style
+	panel           lipgloss.Style
+	panelFocus      lipgloss.Style
+	logPanel        lipgloss.Style
+	panelTitle      lipgloss.Style
+	roomTitle       lipgloss.Style
+	selection       lipgloss.Style
+	deckTitle       lipgloss.Style
+	deckRow         lipgloss.Style
+	signGlow        lipgloss.Style
+	signFade        lipgloss.Style
+	roomTitleEffect inlineEffect
+	rainShades      [5][3]lipgloss.Style
 }
 
 // defaultOverworldStyles reproduces the shipped wet-neon appearance. It is
@@ -123,6 +124,16 @@ func chromeOverworldStyles() overworldStyles {
 		deckRow:    lipgloss.NewStyle().Foreground(magenta),
 		signGlow:   lipgloss.NewStyle().Foreground(glow),
 		signFade:   lipgloss.NewStyle().Bold(true).Foreground(dim),
+		// Provisional polished-chrome defaults, isolated here for tuning.
+		roomTitleEffect: inlineEffect{
+			enabled:        true,
+			start:          rgbColor{r: 122, g: 144, b: 158},
+			end:            rgbColor{r: 238, g: 250, b: 255},
+			highlight:      rgbColor{r: 255, g: 255, b: 255},
+			highlightWidth: 2,
+			period:         30,
+			direction:      1,
+		},
 		rainShades: [5][3]lipgloss.Style{
 			{},
 			shadeRow("#45616b", "#22343c", "#152229"),

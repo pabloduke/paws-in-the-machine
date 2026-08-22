@@ -25,11 +25,17 @@ func (m Model) neonSign(name string) string {
 		h = (h ^ uint32(r)) * 16777619
 	}
 	title := styles.roomTitle
-	if (int(h%flickerMod)+m.phase)%flickerMod == 0 {
+	flickering := (int(h%flickerMod)+m.phase)%flickerMod == 0
+	if flickering {
 		title = styles.signFade
 	}
 	halo := styles.signGlow.Render("▒")
-	return halo + " " + title.Render("◈ "+name) + " " + halo
+	titleText := "◈ " + name
+	renderedTitle := title.Render(titleText)
+	if !flickering {
+		renderedTitle = renderInlineEffect(titleText, m.phase, title, styles.roomTitleEffect)
+	}
+	return halo + " " + renderedTitle + " " + halo
 }
 
 // roomPanel is the live room view: title from the room name, body from

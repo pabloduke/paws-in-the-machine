@@ -6,9 +6,10 @@ import "github.com/charmbracelet/lipgloss"
 // a local, remote, and side-panel palette so connection state remains
 // meaningful while the overall appearance is replaceable.
 type terminalTheme struct {
-	bright lipgloss.Color
-	dim    lipgloss.Color
-	dark   lipgloss.Color
+	bright      lipgloss.Color
+	dim         lipgloss.Color
+	dark        lipgloss.Color
+	titleEffect inlineEffect
 }
 
 type terminalStyles struct {
@@ -39,6 +40,16 @@ func chromeTerminalStyles() terminalStyles {
 		bright: lipgloss.Color("#73f7ff"),
 		dim:    lipgloss.Color("#247c86"),
 		dark:   lipgloss.Color("#02080b"),
+		// Provisional polished-chrome defaults, isolated here for tuning.
+		titleEffect: inlineEffect{
+			enabled:        true,
+			start:          rgbColor{r: 38, g: 151, b: 166},
+			end:            rgbColor{r: 115, g: 247, b: 255},
+			highlight:      rgbColor{r: 255, g: 255, b: 255},
+			highlightWidth: 2,
+			period:         30,
+			direction:      1,
+		},
 	}
 	return terminalStyles{
 		local: cyan,
@@ -46,6 +57,15 @@ func chromeTerminalStyles() terminalStyles {
 			bright: lipgloss.Color("#ff4fd8"),
 			dim:    lipgloss.Color("#8a285f"),
 			dark:   lipgloss.Color("#0b0208"),
+			titleEffect: inlineEffect{
+				enabled:        true,
+				start:          rgbColor{r: 139, g: 44, b: 104},
+				end:            rgbColor{r: 255, g: 79, b: 216},
+				highlight:      rgbColor{r: 255, g: 255, b: 255},
+				highlightWidth: 2,
+				period:         30,
+				direction:      1,
+			},
 		},
 		panel: cyan,
 	}
