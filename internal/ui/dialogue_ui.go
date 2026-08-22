@@ -24,17 +24,17 @@ func (dialogueSurface) Intercept(m *Model, cmd engine.Command) bool {
 		return false
 	}
 	if cmd.Object == "" {
-		m.entries = append(m.entries, "Meow at whom?")
+		m.appendLog(textBody, "Meow at whom?")
 		return true
 	}
 	target := m.eng.World.InScope(cmd.Object)
 	if target == nil {
-		m.entries = append(m.entries, "You don't see any "+strconv.Quote(cmd.Object)+" here.")
+		m.appendLog(textBody, "You don't see any "+strconv.Quote(cmd.Object)+" here.")
 		return true
 	}
 	session, err := dialogue.Start(m.eng.World, target)
 	if err != nil {
-		m.entries = append(m.entries, err.Error())
+		m.appendLog(textBody, err.Error())
 		return true
 	}
 	m.dialogue = session
@@ -42,7 +42,7 @@ func (dialogueSurface) Intercept(m *Model, cmd engine.Command) bool {
 	m.input.Blur()
 	// The stage holds still while the scene plays (presence.md).
 	m.eng.World.HoldPlacements = true
-	m.entries = append(m.entries, session.Speaker()+": "+session.Text())
+	m.appendLog(textBody, session.Speaker()+": "+session.Text())
 	return true
 }
 
@@ -59,7 +59,7 @@ func (dialogueSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 	case tea.KeyEsc:
 		m.dialogue = nil
 		m.input.Focus()
-		m.entries = append(m.entries, dimStyle.Render("[conversation ended]"))
+		m.appendLog(textDim, "[conversation ended]")
 		m.endScene()
 		m.refreshLog()
 		m.maybeLevelUp()
@@ -98,9 +98,9 @@ func (m *Model) pickDialogue(n int) {
 		return
 	}
 	locked := options[n-1].Locked
-	m.entries = append(m.entries, echoStyle.Render("> "+options[n-1].Choice.Text))
+	m.appendLog(textEcho, "> "+options[n-1].Choice.Text)
 	if out := m.dialogue.Pick(n); out != "" {
-		m.entries = append(m.entries, out)
+		m.appendLog(textBody, out)
 	}
 	if m.dialogue.Done() {
 		m.dialogue = nil
@@ -109,7 +109,7 @@ func (m *Model) pickDialogue(n int) {
 		m.maybeLevelUp()
 	} else if !locked {
 		m.dlgSel = 0
-		m.entries = append(m.entries, m.dialogue.Speaker()+": "+m.dialogue.Text())
+		m.appendLog(textBody, m.dialogue.Speaker()+": "+m.dialogue.Text())
 	}
 	m.refreshLog()
 }
@@ -125,8 +125,9 @@ func (m *Model) endScene() {
 // then the choice menu. The highlighted row is selected with enter;
 // locked stat-gated rows render dim with their tag and a ✗.
 func (m Model) dialogueView() string {
+	styles := m.presentation().Overworld
 	var b strings.Builder
-	b.WriteString(roomTitleStyle.Render(strings.ToUpper(m.dialogue.Speaker())))
+	b.WriteString(styles.roomTitle.Render(strings.ToUpper(m.dialogue.Speaker())))
 	b.WriteString("\n\n" + m.dialogue.Text() + "\n")
 	options := m.dialogue.Options()
 	sel := m.dlgSel
@@ -144,12 +145,12 @@ func (m Model) dialogueView() string {
 		}
 		switch {
 		case i == sel:
-			row = hubSelStyle.Render(row)
+			row = styles.selection.Render(row)
 		case o.Locked:
-			row = dimStyle.Render(row)
+			row = styles.dim.Render(row)
 		}
 		b.WriteString("\n" + row)
 	}
-	b.WriteString("\n\n" + dimStyle.Render("up/down or 1-9 to highlight · enter to say it · esc to walk away"))
+	b.WriteString("\n\n" + styles.dim.Render("up/down or 1-9 to highlight · enter to say it · esc to walk away"))
 	return b.String()
 }

@@ -86,7 +86,7 @@ func TestTerminalPromptInsidePanelAndScrollbackBottomAnchored(t *testing.T) {
 	mod := newSized(w)
 	mod = typeLine(mod, "use deck")
 	mm := mod.(Model)
-	if mm.shellInput.TextStyle.GetForeground() != termPromptStyle.GetForeground() {
+	if mm.shellInput.TextStyle.GetForeground() != mm.mainTerminalTheme().promptStyle().GetForeground() {
 		t.Fatalf("typed terminal text should use terminal prompt style")
 	}
 
@@ -477,7 +477,8 @@ func TestMicroslopPasswordPuzzle(t *testing.T) {
 	if view := mod.View(); !strings.Contains(view, "password:") {
 		t.Fatalf("ssh jane_doe@microslop should show password prompt after route opens: %q", view)
 	}
-	if got := mod.(Model).mainTerminalTheme().bright; got != termGreen {
+	if got, want := mod.(Model).mainTerminalTheme().bright,
+		mod.(Model).presentation().Terminal.local.bright; got != want {
 		t.Fatalf("password prompt should retain local green theme, got %v", got)
 	}
 	mod = typeLine(mod, "wrong")
@@ -494,13 +495,16 @@ func TestMicroslopPasswordPuzzle(t *testing.T) {
 		t.Fatalf("correct password should connect to microslop")
 	}
 	mm := mod.(Model)
-	if got := mm.mainTerminalTheme().bright; got != termAmber {
+	if got, want := mm.mainTerminalTheme().bright,
+		mm.presentation().Terminal.remote.bright; got != want {
 		t.Fatalf("remote terminal should use amber theme, got %v", got)
 	}
-	if got := mm.shellInput.TextStyle.GetForeground(); got != termAmber {
+	if got, want := mm.shellInput.TextStyle.GetForeground(),
+		mm.presentation().Terminal.remote.bright; got != want {
 		t.Fatalf("remote terminal input should be amber, got %v", got)
 	}
-	if got := termTitleStyle.GetForeground(); got != termGreen {
+	if got, want := mm.presentation().Terminal.panel.titleStyle().GetForeground(),
+		mm.presentation().Terminal.panel.bright; got != want {
 		t.Fatalf("right-side terminal panels should remain green, got %v", got)
 	}
 	if view := mod.View(); !strings.Contains(view, "CYBERDECK // MICROSLOP") {
@@ -531,7 +535,8 @@ func TestMicroslopPasswordPuzzle(t *testing.T) {
 	}
 	mod = typeLine(mod, "exit")
 	mm = mod.(Model)
-	if got := mm.mainTerminalTheme().bright; got != termGreen {
+	if got, want := mm.mainTerminalTheme().bright,
+		mm.presentation().Terminal.local.bright; got != want {
 		t.Fatalf("returning to deck should restore green theme, got %v", got)
 	}
 }

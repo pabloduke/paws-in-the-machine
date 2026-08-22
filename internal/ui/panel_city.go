@@ -92,9 +92,9 @@ func (citySurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 		m.panelFocused = false
 		switch item.kind {
 		case panelHub:
-			m.entries = append(m.entries, echoStyle.Render("> [travel] "+item.name))
+			m.appendLog(textEcho, "> [travel] "+item.name)
 			if out := hubs.Travel(m.eng.World, item.entity.ID); out != "" {
-				m.entries = append(m.entries, out)
+				m.appendLog(textBody, out)
 			}
 			m.refreshLog()
 		case panelDeck:
@@ -123,18 +123,19 @@ func currentHubIndex(w *engine.World, list []*engine.Entity) int {
 
 // cityPanel renders the hub list (docs/systems/hubs.md).
 func (m Model) cityPanel() string {
+	styles := m.presentation().Overworld
 	items := m.panelItems()
 	cur := hubs.Current(m.eng.World)
 
 	var b strings.Builder
-	b.WriteString(panelTitleStyle.Render("▸ THE CITY"))
+	b.WriteString(styles.panelTitle.Render("▸ THE CITY"))
 	prevKind := panelHub
 	for i, it := range items {
 		// A blank line and a green subhead set the uplink rows (deck
 		// or PDA) apart from the hubs — logging in is not walking
 		// somewhere.
 		if it.kind != panelHub && (i == 0 || prevKind == panelHub) {
-			b.WriteString("\n\n" + deckTitleStyle.Render("// UPLINK"))
+			b.WriteString("\n\n" + styles.deckTitle.Render("// UPLINK"))
 		}
 		prevKind = it.kind
 
@@ -145,9 +146,9 @@ func (m Model) cityPanel() string {
 		row := marker + it.name
 		switch {
 		case m.panelFocused && i == m.selected:
-			row = hubSelStyle.Render(row)
+			row = styles.selection.Render(row)
 		case it.kind != panelHub:
-			row = deckRowStyle.Render(row)
+			row = styles.deckRow.Render(row)
 		}
 		b.WriteString("\n" + row)
 	}
@@ -157,11 +158,11 @@ func (m Model) cityPanel() string {
 	} else if m.dialogue != nil {
 		hint = "dialogue active"
 	}
-	b.WriteString("\n\n" + dimStyle.Render(hint))
+	b.WriteString("\n\n" + styles.dim.Render(hint))
 
-	style := panelStyle
+	style := styles.panel
 	if m.panelFocused {
-		style = panelFocusStyle
+		style = styles.panelFocus
 	}
 	return style.Width(leftPanelWidth - 2).Height(m.mainRowHeight() - 2).Render(b.String())
 }

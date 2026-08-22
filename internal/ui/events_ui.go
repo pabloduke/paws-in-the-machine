@@ -24,7 +24,7 @@ func (eventsSurface) HandleKey(m *Model, msg tea.KeyMsg) tea.Cmd {
 	case tea.KeyCtrlC:
 		return tea.Quit
 	case tea.KeyEnter, tea.KeyEsc:
-		m.entries = append(m.entries, m.eng.World.Pending[0])
+		m.appendLog(textBody, m.eng.World.Pending[0])
 		m.eng.World.Pending = m.eng.World.Pending[1:]
 		m.refreshLog()
 		if len(m.eng.World.Pending) == 0 {
@@ -41,10 +41,11 @@ func (eventsSurface) Overlay(m *Model, bg string) string {
 
 // eventView renders one story beat, scene-break style.
 func (m Model) eventView() string {
+	styles := m.presentation().Overworld
 	var b strings.Builder
-	b.WriteString(dimStyle.Render("░▒▓") + roomTitleStyle.Render(" · ") + dimStyle.Render("▓▒░"))
+	b.WriteString(styles.dim.Render("░▒▓") + styles.roomTitle.Render(" · ") + styles.dim.Render("▓▒░"))
 	b.WriteString("\n\n" + m.eng.World.Pending[0])
-	b.WriteString("\n\n" + dimStyle.Render("enter to continue"))
+	b.WriteString("\n\n" + styles.dim.Render("enter to continue"))
 	return b.String()
 }
 
@@ -82,16 +83,17 @@ func (journalSurface) Overlay(m *Model, bg string) string {
 // journalView renders the derived journal: every entry whose flag is
 // true, recomputed from world state on every frame.
 func (m Model) journalView() string {
+	styles := m.presentation().Overworld
 	var b strings.Builder
-	b.WriteString(roomTitleStyle.Render("JOURNAL"))
+	b.WriteString(styles.roomTitle.Render("JOURNAL"))
 	entries := m.eng.World.JournalEntries()
 	if len(entries) == 0 {
-		b.WriteString("\n\n" + dimStyle.Render("nothing yet - the city keeps its secrets"))
+		b.WriteString("\n\n" + styles.dim.Render("nothing yet - the city keeps its secrets"))
 	} else {
 		for _, e := range entries {
 			b.WriteString("\n\n- " + e)
 		}
 	}
-	b.WriteString("\n\n" + dimStyle.Render("esc to close"))
+	b.WriteString("\n\n" + styles.dim.Render("esc to close"))
 	return b.String()
 }
