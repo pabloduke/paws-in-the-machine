@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "host_networks": [
+    {
+      "id": "1691d3c2-8a8b-4ea1-86f2-ced5431012c9",
+      "name": "Megasoft"
+    },
+    {
+      "id": "ab7830b3-85e5-45f6-a567-9d6648c3872f",
+      "name": "Worstum"
+    }
+  ]
+}

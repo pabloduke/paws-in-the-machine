@@ -1,0 +1,778 @@
+{{define "tab"}}
+<a class="tab{{if .Active}} active{{end}}"
+   href="{{.URL}}"
+   {{if .Active}}aria-current="page"{{end}}
+   hx-get="{{.URL}}"
+   hx-target="#workspace"
+   hx-push-url="true"
+   data-discard-check>{{.Label}}</a>
+{{end}}
+
+{{define "world-item-catalog"}}
+<aside class="catalog" id="item-catalog" aria-label="World-item catalog">
+  <div class="catalog-heading">
+    <h2>World Items</h2>
+    <a class="button compact"
+       href="/content/world-items/new"
+       hx-get="/content/world-items/new"
+       hx-target="#item-editor"
+       hx-swap="outerHTML"
+       hx-push-url="true"
+       data-discard-check>New Item</a>
+  </div>
+  <form class="catalog-search"
+        action="/content/world-items"
+        method="get"
+        hx-get="/content/world-items/list"
+        hx-target="#item-catalog"
+        hx-swap="outerHTML"
+        hx-trigger="input changed delay:250ms, search">
+    <label for="world-item-search">Search by name</label>
+    <input id="world-item-search" name="q" type="search" value="{{.Query}}" autocomplete="off">
+  </form>
+  <div class="catalog-list">
+    {{range .WorldItems}}
+    <a class="catalog-item{{if .Active}} active{{end}}"
+       href="/content/world-items/{{.ID}}"
+       hx-get="/content/world-items/{{.ID}}"
+       hx-target="#item-editor"
+       hx-swap="outerHTML"
+       hx-push-url="true"
+       data-discard-check>
+      <span class="catalog-name">{{.Name}}</span>
+      <span class="catalog-kind">{{.Kind}}</span>
+      <span class="catalog-description">{{.ShortDescription}}</span>
+    </a>
+    {{else}}
+    <p class="empty-catalog">{{if .Query}}No matching world items.{{else}}No world items have been created.{{end}}</p>
+    {{end}}
+  </div>
+</aside>
+{{end}}
+
+{{define "field-error"}}{{if .}}<span class="field-error">{{.}}</span>{{end}}{{end}}
+
+{{define "world-item-editor"}}
+<section class="item-editor" id="item-editor" aria-labelledby="item-editor-title">
+  <header class="editor-heading">
+    <p class="eyebrow">{{if .ItemForm.Editing}}Edit{{else}}Create{{end}}</p>
+    <h2 id="item-editor-title">{{if .ItemForm.Editing}}{{.ItemForm.Name}}{{else}}New World Item{{end}}</h2>
+  </header>
+  {{if .ItemForm.Notice}}<p class="notice" role="status">{{.ItemForm.Notice}}</p>{{end}}
+  {{if .ItemForm.GeneralError}}<p class="error-banner" role="alert">{{.ItemForm.GeneralError}}</p>{{end}}
+  <form class="editor-form"
+        data-dirty-form
+        method="post"
+        action="{{if .ItemForm.Editing}}/content/world-items/{{.ItemForm.ID}}{{else}}/content/world-items{{end}}"
+        hx-post="{{if .ItemForm.Editing}}/content/world-items/{{.ItemForm.ID}}{{else}}/content/world-items{{end}}"
+        hx-target="#world-items-workspace">
+    <label>
+      Item Name
+      <input name="name" value="{{.ItemForm.Name}}" autocomplete="off" aria-invalid="{{if index .ItemForm.Errors "name"}}true{{else}}false{{end}}">
+      {{template "field-error" (index .ItemForm.Errors "name")}}
+    </label>
+    <label>
+      Item Type
+      <select name="kind" aria-invalid="{{if index .ItemForm.Errors "kind"}}true{{else}}false{{end}}">
+        <option value="takeable" {{if eq .ItemForm.Kind "takeable"}}selected{{end}}>Takeable</option>
+        <option value="fixed" {{if eq .ItemForm.Kind "fixed"}}selected{{end}}>Fixed</option>
+        <option value="scenery" {{if eq .ItemForm.Kind "scenery"}}selected{{end}}>Scenery</option>
+      </select>
+      {{template "field-error" (index .ItemForm.Errors "kind")}}
+    </label>
+    <label>
+      Short Description
+      <textarea name="short_description" rows="3" aria-invalid="{{if index .ItemForm.Errors "short_description"}}true{{else}}false{{end}}">{{.ItemForm.ShortDescription}}</textarea>
+      {{template "field-error" (index .ItemForm.Errors "short_description")}}
+    </label>
+    <label>
+      Full Description
+      <textarea name="full_description" rows="8" aria-invalid="{{if index .ItemForm.Errors "full_description"}}true{{else}}false{{end}}">{{.ItemForm.FullDescription}}</textarea>
+      {{template "field-error" (index .ItemForm.Errors "full_description")}}
+    </label>
+    <div class="actions">
+      <button type="submit" {{if .StoreError}}disabled{{end}}>Save</button>
+      <a class="button secondary"
+         href="{{if .ItemForm.Editing}}/content/world-items/{{.ItemForm.ID}}{{else}}/content/world-items/new{{end}}"
+         data-discard-check>Reset</a>
+      {{if .ItemForm.Editing}}
+      <button class="danger"
+              type="submit"
+              formaction="/content/world-items/{{.ItemForm.ID}}/delete"
+              formmethod="post"
+              hx-post="/content/world-items/{{.ItemForm.ID}}/delete"
+              hx-target="#world-items-workspace"
+              hx-confirm="Delete {{.ItemForm.Name}}? This cannot be undone from the editor.">Delete</button>
+      {{end}}
+    </div>
+  </form>
+</section>
+{{end}}
+
+{{define "hub-catalog"}}
+<aside class="catalog" id="hub-catalog" aria-label="Hub catalog">
+  <div class="catalog-heading">
+    <h2>Hubs</h2>
+    <a class="button compact"
+       href="/content/hubs/new"
+       hx-get="/content/hubs/new"
+       hx-target="#hub-editor"
+       hx-swap="outerHTML"
+       hx-push-url="true"
+       data-discard-check>New Hub</a>
+  </div>
+  <form class="catalog-search"
+        action="/content/hubs"
+        method="get"
+        hx-get="/content/hubs/list"
+        hx-target="#hub-catalog"
+        hx-swap="outerHTML"
+        hx-trigger="input changed delay:250ms, search">
+    <label for="hub-search">Search by name</label>
+    <input id="hub-search" name="q" type="search" value="{{.Query}}" autocomplete="off">
+  </form>
+  <div class="catalog-list">
+    {{range .Hubs}}
+    <a class="catalog-item{{if .Active}} active{{end}}"
+       href="/content/hubs/{{.ID}}"
+       hx-get="/content/hubs/{{.ID}}"
+       hx-target="#hub-editor"
+       hx-swap="outerHTML"
+       hx-push-url="true"
+       data-discard-check>
+      <span class="catalog-name">{{.Name}}</span>
+    </a>
+    {{else}}
+    <p class="empty-catalog">{{if .Query}}No matching hubs.{{else}}No hubs have been created.{{end}}</p>
+    {{end}}
+  </div>
+</aside>
+{{end}}
+
+{{define "hub-editor"}}
+<section class="item-editor" id="hub-editor" aria-labelledby="hub-editor-title">
+  <header class="editor-heading">
+    <p class="eyebrow">{{if .HubForm.Editing}}Edit{{else}}Create{{end}}</p>
+    <h2 id="hub-editor-title">{{if .HubForm.Editing}}{{.HubForm.Name}}{{else}}New Hub{{end}}</h2>
+  </header>
+  {{if .HubForm.Notice}}<p class="notice" role="status">{{.HubForm.Notice}}</p>{{end}}
+  {{if .HubForm.GeneralError}}<p class="error-banner" role="alert">{{.HubForm.GeneralError}}</p>{{end}}
+  <form class="editor-form"
+        data-dirty-form
+        method="post"
+        action="{{if .HubForm.Editing}}/content/hubs/{{.HubForm.ID}}{{else}}/content/hubs{{end}}"
+        hx-post="{{if .HubForm.Editing}}/content/hubs/{{.HubForm.ID}}{{else}}/content/hubs{{end}}"
+        hx-target="#hubs-workspace">
+    <label>
+      Hub Name
+      <input name="name" value="{{.HubForm.Name}}" autocomplete="off" aria-invalid="{{if .HubForm.NameError}}true{{else}}false{{end}}">
+      {{template "field-error" .HubForm.NameError}}
+    </label>
+    <div class="actions">
+      <button type="submit" {{if .StoreError}}disabled{{end}}>Save</button>
+      <a class="button secondary"
+         href="{{if .HubForm.Editing}}/content/hubs/{{.HubForm.ID}}{{else}}/content/hubs/new{{end}}"
+         data-discard-check>Reset</a>
+      {{if .HubForm.Editing}}
+      <button class="danger"
+              type="submit"
+              formaction="/content/hubs/{{.HubForm.ID}}/delete"
+              formmethod="post"
+              hx-post="/content/hubs/{{.HubForm.ID}}/delete"
+              hx-target="#hubs-workspace"
+              hx-confirm="Delete {{.HubForm.Name}}? This cannot be undone from the editor.">Delete</button>
+      {{end}}
+    </div>
+  </form>
+</section>
+{{end}}
+
+{{define "hubs-body"}}
+{{if .StoreError}}<p class="error-banner" role="alert">Hub storage is unavailable: {{.StoreError}}</p>{{end}}
+<div class="crud-layout">
+  {{template "hub-catalog" .}}
+  {{template "hub-editor" .}}
+</div>
+{{end}}
+
+{{define "described-catalog"}}
+<aside class="catalog" id="{{.EntityKey}}-catalog" aria-label="{{.EntityLabel}} catalog">
+  <div class="catalog-heading">
+    <h2>{{.EntityPlural}}</h2>
+    <a class="button compact"
+       href="{{.BasePath}}/new"
+       hx-get="{{.BasePath}}/new"
+       hx-target="#{{.EntityKey}}-editor"
+       hx-swap="outerHTML"
+       hx-push-url="true"
+       data-discard-check>New {{.EntityLabel}}</a>
+  </div>
+  <form class="catalog-search"
+        action="{{.BasePath}}"
+        method="get"
+        hx-get="{{.BasePath}}/list"
+        hx-target="#{{.EntityKey}}-catalog"
+        hx-swap="outerHTML"
+        hx-trigger="input changed delay:250ms, search">
+    <label for="{{.EntityKey}}-search">Search by name</label>
+    <input id="{{.EntityKey}}-search" name="q" type="search" value="{{.Query}}" autocomplete="off">
+  </form>
+  <div class="catalog-list">
+    {{range .DescribedRows}}
+    <a class="catalog-item{{if .Active}} active{{end}}"
+       href="{{$.BasePath}}/{{.ID}}"
+       hx-get="{{$.BasePath}}/{{.ID}}"
+       hx-target="#{{$.EntityKey}}-editor"
+       hx-swap="outerHTML"
+       hx-push-url="true"
+       data-discard-check>
+      <span class="catalog-name">{{.Name}}</span>
+      <span class="catalog-description">{{.Description}}</span>
+    </a>
+    {{else}}
+    <p class="empty-catalog">{{if .Query}}No matching {{.EntityPlural}}.{{else}}No {{.EntityPlural}} have been created.{{end}}</p>
+    {{end}}
+  </div>
+</aside>
+{{end}}
+
+{{define "described-editor"}}
+<section class="item-editor" id="{{.EntityKey}}-editor" aria-labelledby="{{.EntityKey}}-editor-title">
+  <header class="editor-heading">
+    <p class="eyebrow">{{if .DescribedForm.Editing}}Edit{{else}}Create{{end}}</p>
+    <h2 id="{{.EntityKey}}-editor-title">{{if .DescribedForm.Editing}}{{.DescribedForm.Name}}{{else}}New {{.EntityLabel}}{{end}}</h2>
+  </header>
+  {{if .DescribedForm.Notice}}<p class="notice" role="status">{{.DescribedForm.Notice}}</p>{{end}}
+  {{if .DescribedForm.GeneralError}}<p class="error-banner" role="alert">{{.DescribedForm.GeneralError}}</p>{{end}}
+  <form class="editor-form"
+        data-dirty-form
+        method="post"
+        action="{{if .DescribedForm.Editing}}{{.BasePath}}/{{.DescribedForm.ID}}{{else}}{{.BasePath}}{{end}}"
+        hx-post="{{if .DescribedForm.Editing}}{{.BasePath}}/{{.DescribedForm.ID}}{{else}}{{.BasePath}}{{end}}"
+        hx-target="#{{.EntityKey}}-workspace">
+    <label>
+      {{.EntityLabel}} Name
+      <input name="name" value="{{.DescribedForm.Name}}" autocomplete="off" aria-invalid="{{if index .DescribedForm.Errors "name"}}true{{else}}false{{end}}">
+      {{template "field-error" (index .DescribedForm.Errors "name")}}
+    </label>
+    <label>
+      Description
+      <textarea name="description" rows="10" aria-invalid="{{if index .DescribedForm.Errors "description"}}true{{else}}false{{end}}">{{.DescribedForm.Description}}</textarea>
+      {{template "field-error" (index .DescribedForm.Errors "description")}}
+    </label>
+    <div class="actions">
+      <button type="submit" {{if .StoreError}}disabled{{end}}>Save</button>
+      <a class="button secondary"
+         href="{{if .DescribedForm.Editing}}{{.BasePath}}/{{.DescribedForm.ID}}{{else}}{{.BasePath}}/new{{end}}"
+         data-discard-check>Reset</a>
+      {{if .DescribedForm.Editing}}
+      <button class="danger"
+              type="submit"
+              formaction="{{.BasePath}}/{{.DescribedForm.ID}}/delete"
+              formmethod="post"
+              hx-post="{{.BasePath}}/{{.DescribedForm.ID}}/delete"
+              hx-target="#{{.EntityKey}}-workspace"
+              hx-confirm="Delete {{.DescribedForm.Name}}? This cannot be undone from the editor.">Delete</button>
+      {{end}}
+    </div>
+  </form>
+</section>
+{{end}}
+
+{{define "described-body"}}
+{{if .StoreError}}<p class="error-banner" role="alert">{{.EntityLabel}} storage is unavailable: {{.StoreError}}</p>{{end}}
+<div class="crud-layout">
+  {{template "described-catalog" .}}
+  {{template "described-editor" .}}
+</div>
+{{end}}
+
+{{define "terminal-catalog"}}
+<aside class="catalog" id="terminal-catalog" aria-label="Terminal catalog">
+  <div class="catalog-heading">
+    <h2>Terminals</h2>
+    <a class="button compact" href="/content/terminals/new"
+       hx-get="/content/terminals/new" hx-target="#terminal-editor"
+       hx-swap="outerHTML" hx-push-url="true" data-discard-check>New Terminal</a>
+  </div>
+  <form class="catalog-search" action="/content/terminals" method="get"
+        hx-get="/content/terminals/list" hx-target="#terminal-catalog"
+        hx-swap="outerHTML" hx-trigger="input changed delay:250ms, search">
+    <label for="terminal-search">Search by machine hostname</label>
+    <input id="terminal-search" name="q" type="search" value="{{.Query}}" autocomplete="off">
+  </form>
+  <div class="catalog-list">
+    {{range .Terminals}}
+    <a class="catalog-item{{if .Active}} active{{end}}" href="/content/terminals/{{.ID}}"
+       hx-get="/content/terminals/{{.ID}}" hx-target="#terminal-editor"
+       hx-swap="outerHTML" hx-push-url="true" data-discard-check>
+      <span class="catalog-name">{{.HostName}}</span>
+    </a>
+    {{else}}
+    <p class="empty-catalog">{{if .Query}}No matching terminals.{{else}}No terminals have been created.{{end}}</p>
+    {{end}}
+  </div>
+</aside>
+{{end}}
+
+{{define "terminal-editor"}}
+<section class="item-editor" id="terminal-editor" aria-labelledby="terminal-editor-title">
+  <header class="editor-heading">
+    <p class="eyebrow">{{if .TerminalForm.Editing}}Edit{{else}}Create{{end}}</p>
+    <h2 id="terminal-editor-title">{{if .TerminalForm.Editing}}{{.TerminalForm.HostName}}{{else}}New Terminal{{end}}</h2>
+  </header>
+  {{if .TerminalForm.Notice}}<p class="notice" role="status">{{.TerminalForm.Notice}}</p>{{end}}
+  {{if .TerminalForm.GeneralError}}<p class="error-banner" role="alert">{{.TerminalForm.GeneralError}}</p>{{end}}
+  {{if .TerminalForm.Editing}}
+  <nav class="network-subtabs" aria-label="Terminal details">
+    <a class="tab{{if ne .TerminalView "access"}} active{{end}}"
+       href="/content/terminals/{{.TerminalForm.ID}}"
+       hx-get="/content/terminals/{{.TerminalForm.ID}}"
+       hx-target="#terminal-editor" hx-swap="outerHTML" hx-push-url="true"
+       data-discard-check>Details</a>
+    <a class="tab{{if eq .TerminalView "access"}} active{{end}}"
+       href="/content/terminals/{{.TerminalForm.ID}}/access"
+       hx-get="/content/terminals/{{.TerminalForm.ID}}/access"
+       hx-target="#terminal-editor" hx-swap="outerHTML" hx-push-url="true"
+       data-discard-check>Access</a>
+  </nav>
+  {{end}}
+  {{if eq .TerminalView "access"}}
+    {{template "terminal-access" .}}
+  {{else}}
+  <form class="editor-form" data-dirty-form method="post"
+        action="{{if .TerminalForm.Editing}}/content/terminals/{{.TerminalForm.ID}}{{else}}/content/terminals{{end}}"
+        hx-post="{{if .TerminalForm.Editing}}/content/terminals/{{.TerminalForm.ID}}{{else}}/content/terminals{{end}}"
+        hx-target="#terminals-workspace">
+    <label>
+      Machine Hostname
+      <input name="host_name" value="{{.TerminalForm.HostName}}" autocomplete="off" aria-invalid="{{if index .TerminalForm.Errors "host_name"}}true{{else}}false{{end}}">
+      {{template "field-error" (index .TerminalForm.Errors "host_name")}}
+    </label>
+    <div class="actions">
+      <button type="submit" {{if .StoreError}}disabled{{end}}>Save</button>
+      <a class="button secondary" href="{{if .TerminalForm.Editing}}/content/terminals/{{.TerminalForm.ID}}{{else}}/content/terminals/new{{end}}" data-discard-check>Reset</a>
+      {{if .TerminalForm.Editing}}
+      <button class="danger" type="submit"
+              formaction="/content/terminals/{{.TerminalForm.ID}}/delete" formmethod="post"
+              hx-post="/content/terminals/{{.TerminalForm.ID}}/delete"
+              hx-target="#terminals-workspace"
+              hx-confirm="Delete {{.TerminalForm.HostName}}? This cannot be undone from the editor.">Delete</button>
+      {{end}}
+    </div>
+  </form>
+  {{end}}
+</section>
+{{end}}
+
+{{define "terminal-access"}}
+<div class="network-terminal-editor">
+  <section aria-labelledby="granted-users-title">
+    <h3 id="granted-users-title">Users with Access</h3>
+    <p class="field-note">Access allows a user to authenticate and log in to this machine.</p>
+    <div class="assigned-list">
+      {{range .GrantedUsers}}
+      <div class="assigned-row">
+        <a href="/content/users/{{.ID}}">{{.Username}}</a>
+        <button class="danger compact" type="button"
+                hx-post="/content/terminals/{{$.TerminalForm.ID}}/revoke/{{.ID}}"
+                hx-target="#terminal-editor" hx-swap="outerHTML"
+                hx-confirm="Revoke terminal access for {{.Username}}?">Revoke</button>
+      </div>
+      {{else}}
+      <p class="empty-catalog">No users have access to this terminal.</p>
+      {{end}}
+    </div>
+  </section>
+  {{if .AvailableUsers}}
+  <section aria-labelledby="grant-terminal-access-title">
+    <h3 id="grant-terminal-access-title">Grant Access</h3>
+    <form class="editor-form inline-assignment" method="post"
+          action="/content/terminals/{{.TerminalForm.ID}}/grant"
+          hx-post="/content/terminals/{{.TerminalForm.ID}}/grant"
+          hx-target="#terminal-editor" hx-swap="outerHTML">
+      <label>
+        User
+        <select name="user_id">
+          {{range .AvailableUsers}}<option value="{{.ID}}">{{.Username}}</option>{{end}}
+        </select>
+      </label>
+      <div class="actions"><button type="submit" {{if .StoreError}}disabled{{end}}>Grant Access</button></div>
+    </form>
+  </section>
+  {{else}}
+  <p class="empty-catalog">Create a User to grant access.</p>
+  {{end}}
+</div>
+{{end}}
+
+{{define "terminals-body"}}
+{{if .StoreError}}<p class="error-banner" role="alert">Terminal storage is unavailable: {{.StoreError}}</p>{{end}}
+<div class="crud-layout">
+  {{template "terminal-catalog" .}}
+  {{template "terminal-editor" .}}
+</div>
+{{end}}
+
+{{define "host-network-catalog"}}
+<aside class="catalog" id="host-network-catalog" aria-label="Corporation catalog">
+  <div class="catalog-heading">
+    <h2>Corporations</h2>
+    <a class="button compact" href="/content/corporations/new"
+       hx-get="/content/corporations/new" hx-target="#host-network-editor"
+       hx-swap="outerHTML" hx-push-url="true" data-discard-check>New Corporation</a>
+  </div>
+  <form class="catalog-search" action="/content/corporations" method="get"
+        hx-get="/content/corporations/list" hx-target="#host-network-catalog"
+        hx-swap="outerHTML" hx-trigger="input changed delay:250ms, search">
+    <label for="host-network-search">Search by name</label>
+    <input id="host-network-search" name="q" type="search" value="{{.Query}}" autocomplete="off">
+  </form>
+  <div class="catalog-list">
+    {{range .HostNetworks}}
+    <a class="catalog-item{{if .Active}} active{{end}}" href="/content/corporations/{{.ID}}"
+       hx-get="/content/corporations/{{.ID}}" hx-target="#host-network-editor"
+       hx-swap="outerHTML" hx-push-url="true" data-discard-check>
+      <span class="catalog-name">{{.Name}}</span>
+    </a>
+    {{else}}
+    <p class="empty-catalog">{{if .Query}}No matching corporations.{{else}}No corporations have been created.{{end}}</p>
+    {{end}}
+  </div>
+</aside>
+{{end}}
+
+{{define "host-network-editor"}}
+<section class="item-editor" id="host-network-editor" aria-labelledby="host-network-editor-title">
+  <header class="editor-heading">
+    <p class="eyebrow">{{if .NetworkForm.Editing}}Edit{{else}}Create{{end}}</p>
+    <h2 id="host-network-editor-title">{{if .NetworkForm.Editing}}{{.NetworkForm.Name}}{{else}}New Corporation{{end}}</h2>
+  </header>
+  {{if .NetworkForm.Notice}}<p class="notice" role="status">{{.NetworkForm.Notice}}</p>{{end}}
+  {{if .NetworkForm.GeneralError}}<p class="error-banner" role="alert">{{.NetworkForm.GeneralError}}</p>{{end}}
+  {{if .NetworkForm.Editing}}
+  <nav class="network-subtabs" aria-label="Corporation details">
+    <a class="tab{{if eq .NetworkView "details"}} active{{end}}"
+       href="/content/corporations/{{.NetworkForm.ID}}"
+       hx-get="/content/corporations/{{.NetworkForm.ID}}"
+       hx-target="#host-network-editor" hx-swap="outerHTML" hx-push-url="true"
+       data-discard-check>Details</a>
+    <a class="tab{{if eq .NetworkView "terminals"}} active{{end}}"
+       href="/content/corporations/{{.NetworkForm.ID}}/terminals"
+       hx-get="/content/corporations/{{.NetworkForm.ID}}/terminals"
+       hx-target="#host-network-editor" hx-swap="outerHTML" hx-push-url="true"
+       data-discard-check>Terminals</a>
+  </nav>
+  {{end}}
+  {{if eq .NetworkView "terminals"}}
+    {{template "host-network-terminals" .}}
+  {{else}}
+  <form class="editor-form" data-dirty-form method="post"
+        action="{{if .NetworkForm.Editing}}/content/corporations/{{.NetworkForm.ID}}{{else}}/content/corporations{{end}}"
+        hx-post="{{if .NetworkForm.Editing}}/content/corporations/{{.NetworkForm.ID}}{{else}}/content/corporations{{end}}"
+        hx-target="#host-networks-workspace">
+    <label>
+      Corporation Name
+      <input name="name" value="{{.NetworkForm.Name}}" autocomplete="off" aria-invalid="{{if .NetworkForm.NameError}}true{{else}}false{{end}}">
+      {{template "field-error" .NetworkForm.NameError}}
+    </label>
+    <div class="actions">
+      <button type="submit" {{if .StoreError}}disabled{{end}}>Save</button>
+      <a class="button secondary" href="{{if .NetworkForm.Editing}}/content/corporations/{{.NetworkForm.ID}}{{else}}/content/corporations/new{{end}}" data-discard-check>Reset</a>
+      {{if .NetworkForm.Editing}}
+      <button class="danger" type="submit"
+              formaction="/content/corporations/{{.NetworkForm.ID}}/delete" formmethod="post"
+              hx-post="/content/corporations/{{.NetworkForm.ID}}/delete"
+              hx-target="#host-networks-workspace"
+              hx-confirm="Delete {{.NetworkForm.Name}}? This cannot be undone from the editor.">Delete</button>
+      {{end}}
+    </div>
+  </form>
+  {{end}}
+</section>
+{{end}}
+
+{{define "host-network-terminals"}}
+<div class="network-terminal-editor">
+  <section aria-labelledby="assigned-terminals-title">
+    <h3 id="assigned-terminals-title">Assigned Terminals</h3>
+    <div class="assigned-list">
+      {{range .AssignedTerminals}}
+      <div class="assigned-row">
+        <a href="/content/terminals/{{.ID}}">{{.HostName}}</a>
+        <button class="danger compact" type="button"
+                hx-post="/content/corporations/{{$.NetworkForm.ID}}/unassign/{{.ID}}"
+                hx-target="#host-network-editor" hx-swap="outerHTML"
+                hx-confirm="Unassign {{.HostName}} from {{$.NetworkForm.Name}}?">Unassign</button>
+      </div>
+      {{else}}
+      <p class="empty-catalog">No terminals are assigned to this network.</p>
+      {{end}}
+    </div>
+  </section>
+
+  <section aria-labelledby="create-network-terminal-title">
+    <h3 id="create-network-terminal-title">Create Terminal in {{.NetworkForm.Name}}</h3>
+    {{if .NestedTerminalForm.Notice}}<p class="notice" role="status">{{.NestedTerminalForm.Notice}}</p>{{end}}
+    {{if .NestedTerminalForm.GeneralError}}<p class="error-banner" role="alert">{{.NestedTerminalForm.GeneralError}}</p>{{end}}
+    <form class="editor-form" data-dirty-form method="post"
+          action="/content/corporations/{{.NetworkForm.ID}}/terminals"
+          hx-post="/content/corporations/{{.NetworkForm.ID}}/terminals"
+          hx-target="#host-network-editor" hx-swap="outerHTML">
+      <label>
+        Machine Hostname
+        <input name="host_name" value="{{.NestedTerminalForm.HostName}}" autocomplete="off" aria-invalid="{{if index .NestedTerminalForm.Errors "host_name"}}true{{else}}false{{end}}">
+        {{template "field-error" (index .NestedTerminalForm.Errors "host_name")}}
+      </label>
+      <div class="actions"><button type="submit" {{if .StoreError}}disabled{{end}}>Create and Assign</button></div>
+    </form>
+  </section>
+
+  {{if .UnassignedTerminals}}
+  <section aria-labelledby="assign-existing-terminal-title">
+    <h3 id="assign-existing-terminal-title">Assign Existing Terminal</h3>
+    <form class="editor-form inline-assignment" method="post"
+          action="/content/corporations/{{.NetworkForm.ID}}/assign"
+          hx-post="/content/corporations/{{.NetworkForm.ID}}/assign"
+          hx-target="#host-network-editor" hx-swap="outerHTML">
+      <label>
+        Unassigned Terminal
+        <select name="terminal_id">
+          {{range .UnassignedTerminals}}<option value="{{.ID}}">{{.HostName}}</option>{{end}}
+        </select>
+      </label>
+      <div class="actions"><button type="submit">Assign</button></div>
+    </form>
+  </section>
+  {{end}}
+</div>
+{{end}}
+
+{{define "host-networks-body"}}
+{{if .StoreError}}<p class="error-banner" role="alert">Corporation storage is unavailable: {{.StoreError}}</p>{{end}}
+<div class="crud-layout">
+  {{template "host-network-catalog" .}}
+  {{template "host-network-editor" .}}
+</div>
+{{end}}
+
+{{define "user-catalog"}}
+<aside class="catalog" id="user-catalog" aria-label="User catalog">
+  <div class="catalog-heading">
+    <h2>Users</h2>
+    <a class="button compact" href="/content/users/new"
+       hx-get="/content/users/new" hx-target="#user-editor"
+       hx-swap="outerHTML" hx-push-url="true" data-discard-check>New User</a>
+  </div>
+  <form class="catalog-search" action="/content/users" method="get"
+        hx-get="/content/users/list" hx-target="#user-catalog"
+        hx-swap="outerHTML" hx-trigger="input changed delay:250ms, search">
+    <label for="user-search">Search by username</label>
+    <input id="user-search" name="q" type="search" value="{{.Query}}" autocomplete="off">
+  </form>
+  <div class="catalog-list">
+    {{range .Users}}
+    <a class="catalog-item{{if .Active}} active{{end}}" href="/content/users/{{.ID}}"
+       hx-get="/content/users/{{.ID}}" hx-target="#user-editor"
+       hx-swap="outerHTML" hx-push-url="true" data-discard-check>
+      <span class="catalog-name">{{.Username}}</span>
+    </a>
+    {{else}}
+    <p class="empty-catalog">{{if .Query}}No matching users.{{else}}No users have been created.{{end}}</p>
+    {{end}}
+  </div>
+</aside>
+{{end}}
+
+{{define "user-editor"}}
+<section class="item-editor" id="user-editor" aria-labelledby="user-editor-title">
+  <header class="editor-heading">
+    <p class="eyebrow">{{if .UserForm.Editing}}Edit{{else}}Create{{end}}</p>
+    <h2 id="user-editor-title">{{if .UserForm.Editing}}{{.UserForm.Username}}{{else}}New User{{end}}</h2>
+  </header>
+  {{if .UserForm.Notice}}<p class="notice" role="status">{{.UserForm.Notice}}</p>{{end}}
+  {{if .UserForm.GeneralError}}<p class="error-banner" role="alert">{{.UserForm.GeneralError}}</p>{{end}}
+  <form class="editor-form" data-dirty-form method="post"
+        action="{{if .UserForm.Editing}}/content/users/{{.UserForm.ID}}{{else}}/content/users{{end}}"
+        hx-post="{{if .UserForm.Editing}}/content/users/{{.UserForm.ID}}{{else}}/content/users{{end}}"
+        hx-target="#users-workspace">
+    <label>
+      Username
+      <input name="username" value="{{.UserForm.Username}}" autocomplete="off" aria-invalid="{{if index .UserForm.Errors "username"}}true{{else}}false{{end}}">
+      {{template "field-error" (index .UserForm.Errors "username")}}
+    </label>
+    <label>
+      Fictional Password
+      <input name="password" type="text" value="{{.UserForm.Password}}" autocomplete="off" aria-invalid="{{if index .UserForm.Errors "password"}}true{{else}}false{{end}}">
+      <span class="field-note">Game content only. Never enter a real password.</span>
+      {{template "field-error" (index .UserForm.Errors "password")}}
+    </label>
+    <div class="actions">
+      <button type="submit" {{if .StoreError}}disabled{{end}}>Save</button>
+      <a class="button secondary" href="{{if .UserForm.Editing}}/content/users/{{.UserForm.ID}}{{else}}/content/users/new{{end}}" data-discard-check>Reset</a>
+      {{if .UserForm.Editing}}
+      <button class="danger" type="submit"
+              formaction="/content/users/{{.UserForm.ID}}/delete" formmethod="post"
+              hx-post="/content/users/{{.UserForm.ID}}/delete"
+              hx-target="#users-workspace"
+              hx-confirm="Delete {{.UserForm.Username}}? This cannot be undone from the editor.">Delete</button>
+      {{end}}
+    </div>
+  </form>
+</section>
+{{end}}
+
+{{define "users-body"}}
+{{if .StoreError}}<p class="error-banner" role="alert">User or access storage is unavailable: {{.StoreError}}</p>{{end}}
+<div class="crud-layout">
+  {{template "user-catalog" .}}
+  {{template "user-editor" .}}
+</div>
+{{end}}
+
+{{define "world-items-body"}}
+{{if .StoreError}}<p class="error-banner" role="alert">World-item storage is unavailable: {{.StoreError}}</p>{{end}}
+<div class="crud-layout">
+  {{template "world-item-catalog" .}}
+  {{template "world-item-editor" .}}
+</div>
+{{end}}
+
+{{define "room-placement-body"}}
+{{if .StoreError}}<p class="error-banner" role="alert">Room placement storage is unavailable: {{.StoreError}}</p>{{end}}
+{{if .Placement.Notice}}<p class="notice" role="status">{{.Placement.Notice}}</p>{{end}}
+{{if .Placement.GeneralError}}<p class="error-banner" role="alert">{{.Placement.GeneralError}}</p>{{end}}
+<div class="placement-layout">
+  <aside class="placement-controls">
+    <form method="get" action="/place/rooms"
+          hx-get="/place/rooms" hx-target="#workspace" hx-push-url="true">
+      <label>
+        Hub
+        <select name="hub_id" onchange="this.form.requestSubmit()">
+          {{range .Placement.Hubs}}<option value="{{.ID}}" {{if .Selected}}selected{{end}}>{{.Name}}</option>{{end}}
+        </select>
+      </label>
+      <noscript><button type="submit">Open Hub</button></noscript>
+    </form>
+    {{if not .Placement.Hubs}}
+      <p class="empty-catalog">Create a Hub before placing Rooms.</p>
+    {{else if not .Placement.Rooms}}
+      <p class="empty-catalog">Create a Room before placing it.</p>
+    {{else}}
+    <form class="editor-form" method="post" action="/place/rooms/place"
+          hx-post="/place/rooms/place" hx-target="#room-placement-workspace">
+      <input type="hidden" name="hub_id" value="{{.Placement.SelectedHubID}}">
+      <label>
+        Room
+        <select name="room_id">
+          {{range .Placement.Rooms}}<option value="{{.ID}}">{{.Name}} — {{.Location}}</option>{{end}}
+        </select>
+      </label>
+      <div class="coordinate-fields">
+        <label>X <input name="x" type="number" min="0" step="1" value="0"></label>
+        <label>Y <input name="y" type="number" min="0" step="1" value="0"></label>
+      </div>
+      {{template "field-error" .Placement.CoordinateError}}
+      <p class="field-note">Enter coordinates or select an empty grid cell. Moving a placed Room preserves its UUID.</p>
+      <div class="actions"><button type="submit">Place Room</button></div>
+
+      <div class="room-grid-scroll">
+        <div class="room-grid" style="grid-template-columns: auto repeat({{.Placement.GridWidth}}, minmax(5.5rem, 1fr));">
+          <span class="grid-axis grid-corner">Y\X</span>
+          {{range .Placement.XHeaders}}<span class="grid-axis">{{.}}</span>{{end}}
+          {{range .Placement.Rows}}
+            <span class="grid-axis">{{.Y}}</span>
+            {{range .Cells}}
+              {{if .Occupied}}
+              <span class="room-cell occupied" title="{{.RoomName}} at {{.X}},{{.Y}}">
+                <span>{{.RoomName}}</span>
+                <button class="danger compact" type="submit"
+                        name="unassign_room_id" value="{{.RoomID}}"
+                        formaction="/place/rooms/unassign"
+                        hx-post="/place/rooms/unassign"
+                        hx-target="#room-placement-workspace"
+                        hx-confirm="Unassign {{.RoomName}}?">Unassign</button>
+              </span>
+              {{else}}
+              <button class="room-cell empty" type="submit" name="cell" value="{{.X}},{{.Y}}" title="Place selected Room at {{.X}},{{.Y}}">{{.X}},{{.Y}}</button>
+              {{end}}
+            {{end}}
+          {{end}}
+        </div>
+      </div>
+    </form>
+    {{end}}
+  </aside>
+</div>
+{{end}}
+
+{{define "workspace"}}
+<nav class="header-tabs" aria-label="Editor workflow">
+  {{range .HeaderTabs}}{{template "tab" .}}{{end}}
+</nav>
+<nav class="detail-tabs" aria-label="{{.Section}} details">
+  {{range .DetailTabs}}{{template "tab" .}}{{end}}
+</nav>
+{{if .SubTabs}}
+<nav class="detail-tabs sub-tabs" aria-label="{{.Title}} content types">
+  {{range .SubTabs}}{{template "tab" .}}{{end}}
+</nav>
+{{end}}
+<section class="screen" aria-labelledby="screen-title">
+  <header class="screen-heading">
+    <p class="eyebrow">{{.Section}}</p>
+    <h1 id="screen-title">{{.Title}}</h1>
+  </header>
+
+  {{if eq .Content "world-items"}}
+  <div id="world-items-workspace">{{template "world-items-body" .}}</div>
+  {{else if eq .Content "hubs"}}
+  <div id="hubs-workspace">{{template "hubs-body" .}}</div>
+  {{else if eq .Content "described"}}
+  <div id="{{.EntityKey}}-workspace">{{template "described-body" .}}</div>
+  {{else if eq .Content "terminals"}}
+  <div id="terminals-workspace">{{template "terminals-body" .}}</div>
+  {{else if eq .Content "host-networks"}}
+  <div id="host-networks-workspace">{{template "host-networks-body" .}}</div>
+  {{else if eq .Content "users"}}
+  <div id="users-workspace">{{template "users-body" .}}</div>
+  {{else if eq .Content "room-placement"}}
+  <div id="room-placement-workspace">{{template "room-placement-body" .}}</div>
+  {{else if eq .Content "assignment-placeholder"}}
+  <div class="placeholder">
+    <p>Assignment screen <strong>(Placeholder)</strong></p>
+    <p>No assignment fields or behavior have been implemented.</p>
+  </div>
+  {{else}}
+  <div class="placeholder">
+    <p><strong>(Placeholder)</strong></p>
+    <p>This screen has not been specified.</p>
+  </div>
+  {{end}}
+</section>
+{{end}}
+
+{{define "page"}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}} — PAWS_IN_THE_SHELL Game Editor</title>
+  <link rel="stylesheet" href="/static/editor.css">
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js"
+          integrity="sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V"
+          crossorigin="anonymous"></script>
+  <script src="/static/editor.js" defer></script>
+</head>
+<body>
+  <header class="app-header">
+    <span class="brand">PAWS_IN_THE_SHELL</span>
+    <span class="app-name">Game Editor</span>
+  </header>
+  <main id="workspace">
+    {{template "workspace" .}}
+  </main>
+</body>
+</html>
+{{end}}

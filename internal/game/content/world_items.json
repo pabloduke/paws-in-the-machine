@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "world_items": [
+    {
+      "id": "1f078921-2df5-4cef-8ffd-f2b702e7c148",
+      "name": "Bookshelf",
+      "kind": "scenery",
+      "short_description": "fksfkfmslkdf",
+      "full_description": "dfvdfljdflkbjdl"
+    },
+    {
+      "id": "4631fff6-f528-407a-af53-ce198201116b",
+      "name": "Guitar",
+      "kind": "takeable",
+      "short_description": "An acoustic guitar",
+      "full_description": "The acoustic guitar is old with a pick stuck underneath the top fret."
+    }
+  ]
+}

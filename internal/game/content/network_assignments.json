@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "assignments": [
+    {
+      "terminal_id": "d6ba9fb8-c99d-4497-aa93-34e7732b458d",
+      "host_network_id": "ab7830b3-85e5-45f6-a567-9d6648c3872f"
+    },
+    {
+      "terminal_id": "0f324aa3-8616-4f05-a505-f34b2e425f1e",
+      "host_network_id": "ab7830b3-85e5-45f6-a567-9d6648c3872f"
+    },
+    {
+      "terminal_id": "2e3f8427-cbe8-42b2-b538-38293b3eb0b3",
+      "host_network_id": "ab7830b3-85e5-45f6-a567-9d6648c3872f"
+    },
+    {
+      "terminal_id": "5f957127-0e6d-47b5-94b9-3011f1e4a24f",
+      "host_network_id": "1691d3c2-8a8b-4ea1-86f2-ced5431012c9"
+    }
+  ]
+}

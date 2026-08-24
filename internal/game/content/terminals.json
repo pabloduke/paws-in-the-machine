@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "terminals": [
+    {
+      "id": "d6ba9fb8-c99d-4497-aa93-34e7732b458d",
+      "host_name": "ashley-laptop"
+    },
+    {
+      "id": "0f324aa3-8616-4f05-a505-f34b2e425f1e",
+      "host_name": "mariah-laptop"
+    },
+    {
+      "id": "2e3f8427-cbe8-42b2-b538-38293b3eb0b3",
+      "host_name": "laura-laptop"
+    },
+    {
+      "id": "5f957127-0e6d-47b5-94b9-3011f1e4a24f",
+      "host_name": "archives"
+    }
+  ]
+}

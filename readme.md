@@ -20,6 +20,7 @@ story content is written. The system list and build order live in
 
 ```
 internal/engine/           core: Entity, Component, World, parser, dispatch
+internal/content/          versioned authored-content schemas and validation
 internal/systems/<name>/   one game system per package
 internal/game/             declarative story content (entity tree only)
 internal/ui/               Bubble Tea terminal shell

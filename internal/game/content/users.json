@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "users": [
+    {
+      "id": "fc8db4b1-57a9-46b2-a9b1-7c1547606216",
+      "username": "mbailey",
+      "password": "mariah"
+    },
+    {
+      "id": "9db9d4b5-f75a-4b2c-ad77-cb53b0963c12",
+      "username": "lnierengarten",
+      "password": "laura"
+    },
+    {
+      "id": "e16d25b5-98f2-464c-bbce-abc7237802c7",
+      "username": "asucky",
+      "password": "ashley "
+    },
+    {
+      "id": "5c801379-3d1f-440c-879b-93416a35baf0",
+      "username": "rfeynman",
+      "password": "qed"
+    }
+  ]
+}

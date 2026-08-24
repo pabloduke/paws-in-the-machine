@@ -97,15 +97,17 @@ only in what they connect.
 metamap has no coordinate space at all — not in play, and not as an
 authoring convenience. Its nodes are an unordered set joined by travel,
 exactly as the subway model requires. Everything positional happens one level
-down, inside a node's grid. The planned editor follows suit: a metamap screen
-will list and link its nodes; only a node screen draws a grid. The current
-editor is a navigation-only prototype; chart authoring is planned to return
-beneath `Place`. See `docs/EDITOR.md`.
+down, inside a node's grid. A future metamap screen will list and link its
+nodes; only a node screen draws a grid. The current editor creates name-only
+Hub definitions and separately authors Room coordinates beneath `Place`.
+See `docs/EDITOR.md`.
 
 **Open questions (parked, not ruled):**
 
-- Whether the existing `hubs.Hub` becomes the `node` level outright, or
-  the two coexist.
+- **Ruled for editor v1 (2026-08-24):** each authored Hub directly owns one
+  sparse Room grid. Its default editor viewport is 10×10, not a hard bound.
+  Runtime migration from UUID-based `placements.json` into chart cells remains
+  separate work.
 - How deep act one actually goes; nothing requires using every level.
 
 **Design rule: geometry is lawful.** The scrambled-exit fakery of

@@ -39,3 +39,6 @@ go.work.sum
 # built binaries
 /paws
 cmd/pawsinthemachine/pawsinthemachine
+
+# Local editor recovery copies
+/internal/game/content/*.bak

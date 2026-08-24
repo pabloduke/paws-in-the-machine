@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "hubs": [
+    {
+      "id": "7e3d3913-1712-42dc-af67-304000d6081e",
+      "name": "Bajor"
+    },
+    {
+      "id": "dd720eb1-85b4-45d3-a58a-a008dbe88644",
+      "name": "Hightown"
+    }
+  ]
+}

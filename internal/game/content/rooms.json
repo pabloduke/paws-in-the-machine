@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "rooms": [
+    {
+      "id": "bbc294fa-3812-4c8c-95bc-8782579ec33b",
+      "name": "Worstum HQ",
+      "description": "Headquarters of the Worstum Insurance Company"
+    },
+    {
+      "id": "a90406ac-9345-4cea-818f-eb0f5f180563",
+      "name": "Megasoft",
+      "description": "Headquarters for the Megasoft Corporation"
+    }
+  ]
+}

@@ -93,6 +93,44 @@ panel.
   when read or searched. Buddy's `~/notes/notes.md` uses this for notes
   derived from flags, without duplicating save state.
 
+### Authored Corporations and host networks
+
+Editor ruling (2026-08-24): the editor exposes Corporations, each of which is
+one real isolated host network whose network name is the Corporation name.
+This is not an organization hierarchy. Authored hosts belong to those networks
+rather than one universal flat host collection. Terminal definitions
+remain independent and may be unassigned; an assignment connects one terminal
+UUID to one Host Network UUID. Hostnames are unique within a network, not
+globally.
+
+The editor implements Corporation CRUD, nested terminal creation, assignment,
+and unassignment. The runtime still uses its existing single `map[string]*Host`
+and does not load these authored files yet. Network entry points,
+cross-network routing, discovery, and how an active session selects its current
+network are deferred. This editor-only work therefore does not change current
+player-visible hacking behavior.
+
+### Authored Users and terminal access
+
+Editor ruling (2026-08-24): reusable fictional credentials are independent
+User definitions, and a many-to-many access record grants a User permission to
+authenticate and log in to a Terminal. Users and Terminals may exist without
+grants. A username may repeat globally but cannot identify two granted users on
+the same terminal. Existing relationships must reference valid User and
+Terminal UUIDs.
+
+The editor implements User CRUD and Terminal Details/Access assignment in
+`users.json` and `terminal_access.json`. Fictional passwords are plain authored
+game data and must never be real credentials. This intentionally does not
+model a corporate structure, groups, roles, ACLs, `sudo`, or POSIX permissions.
+Simple readable/writable/executable file restrictions are deferred until a
+declared gameplay need exists.
+
+The runtime has not migrated to these catalogs and continues to use its
+existing optional per-Host or per-Service credentials. Legacy `username`
+values in `terminals.json` are preserved without inventing Users, passwords,
+or grants. This editor-only work does not change current authentication.
+
 ## Commands (v1)
 
 | command | behavior |

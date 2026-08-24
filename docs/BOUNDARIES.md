@@ -84,6 +84,12 @@ The two former monoliths, split so ownership is per-file:
   per area, each exposing `build<Area>() *engine.Entity`
 - `net.go` — the hacking net content
 
+`internal/content/` contains versioned, data-only authored-content schemas and
+serialization validation shared by editor tooling and future game loaders. It
+does not perform filesystem I/O and does not import the engine, systems, game,
+or UI packages. Editor-owned stores perform disk mutation; `internal/game`
+will eventually own runtime assembly from validated content.
+
 ## Namespaces
 
 Systems integrate through shared state (blackboard pattern: one

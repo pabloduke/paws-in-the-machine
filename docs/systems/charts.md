@@ -124,8 +124,10 @@ it.
 ## The editor
 
 The current editor scope and future work are documented in
-[`docs/EDITOR.md`](../EDITOR.md). `cmd/editor` is presently a navigation-only
-prototype and does not read or write chart geometry.
+[`docs/EDITOR.md`](../EDITOR.md). `cmd/editor` now persists UUID-based
+Room-to-Hub coordinates in `placements.json` with a 10×10 default sparse
+viewport. It does not rewrite the existing runtime `charts.json`; bridging
+those placements into runtime chart geometry remains separate work.
 
 The retired chart-grid implementation remains in Git history. When geometry
 authoring returns, it belongs beneath the editor's declared `Place` workflow.

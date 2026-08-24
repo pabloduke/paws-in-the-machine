@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "access": [
+    {
+      "user_id": "e16d25b5-98f2-464c-bbce-abc7237802c7",
+      "terminal_id": "d6ba9fb8-c99d-4497-aa93-34e7732b458d"
+    },
+    {
+      "user_id": "9db9d4b5-f75a-4b2c-ad77-cb53b0963c12",
+      "terminal_id": "2e3f8427-cbe8-42b2-b538-38293b3eb0b3"
+    },
+    {
+      "user_id": "fc8db4b1-57a9-46b2-a9b1-7c1547606216",
+      "terminal_id": "0f324aa3-8616-4f05-a505-f34b2e425f1e"
+    }
+  ]
+}

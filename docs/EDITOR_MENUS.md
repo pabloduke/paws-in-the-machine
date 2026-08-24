@@ -14,6 +14,11 @@ The browser editor replaces the numbered menu hierarchy with routable Header
 tabs, Detail tabs, and Assignment screens. Future browser sketches do not
 implicitly carry the TUI border or keyboard-selection rules below.
 
+Browser CRUD ruling (2026-08-23): creation and editing use the same screen.
+The Header tabs are `Content` and `Place`; Content Detail tabs select the
+entity type. World Items, Hubs, Rooms, NPCs, Terminals, Corporations, and Users now keep a searchable
+catalog on the left and a shared create/edit form on the right.
+
 ## TUI prototype presentation
 
 Every editor menu or form has:
@@ -25,10 +30,11 @@ Every editor menu or form has:
 - spacing and dimensions fitted to the available terminal rather than copied
   literally from a sketch.
 
-Current presentation ruling (2026-08-22): the implemented baseline panel is
-50% larger than the original rough dimensions, both title lines are centered,
-and menus use a high-contrast truecolor cyberpunk palette. Actual glyph size is
-controlled by the terminal emulator and cannot be changed by Bubble Tea.
+Historical presentation ruling (2026-08-22): the retired prototype's baseline
+panel was 50% larger than the original rough dimensions, both title lines were
+centered, and menus used a high-contrast truecolor cyberpunk palette. Actual
+glyph size was controlled by the terminal emulator and could not be changed by
+Bubble Tea.
 
 A borderless declaration such as:
 
@@ -68,8 +74,7 @@ Game Editor
 │   │   │   ├── Enter Full Description
 │   │   │   └── Select Save or Cancel
 │   │   └── Create Terminal
-│   │       ├── Enter Username
-│   │       ├── Enter Host Name
+│   │       ├── Enter Machine Hostname
 │   │       └── Select Save or Cancel
 │   ├── Create NPC
 │   ├── Create Quest
@@ -89,24 +94,36 @@ bindings beyond the shared selection rules, or the contents of `Edit` and
 Declared behavior (2026-08-22):
 
 1. `Create Item` -> `Create Terminal` opens the terminal creation form.
-2. The designer enters a username and a host name.
-3. The host name is also the terminal's network-map key. The editor does not
+2. The designer enters a machine hostname.
+3. The machine hostname is also the terminal's network-map key. The editor does not
    ask for a separate map key.
-4. Saving creates the terminal and makes it available for later editing.
-5. The designer can enter the created terminal from the editor.
-6. A new terminal starts with the same default filesystem structure as the
-   deck.
-7. While inside it, the designer can add directories and files.
+4. Saving creates the terminal metadata and makes it available for later
+   editing.
+5. The future filesystem-authoring screen will let the designer enter the
+   created terminal.
+6. Once that screen is implemented, a new terminal will start with the same
+   declared default filesystem structure as the deck.
+7. The future screen will let the designer add directories and files.
+
+The current terminal metadata schema stores an immutable UUID and `host_name`.
+Host names use lower-case letters,
+digits, underscores, hyphens, or dots and start and end with a letter or digit.
+Host names are unique within an assigned Corporation network because they are that
+network's map keys. Unassigned terminals and terminals on different networks
+may share a host name.
+
+Legacy version-1 terminal records may contain `username`. The editor preserves
+that field but does not use it for new terminals. Accounts now live in
+`users.json`, and the many-to-many grants in `terminal_access.json` attach
+Users to Terminals without merging either definition.
 
 "Enter the terminal" here is an editor-authoring operation: it exposes the
 game's fake, in-memory terminal filesystem for content editing. It does not
 grant access to the developer machine's real filesystem.
 
-The existing hacking model stores a host name, username, filesystem root, and
-home path separately. The creation workflow must apply the host-name value to
-both `Host.Name` and the network-map key, while the username remains the fake
-shell account. The remaining fields require declared defaults or additional
-form fields.
+The existing runtime hacking model still stores a host name, optional username,
+filesystem root, and home path directly. Loading the editor's User and access
+records into that runtime model is deferred migration work.
 
 The deck currently contains both ordinary structure and content backed by Go
 functions and story flags. "Same default setup as deck" therefore establishes
@@ -114,6 +131,54 @@ the structural starting point, but does not yet rule whether a created
 terminal receives only the deck's directory layout and ordinary starter
 files, or also its dynamic and mission-specific nodes. The editor must not
 copy or invent story content until that distinction is declared.
+
+## Corporation workflow
+
+User ruling (2026-08-24): the editor defines Corporations rather than exposing
+Host Networks directly. Each Corporation is one real isolated host network,
+and its Corporation name is also the network name. This does not add corporate
+hierarchy, departments, roles, or employee modeling. Entry points, routes, and
+runtime behavior remain deferred. Content > Corporations provides name-only
+CRUD. A selected Corporation has Details and Terminals tabs.
+
+The Terminals tab:
+
+- lists terminals assigned to the selected network;
+- creates a terminal and its assignment in one workflow;
+- assigns an existing unassigned terminal; and
+- unassigns a terminal without deleting its definition.
+
+Definitions and relationships remain separate in `host_networks.json`,
+`terminals.json`, and `network_assignments.json`. Each terminal may have zero or
+one Corporation assignment. A Corporation may contain many terminals. Hostname
+uniqueness is enforced within each Corporation network during assignment and while editing
+an assigned terminal.
+
+Unassigned terminals are valid. An assigned terminal cannot be deleted, and a
+Corporation containing terminals cannot be deleted; the designer must unassign
+first. Existing assignments must reference valid terminal and Corporation
+UUIDs. How the player enters a network, crosses between networks, and discovers
+hosts remains deliberately unresolved.
+
+## User and terminal-access workflow
+
+User ruling (2026-08-24): Content > Users provides CRUD for a reusable
+fictional username and password. These are plain authored game data, never real
+credentials. Users may remain unassigned. A selected Terminal has Details and
+Access tabs; Access grants or revokes an existing User's permission to
+authenticate and log in to that machine.
+
+The relationship is many-to-many. One User may access many Terminals and one
+Terminal may accept many Users. Usernames may repeat globally, but users with
+the same username cannot both be granted to one terminal. Existing grants must
+reference valid User and Terminal UUIDs. A User or Terminal with grants cannot
+be deleted until those grants are revoked.
+
+This model deliberately omits corporate hierarchy, departments, groups,
+roles, ACLs, `sudo`, and POSIX `chmod` behavior. Simple file
+readable/writable/executable restrictions remain possible future puzzle
+mechanics, but are not part of account assignment. Runtime authentication does
+not consume these files yet.
 
 ## Create World Item workflow
 
@@ -129,14 +194,14 @@ Enter Full Description:
 Select Save or Cancel
 ```
 
-Saving this form will create an entity with the authored item name, compact
+Saving this form creates a catalog record with the authored item name, compact
 listing text, full examine text, and selected world-item kind. Placement
 remains a separate editor workflow; creating the item does not silently place
 it in a room or in the player's inventory.
 
 The short description is used when the world lists the item. The full
 description is used whenever the item is examined, whether it is in the world
-or in the player's inventory. The content schema may store these as
+or in the player's inventory. The version-1 JSON schema stores these as
 `short_description` and `full_description`; those storage names do not change
 the human-facing form labels.
 
@@ -146,9 +211,62 @@ description therefore requires a deliberate model/rendering seam rather than
 overloading or rewriting the authored item name.
 
 The current engine also requires every entity to have a stable ID and may give
-it aliases. The browser-editor design rules that the editor generates an
-immutable UUID and keeps it out of the normal designer-facing form; editable
-names remain the visible identity. Alias authoring is still undeclared.
+it aliases. The browser editor generates an immutable UUIDv4 and keeps it out
+of the normal designer-facing form; editable names remain the visible identity.
+Alias authoring is still undeclared.
+
+All four form values are required. Duplicate names remain valid because UUIDs
+are authoritative. Successful Save keeps the created or updated item selected,
+shows a compact confirmation, and writes the versioned
+`internal/game/content/world_items.json` catalog atomically. This persistence
+is editor-only for now; the game does not load the file yet.
+
+A selected world item also exposes Delete. Delete requires explicit browser
+confirmation, removes the catalog record atomically, and preserves the prior
+catalog as the recovery copy. No authored relationship can currently reference
+a world item; dependency checks become mandatory before placement or other
+relationship files are allowed to reference these UUIDs.
+
+## Hub CRUD workflow
+
+Initial browser ruling (2026-08-23): Content > Hubs is a shared searchable
+catalog and create/edit form. Its only authored field is:
+
+```text
+Hub Name:
+```
+
+Saving creates or updates a versioned `internal/game/content/hubs.json` record
+with an editor-generated immutable UUID and the display name. Duplicate names
+are valid. The initial catalog starts empty; the editor does not import the
+runtime's hard-coded hubs.
+
+A hub with no entry room and no assigned rooms is valid. Entry room selection,
+room membership, coordinates, and grid authoring do not belong on this Content
+form; they remain future Place-screen responsibilities. Delete is confirmed
+and currently safe because no authored relationship can reference a hub. Once
+placement exists, deletion must refuse or report referenced hubs rather than
+leave dangling UUIDs.
+
+## Room and NPC CRUD workflows
+
+Initial browser ruling (2026-08-24): Rooms and NPCs each use a shared
+searchable catalog and create/edit form with two required fields:
+
+```text
+Name:
+Description:
+```
+
+Room Description is the room's general prose. NPC Description is the NPC's
+general examine text. Both schemas store an editor-generated immutable UUID;
+duplicate display names are valid because UUIDs establish identity. These
+definition forms do not assign a room to a hub or parent, place an NPC, or
+author dialogue, presence rules, aliases, or keywords.
+
+Save creates or updates the corresponding `rooms.json` or `npcs.json` catalog.
+Delete requires confirmation and preserves the prior catalog as a recovery
+copy. Orphaned rooms and unassigned NPCs are valid.
 
 ### Item-kind implementation
 
@@ -156,7 +274,7 @@ User ruling (2026-08-22): the designer-facing item types are the contract; the
 code may represent them with booleans, enums, concrete types, or another
 appropriate mechanism as long as behavior maps back to those types.
 
-The implementation will use one explicit base-kind enum rather than several
+The designer-facing taxonomy has four base kinds rather than several
 overlapping booleans:
 
 ```text
@@ -165,6 +283,13 @@ fixed
 scenery
 terminal
 ```
+
+The flat-file schemas separate the specialized terminal definition from
+ordinary world items. `world_items.json` therefore stores the three-value
+`takeable` / `fixed` / `scenery` enum, while `terminals.json` stores the
+specialized terminal metadata. Together they preserve the four
+designer-facing kinds; this storage boundary does not introduce a new UI
+category.
 
 The mapping to the current engine is:
 
@@ -225,31 +350,43 @@ fields and actions. Enter advances to the next row. Left/Right changes the
 selected world-item type. `Save` and `Cancel` both return to `Create Item`
 without retaining or writing form data; persistence is deliberately deferred.
 
-Until their forms are declared, `Edit`, `Place`, `Create NPC`, `Create Quest`,
-`Create Room`, and `Create Hub` open framed screens with one selectable `Back`
-entry.
+In the retired TUI prototype, undeclared choices opened framed screens with one
+selectable `Back` entry. In the browser editor, Quests and the Place screens
+other than Rooms remain visible placeholders among these workflows.
+
+## Place Rooms workflow
+
+User ruling (2026-08-24): every authored Hub owns one sparse Room grid. The
+default viewport is 10×10 with `x` and `y` coordinates `0–9`, but that viewport
+may expand and is not a world-size limit. Version 1 fixes `z=0` and `w=0`.
+
+Place > Rooms selects a Hub, then places a selected Room by clicking an empty
+cell or entering non-negative `x` and `y`. Placing an already assigned Room
+moves it. An occupied cell can be unassigned. Rooms may remain unassigned; one
+Room cannot occupy two cells, and two Rooms cannot occupy the same Hub cell.
+Definitions remain in `rooms.json` and `hubs.json`; UUID relationships and
+coordinates persist separately in `placements.json`.
 
 ## Open behavior gaps
 
 The visual pattern does not yet declare:
 
-- whether successful saves need confirmation beyond returning to a menu;
-- validation error presentation (the integrity-only validation scope is ruled
-  in `EDITOR.md`);
-- the forms beneath most creation choices;
-- the contents of `Edit` and `Place`;
+- validation error presentation outside the implemented Content CRUD screens
+  (the integrity-only validation scope is ruled in `EDITOR.md`);
+- the Quest form and runtime mapping;
+- the contents of the remaining Place screens and the Quest Content screen;
 - whether `Create Quest` authors the existing mission-file/flag/event
   composition or introduces a different runtime model;
-- username validation and host-name validation;
-- host-name uniqueness across the network and whether it also supplies an
-  entity ID;
 - the exact home path derived for a created terminal;
 - which deck files, aliases, and dynamic nodes belong in the default terminal
   template;
-- default services, ports, password, route requirement, banner, and process
+- default services, ports, route requirement, banner, and process
   table for a created terminal;
-- the exact terminal and filesystem schema and its loading into `game.NewWorld`;
+- the terminal filesystem schema and loading terminal metadata/filesystems into
+  `game.NewWorld`;
+- Corporation-network entry points, cross-network routing, and runtime loading;
+- runtime loading of Users and terminal-access grants, including migration of
+  legacy per-host credentials;
 - how a created terminal is placed into the overworld after its filesystem is
   authored;
 - whether world items can have aliases or world keywords at creation time;
-- whether short and full item descriptions use multiline editors.

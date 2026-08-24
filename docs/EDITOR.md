@@ -1,50 +1,59 @@
 # Game editor
 
-Status: local browser-editor design agreed; the navigation-only Bubble Tea
-prototype remains implemented but is scheduled for replacement. Content
-creation, editing, placement, and persistence are not implemented (2026-08-22).
+Status: local browser editor with world-item, hub, room, NPC, terminal,
+corporation/network, user, terminal-access, and room-placement persistence
+implemented. Other spatial placement, quests, terminal filesystem authoring, network entry/routing, and
+comprehensive validation outside the implemented network and authentication
+relationships are not implemented
+(2026-08-24).
 
 ## What the editor is
 
 The editor is a developer-facing local web application intended to grow into a
-full game editor. The game itself remains terminal-based. The editor will use a
-Go HTTP server, server-rendered templates, and HTMX. Small, focused JavaScript
+full game editor. The game itself remains terminal-based. The editor uses a Go
+HTTP server, server-rendered templates, and HTMX. Small, focused JavaScript
 may be used where a spatial grid genuinely needs it, but the editor is not
 intended to become an elaborate graphical level builder.
 
-The currently implemented Bubble Tea executable is a disposable menu and form
-prototype. It established the initial Create, Edit, and Place workflows, but
-expanding a TUI would make spatial assignment and large-form editing slower
-than the agreed browser interface. Its decisions remain useful design input;
-its presentation is not the target implementation.
+The retired Bubble Tea executable was a disposable menu and form prototype. It
+established the initial Create, Edit, and Place workflows, but expanding a TUI
+would have made spatial assignment and large-form editing slower than the
+agreed browser interface. Its decisions remain useful design input and its
+implementation remains in Git history.
 
-The implementation lives in `cmd/editor/`. The declared shared frame, menu
-hierarchy, form fields, and interpretation rules live in
+The implementation lives in `cmd/editor/`. The original menu hierarchy, form
+fields, and interpretation rules live in
 [`EDITOR_MENUS.md`](EDITOR_MENUS.md).
 
-This prototype replaces the earlier chart-grid editor. The chart subsystem and
-its versioned geometry file still exist and remain part of the game, but the
-current editor command does not read or write them.
+This browser editor replaces the earlier chart-grid editor. The chart subsystem
+and its versioned geometry file still exist and remain part of the game, but
+the current editor command does not read or write them.
 
 ## Browser interface
 
 The browser editor uses three deliberately simple interaction levels:
 
-- **Header tabs** select the major workflow: Create, Edit, or Place.
+- **Header tabs** select the major workflow: Content or Place.
 - **Detail tabs** select the entity type or the part of an entity being worked
   on.
 - **Assignment screens** connect existing entities to parents, coordinates,
   exits, or other declared relationships.
 
-Tabs are ordinary routable links so refresh, browser history, and bookmarks
-work normally. Forms, lists, tabs, property panels, and validation responses
-are rendered by Go and exchanged with HTMX. The initial spatial interface may
-be a simple clickable cell grid; dragging, floating panels, animation, and a
-canvas are not requirements.
+Tabs are ordinary routable links so refresh, browser history, bookmarks, and
+navigation without JavaScript work normally. HTMX enhances those links by
+replacing the workspace instead of reloading the whole document. Forms, lists,
+tabs, property panels, and validation responses are rendered by Go. The
+initial spatial interface may be a simple clickable cell grid; dragging,
+floating panels, animation, and a canvas are not requirements.
 
 Creation and assignment are separate workflows. A designer may create any
-number of rooms, items, NPCs, or terminals without assigning them. Unassigning
-an entity removes its relationship without deleting the entity.
+number of rooms, items, NPCs, terminals, or users without assigning them.
+Unassigning an entity removes its relationship without deleting the entity.
+
+Creation and editing share the same CRUD workspace rather than separate Header
+tabs. On each implemented Content screen, a searchable catalog remains on the
+left while one form on the right creates a new entity or edits the selected
+entity. Navigation away from a dirty form asks before discarding its values.
 
 ## Identity and relationships
 
@@ -71,6 +80,31 @@ relationships for duplicate or missing IDs, dangling references, parent
 cycles, invalid placements, and other contradictions in the complete content
 graph.
 
+Room placement validation is implemented. A placement must reference an
+existing Room and Hub, each Room may have at most one placement, and each Hub
+coordinate may contain at most one Room. Version 1 accepts non-negative `x` and
+`y` and fixes `z` and `w` at zero. Unassigned Rooms remain valid.
+
+World-item screen validation is implemented: name, kind, short description,
+and full description are all required, and kind must be Takeable, Fixed, or
+Scenery. Invalid submissions retain their authored values. Duplicate names are
+allowed because immutable UUIDs, not display names, establish identity.
+
+Room and NPC names and descriptions are required. Machine hostnames and user
+names use lower-case shell-safe forms. A username starts with a letter or
+underscore and then uses letters, digits, underscores, or hyphens. A machine
+hostname starts and ends with a letter or digit and may additionally contain
+underscores, hyphens, and dots. Hostnames are unique within an assigned
+Corporation, while unassigned terminals and terminals in different corporations may
+share one.
+
+Each User also requires a fictional password. These values are authored game
+content, are stored as plain JSON, and must never be real credentials. Users
+may exist without access. A terminal-access grant means that the named user may
+authenticate and log in to that machine. Many users may access one terminal,
+and one user may access many terminals. A username may repeat globally, but
+two users with the same username cannot both have access to the same terminal.
+
 An unassigned room, item, NPC, or terminal is valid and does not produce a
 validation failure. The editor may list such entities under an Unassigned
 filter for convenience, but being unassigned is informational. A relationship
@@ -85,26 +119,40 @@ entities can exist independently of the world:
 
 ```text
 internal/game/content/
+├── host_networks.json        # Corporation definitions; one corporation is one network
+├── network_assignments.json
+├── hubs.json
 ├── rooms.json
 ├── world_items.json
 ├── terminals.json
+├── users.json
+├── terminal_access.json
 ├── npcs.json
 ├── placements.json
 └── charts.json
 ```
 
-The entity files contain reusable definitions and their UUIDs. A record in
-`placements.json` relates an entity UUID to a parent UUID and coordinate. No
-placement record means the entity is valid and unassigned. The existing
-versioned `charts.json` remains the geometry store.
+The entity files contain reusable definitions and their UUIDs. All entity
+definition files shown are implemented and are created on their first
+successful save. `network_assignments.json`, `terminal_access.json`, and
+`placements.json` are implemented. The initial hub definition contains only
+its UUID and display name; entry rooms remain later work. A record in
+`placements.json` relates
+an entity UUID to a parent UUID and coordinate. A network-assignment record
+relates one terminal UUID to one Corporation UUID. The persisted field remains
+`host_network_id` for version-1 compatibility. A terminal-access record
+relates one User UUID to one Terminal UUID. No spatial placement,
+network-assignment, or terminal-access record means the entity is valid and
+unassigned. The existing versioned `charts.json` remains the geometry store.
 
 Records are written in a stable order and unchanged content must serialize
-identically, keeping Git review readable. Writes must be atomic and
-recoverable. Terminal filesystem content may require its own subdirectory
-rather than one large JSON document; its exact on-disk representation remains
-open.
+identically, keeping Git review readable. Every implemented catalog uses a
+same-directory temporary file and atomic rename; replacing an existing catalog
+first preserves its prior bytes as an ignored `.bak` recovery file. Terminal
+filesystem content may require its own subdirectory rather than one large JSON
+document; its exact on-disk representation remains open.
 
-## Running the current prototype
+## Running the editor
 
 From the repository root:
 
@@ -112,90 +160,171 @@ From the repository root:
 go run ./cmd/editor
 ```
 
-From `cmd/editor/`:
+The server listens on `0.0.0.0:8080` by default. From the same machine, open
+`http://127.0.0.1:8080`. A different address or port can be selected explicitly:
 
 ```sh
-go run .
+go run ./cmd/editor -addr 127.0.0.1:8081
 ```
 
-The command no longer depends on the process working directory to locate a
-content file.
+`-content-dir <path>` overrides the default `<repo>/internal/game/content`
+directory. Without that flag, the editor walks upward from its working
+directory to find `go.mod`, so it can be launched from a repository
+subdirectory.
+
+The default binding makes the editor reachable through the machine's network
+interfaces; access control is not implemented. Writes require a browser Origin
+matching the editor's request host, which blocks unrelated websites from
+submitting forms but does not block another person who can directly reach the
+editor. The server does not open a browser automatically.
 
 ## Implemented navigation
 
 ```text
 Game Editor
-├── Create
-│   ├── Create Item
-│   │   ├── Create World Item
-│   │   └── Create Terminal
-│   ├── Create NPC
-│   ├── Create Quest
-│   ├── Create Room
-│   └── Create Hub
-├── Edit
-└── Place
+├── Content (Header tab)
+│   ├── World (group tab)
+│   │   ├── World Items
+│   │   ├── Rooms
+│   │   └── Hubs
+│   ├── Characters (group tab)
+│   │   └── NPCs
+│   └── Corporations (group tab)
+│       ├── Corporations
+│       ├── Terminals
+│       └── Users
+└── Place (Header tab)
+    ├── Rooms (Hub grid assignment)
+    ├── World Items (assignment placeholder)
+    ├── NPCs (assignment placeholder)
+    └── Terminals (assignment placeholder)
 ```
 
-Every screen uses the shared bordered `PAWS_IN_THE_SHELL` frame. The baseline
-panel footprint is 50% larger than the original 34-by-16 rough, while sizing
-and spacing still adapt to the available terminal. Branding and screen titles
-are centered geometrically inside the padded frame.
-
-The menu prototype uses a truecolor cyberpunk palette: a near-black canvas,
-dark panel, bright cyan frame and branding, magenta screen titles and selector,
-white menu text, and a cyan inverse highlight on the selected entry. The
-terminal emulator owns actual font size; the application increases panel size,
-spacing, contrast, and text weight but cannot resize terminal glyphs.
-
-Menus support two selection styles:
-
-- press the displayed number to activate an entry directly; or
-- move the visible `>` selector with Up/Down and press Enter.
-
-Escape returns one menu level. `q` exits from the main menu, and Ctrl+C exits
-from anywhere.
-
-Choices whose forms have not been declared yet open a bordered, titled screen
-containing only a selectable `Back` entry. This makes every declared route
-navigable without inventing fields or behavior.
+The browser retains a restrained version of the prototype's cyberpunk palette:
+dark panels, cyan primary tabs, magenta section labels, and high-contrast form
+controls. Every tab has its own URL. Undeclared screens visibly say
+`(Placeholder)` rather than inventing fields or behavior.
 
 ## Implemented forms
 
-### Create World Item
+### World Items
 
-The prototype exposes:
+The shared catalog/form workspace exposes:
 
+- case-insensitive catalog search by item name;
+- `New Item` and existing-item selection;
 - item name;
-- item type (`Takeable`, `Fixed`, or `Scenery`), cycled with Left/Right;
+- item type (`Takeable`, `Fixed`, or `Scenery`);
 - short description;
-- full description; and
-- selectable `Save` and `Cancel` actions.
+- full description;
+- create/update `Save` and `Reset` actions;
+- confirmed `Delete` for a selected item; and
+- a compact successful-save confirmation while keeping the saved item
+  selected.
 
-### Create Terminal
+The editor generates the immutable UUID automatically and does not expose it
+as a normal form control. Persisted items remain unassigned and do not enter
+the game runtime yet.
 
-The prototype exposes:
+### Hubs
 
-- username;
-- host name; and
-- selectable `Save` and `Cancel` actions.
+The shared catalog/form workspace exposes case-insensitive search, `New Hub`,
+selection, a required Hub Name field, Save, Reset, and confirmed Delete. The
+editor generates an immutable UUID, while duplicate display names remain
+valid.
 
-Within a form, Up/Down or Tab/Shift+Tab moves the `>` selector between fields
-and actions. Enter advances from a field to the next row. Enter on `Save` or
-`Cancel` returns to `Create Item`.
+A hub may exist with no entry room and no assigned rooms. Those relationships,
+hub grids, and spatial coordinates are intentionally absent from Content CRUD;
+they belong to later Place screens. The editor starts with an empty authored
+hub catalog and does not import the runtime's hard-coded hubs.
 
-The description controls are single-line inputs in this navigation prototype.
-The eventual multiline editing behavior remains undecided.
+### Rooms and NPCs
 
-## No persistence yet
+Rooms and NPCs each expose a searchable catalog and a shared create/edit form
+with Name and Description. Description is the general room prose or NPC
+examine text. Dialogue, presence, parenting, and placement are separate future
+workflows rather than fields on these definition forms.
 
-Neither `Save` nor `Cancel` writes game content. Both return to the parent menu,
-and reopening a form starts with empty fields and the default `Takeable` item
-type. The prototype does not create entities, terminals, filesystems, rooms,
-NPCs, quests, hubs, charts, or placements.
+### Room placement
 
-This is intentional. It lets the menu structure and focus behavior be refined
-before selecting writable schemas and migration rules.
+Place > Rooms selects a Hub and displays its sparse room grid. Each Hub starts
+with a 10×10 viewport covering coordinates `0–9` on both axes. The viewport
+expands to include authored coordinates beyond that area; 10×10 is not a world
+limit. A designer selects any Room and either clicks an empty cell or enters
+non-negative `x` and `y` values. Placing an already assigned Room moves it.
+Occupied cells can be explicitly unassigned.
+
+The grid stores only occupied cells in `placements.json`; empty cells are not
+serialized. `z` and `w` are zero in version 1. Ordinary cardinal exits are
+intended to derive from adjacent occupied cells when runtime loading is added.
+This editor slice does not rewrite the existing runtime `charts.json` names or
+change player-visible navigation.
+
+### Terminals
+
+The browser form exposes:
+
+- machine hostname;
+- create/update `Save` and `Reset` actions; and
+- confirmed `Delete` for a selected terminal.
+
+The catalog uses and searches Machine Hostname. A selected terminal adds
+Details and Access tabs. Access lists users who may log in, grants an existing
+user access, and revokes a grant without deleting either definition. Terminal
+filesystem editing is not part of this metadata form.
+
+Existing version-1 terminal records may still contain a legacy `username`
+field. The editor preserves that authored value when editing the hostname but
+does not display it, convert it into a User, invent a password, or create an
+access grant. Runtime migration remains separate work.
+
+### Users and terminal access
+
+Users expose searchable CRUD with Username and Fictional Password. Passwords
+are visible authoring content in this local editor and are never displayed on
+a terminal's Access tab. Usernames need only be unique among users granted to
+the same terminal. A User with access cannot be deleted, and a Terminal with
+access cannot be deleted; grants must be revoked explicitly first.
+
+The editor validates that every grant references an existing User and Terminal
+and that a terminal has no duplicate granted username. It does not model an
+organization chart, departments, groups, roles, ACLs, `sudo`, or POSIX
+ownership and mode bits. Simple readable/writable/executable file restrictions
+may be added later only when declared gameplay requires them.
+
+### Corporations
+
+Corporations expose name-only CRUD. Each Corporation is one isolated host
+network, and the Corporation name is the network name. This is a presentation
+and authoring boundary, not a corporate hierarchy: departments, roles, and
+employees are not modeled. Selecting a Corporation adds Details and Terminals
+tabs. The Terminals tab lists assigned terminals, creates and assigns a new
+terminal in one workflow, assigns an existing unassigned terminal, and
+unassigns a terminal without deleting it.
+
+A terminal belongs to at most one Corporation. Hostname uniqueness is checked
+within that corporation's network. An assigned terminal cannot be deleted, and a corporation with
+assigned terminals cannot be deleted; the designer must explicitly unassign
+first. Existing relationships are validated for missing networks, missing
+terminals, duplicate assignments, and same-network hostname collisions.
+
+## Persistence status
+
+Every implemented Content screen writes and reloads its respective JSON
+catalog. Selecting an entity updates that same record without changing its
+UUID. Deleting a selected entity requires confirmation and preserves the
+pre-delete catalog in the recovery copy. This is currently safe because
+most other authored relationships do not exist yet.
+Terminal and Corporation deletion already refuses existing network
+assignments. User and Terminal deletion refuses existing access grants. As
+more relationships are implemented, the same dependency rule must prevent
+dangling IDs.
+
+The editor still does not create terminal filesystems, quests, runtime charts,
+non-room placements, network entry points, or routes between Corporations. The game
+does not yet load any of the editor-authored definition or assignment catalogs,
+including Users and terminal access, so authored catalog entities have no
+player-visible effect.
 
 ## Existing systems left intact
 
@@ -214,64 +343,89 @@ navigation and relationship to entity creation are specified.
 
 These are capability gaps, not declarations of world content or missions.
 
-### Refine the prototype
+### Refine the interface
 
-- [x] Add the shared bordered frame and branded title.
-- [x] Add numbered selection and the `>` selector.
-- [x] Add hierarchical Create, Edit, and Place navigation.
+- [x] Add routable Content and Place Header tabs.
+- [x] Add contextual entity Detail tabs.
 - [x] Add navigation-only world-item and terminal forms.
-- [ ] Rule multiline field behavior.
+- [x] Use multiline browser controls for description fields.
 - [x] Rule validation scope: validate existing relationships, while permitting
   unassigned entities.
-- [ ] Rule successful-save confirmation behavior.
-- [ ] Replace Back-only screens as their forms are declared.
+- [x] Keep a successfully saved item selected and show compact confirmation.
+- [x] Replace the declared Room, NPC, and Terminal placeholders with CRUD
+  screens.
+- [ ] Replace the Quest placeholder after its model is declared.
 
 ### Establish writable content
 
 - [x] Rule versioned JSON flat files, with definitions separate from optional
   placements.
 - [x] Rule editor-generated immutable UUIDs hidden behind human-readable names.
-- [ ] Define exact schemas and migration behavior before enabling `Save`.
-- [ ] Implement world-item persistence and map `Takeable`, `Fixed`, and
-  `Scenery` back to engine behavior.
+- [x] Define and implement the version-1 world-item JSON schema.
+- [x] Define and implement the version-1 name-only hub JSON schema.
+- [x] Define and implement version-1 Room, NPC, and Terminal JSON schemas.
+- [x] Define and implement version-1 Corporation-network and network-assignment JSON
+  schemas.
+- [x] Define and implement version-1 User and terminal-access JSON schemas.
+- [x] Implement editor-side world-item create, list, search, and update
+  persistence.
+- [x] Implement editor-side hub create, list, search, update, and delete
+  persistence.
+- [x] Implement editor-side Room, NPC, and Terminal CRUD persistence.
+- [x] Implement Corporation CRUD and nested terminal assignment.
+- [x] Implement User CRUD and reusable terminal-access grants.
+- [ ] Load authored world items into the game and map `Takeable`, `Fixed`, and
+  `Scenery` to engine behavior.
 - [ ] Add distinct short-listing and full-examine descriptions to the runtime
   model.
-- [ ] Implement terminal persistence, default filesystem construction, and
-  filesystem authoring without copying undeclared story content.
-- [ ] Keep writes atomic and recoverable.
+- [x] Implement terminal metadata persistence.
+- [ ] Implement default terminal filesystem construction and filesystem
+  authoring without copying undeclared story content.
+- [x] Keep every implemented catalog write atomic and preserve one recovery
+  copy per catalog.
 
 ### Restore placement and geometry authoring
 
 - [ ] Put chart/node-grid authoring beneath `Place` rather than opening it at
   program startup.
-- [ ] Restore assembled-world identity validation and duplicate-placement
-  checks when placement returns.
+- [x] Implement Hub-owned 10×10-default sparse Room placement with UUID
+  relationships and duplicate-cell validation.
+- [ ] Bridge authored room placements into runtime charts and assembled-world
+  identity validation.
 - [ ] Add chart, gluing, metamap, and node authoring only after their screens
   and relationships are declared.
 - [ ] Report downstream references affected by unplacement.
 
 ### Replace the TUI with the browser editor
 
-- [ ] Add the local Go HTTP server and template shell.
-- [ ] Implement routable Header tabs and Detail tabs with HTMX.
-- [ ] Implement catalog lists and forms without persistence first.
-- [ ] Implement Assignment screens that show names and store UUID references.
-- [ ] Add screen-level validation and a comprehensive relationship-validation
-  report.
-- [ ] Retire the Bubble Tea prototype after the browser shell covers its
-  navigation.
+- [x] Add the local Go HTTP server and template shell.
+- [x] Implement routable Header tabs and Detail tabs with HTMX enhancement and
+  ordinary-link fallback.
+- [x] Retire the Bubble Tea implementation after covering its navigation.
+- [ ] Vendor HTMX so enhanced navigation also works without internet access.
+- [x] Implement the searchable world-item catalog and shared create/edit form.
+- [x] Implement the searchable name-only hub catalog and shared create/edit
+  form.
+- [x] Implement terminal-to-Host-Network assignment using names in the UI and
+  UUID references in storage.
+- [ ] Implement the remaining spatial Assignment screens.
+- [ ] Add screen-level validation to the remaining forms and a comprehensive
+  relationship-validation report.
 
 ### Full game editing
 
-- [ ] Create NPCs and place them in the world.
+- [x] Create NPC definitions.
+- [ ] Place NPCs in the world.
 - [ ] Create basic, data-driven quest lines. Advanced quests may remain
   hand-written in Go when their behavior does not fit the editor's model.
 - [ ] Author room, item, and NPC descriptions and dialogue.
 - [ ] Add and manage world keywords.
-- [ ] Define dependency-aware deletion before allowing full entity removal.
+- [ ] Extend deletion with dependency checks before entities can be referenced
+  by placements or other authored relationships.
 - [ ] Preserve content authority: the editor stores designer-authored prose and
   structure but never generates missing lore or missions.
 
 Any future executable change that alters player-visible game behavior or game
 state must update tests and `docs/GAME_FLOW.md` with the code. The present
-navigation prototype is developer tooling only and does not change game flow.
+editor persistence changes are developer tooling only and do not change game
+flow.
