@@ -2,14 +2,19 @@
   "version": 1,
   "rooms": [
     {
-      "id": "bbc294fa-3812-4c8c-95bc-8782579ec33b",
-      "name": "Worstum HQ",
-      "description": "Headquarters of the Worstum Insurance Company"
+      "id": "3024886f-3c29-43a7-9dca-52e5c2aab0f3",
+      "name": "Megasoft Lobby",
+      "description": "A glossy corporate entrance built to impress humans and intimidate contractors. Security gates, self-check-in kiosks, giant glowing Megasoft logos, and a receptionist desk guard the elevators beyond."
     },
     {
-      "id": "a90406ac-9345-4cea-818f-eb0f5f180563",
-      "name": "Megasoft",
-      "description": "Headquarters for the Megasoft Corporation"
+      "id": "65167489-98fa-4efe-b478-2543f41f06b2",
+      "name": "Megasoft Cafeteria",
+      "description": "Cafeteria where employees can buy or bring lunch and eat."
+    },
+    {
+      "id": "a0c39783-9a9b-40f1-89ff-0d1f6e7cb56c",
+      "name": "Megasoft Hallway to Cafeteria",
+      "description": "Megasoft Hallway to Cafeteria"
     }
   ]
 }

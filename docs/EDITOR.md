@@ -1,8 +1,8 @@
 # Game editor
 
-Status: local browser editor with world-item, hub, room, NPC, terminal,
-corporation/network, user, terminal-access, and room-placement persistence
-implemented. Other spatial placement, quests, terminal filesystem authoring, network entry/routing, and
+Status: local browser editor with world-item, hub, location, room, NPC,
+terminal, corporation/network, user, terminal-access, and spatial placement
+persistence implemented. Other entity placement, quests, terminal filesystem authoring, network entry/routing, and
 comprehensive validation outside the implemented network and authentication
 relationships are not implemented
 (2026-08-24).
@@ -46,9 +46,11 @@ tabs, property panels, and validation responses are rendered by Go. The
 initial spatial interface may be a simple clickable cell grid; dragging,
 floating panels, animation, and a canvas are not requirements.
 
-Creation and assignment are separate workflows. A designer may create any
-number of rooms, items, NPCs, terminals, or users without assigning them.
-Unassigning an entity removes its relationship without deleting the entity.
+Creation, containment, and placement are separate. A designer may create any
+number of locations, rooms, items, NPCs, terminals, or users without assigning
+them. A Hub's Locations tab and a Location's Rooms tab establish containment;
+the Place screens separately add coordinates. Removing a child from a grid
+keeps its parent assignment. Unassigning it from its parent does not delete it.
 
 Creation and editing share the same CRUD workspace rather than separate Header
 tabs. On each implemented Content screen, a searchable catalog remains on the
@@ -80,10 +82,19 @@ relationships for duplicate or missing IDs, dangling references, parent
 cycles, invalid placements, and other contradictions in the complete content
 graph.
 
-Room placement validation is implemented. A placement must reference an
-existing Room and Hub, each Room may have at most one placement, and each Hub
-coordinate may contain at most one Room. Version 1 accepts non-negative `x` and
-`y` and fixes `z` and `w` at zero. Unassigned Rooms remain valid.
+Spatial relationship validation is implemented for the editor hierarchy
+`Hub → Location → Room`. Ownership assignments and grid placements are stored
+separately. Each child may have at most one parent and one placement; a
+placement must agree with the child's parent assignment, and each parent
+coordinate may contain at most one child. Version 1 accepts non-negative `x`
+and `y` and fixes `z` and `w` at zero. Orphaned and assigned-but-unplaced
+Locations and Rooms remain valid.
+
+A Location may optionally name one of its placed Rooms as its entry Room. An
+unset entry is valid. A set entry must reference an existing Room placed in
+that same Location. A Location itself is player-standable; the entry Room is
+the destination when play descends into its optional interior grid. Runtime
+loading of these authored relationships is deferred.
 
 World-item screen validation is implemented: name, kind, short description,
 and full description are all required, and kind must be Takeable, Fixed, or
@@ -122,28 +133,35 @@ internal/game/content/
 ├── host_networks.json        # Corporation definitions; one corporation is one network
 ├── network_assignments.json
 ├── hubs.json
+├── locations.json
 ├── rooms.json
+├── location_assignments.json
+├── room_assignments.json
 ├── world_items.json
 ├── terminals.json
 ├── users.json
 ├── terminal_access.json
 ├── npcs.json
-├── placements.json
+├── location_placements.json
+├── room_placements.json
+├── location_entry_rooms.json
 └── charts.json
 ```
 
 The entity files contain reusable definitions and their UUIDs. All entity
 definition files shown are implemented and are created on their first
-successful save. `network_assignments.json`, `terminal_access.json`, and
-`placements.json` are implemented. The initial hub definition contains only
-its UUID and display name; entry rooms remain later work. A record in
-`placements.json` relates
-an entity UUID to a parent UUID and coordinate. A network-assignment record
+successful save. The spatial ownership and placement files are implemented.
+`location_assignments.json` and `room_assignments.json` establish the
+`Hub → Location → Room` hierarchy without coordinates. The matching placement
+files store optional coordinates within those assigned parents, and
+`location_entry_rooms.json` stores optional Location entry Rooms. A network-assignment record
 relates one terminal UUID to one Corporation UUID. The persisted field remains
 `host_network_id` for version-1 compatibility. A terminal-access record
-relates one User UUID to one Terminal UUID. No spatial placement,
-network-assignment, or terminal-access record means the entity is valid and
-unassigned. The existing versioned `charts.json` remains the geometry store.
+relates one User UUID to one Terminal UUID. No spatial ownership assignment
+means a Location or Room is an orphan; an ownership assignment without a
+placement means it is valid and unplaced. Missing network assignments and
+terminal-access grants likewise remain valid. The existing versioned
+`charts.json` remains the geometry store.
 
 Records are written in a stable order and unchanged content must serialize
 identically, keeping Git review readable. Every implemented catalog uses a
@@ -185,6 +203,7 @@ Game Editor
 ├── Content (Header tab)
 │   ├── World (group tab)
 │   │   ├── World Items
+│   │   ├── Locations
 │   │   ├── Rooms
 │   │   └── Hubs
 │   ├── Characters (group tab)
@@ -194,7 +213,8 @@ Game Editor
 │       ├── Terminals
 │       └── Users
 └── Place (Header tab)
-    ├── Rooms (Hub grid assignment)
+    ├── Locations (Hub grid assignment)
+    ├── Rooms (Location grid assignment and optional entry Room)
     ├── World Items (assignment placeholder)
     ├── NPCs (assignment placeholder)
     └── Terminals (assignment placeholder)
@@ -233,29 +253,44 @@ selection, a required Hub Name field, Save, Reset, and confirmed Delete. The
 editor generates an immutable UUID, while duplicate display names remain
 valid.
 
-A hub may exist with no entry room and no assigned rooms. Those relationships,
-hub grids, and spatial coordinates are intentionally absent from Content CRUD;
-they belong to later Place screens. The editor starts with an empty authored
-hub catalog and does not import the runtime's hard-coded hubs.
+A Hub may exist with no assigned Locations. A selected Hub has Details and
+Locations tabs. Locations lists owned children and their `Unplaced` or `x,y`
+status, creates and assigns a new Location, assigns an existing orphaned
+Location, and unassigns an unplaced Location. Spatial coordinates remain
+absent from Content CRUD and belong to Place > Locations.
 
-### Rooms and NPCs
+### Locations, Rooms, and NPCs
 
-Rooms and NPCs each expose a searchable catalog and a shared create/edit form
-with Name and Description. Description is the general room prose or NPC
-examine text. Dialogue, presence, parenting, and placement are separate future
-workflows rather than fields on these definition forms.
+Locations, Rooms, and NPCs each expose a searchable catalog and a shared
+create/edit form with Name and Description. A Location is a player-standable
+place on a Hub grid and may also contain an interior Room grid. Description is
+general place prose or NPC examine text. Dialogue, presence, parenting, and
+placement remain separate from these definition forms.
 
-### Room placement
+A selected Location has Details and Rooms tabs. Rooms mirrors the Hub child
+workflow: it lists owned Rooms and placement status, creates and assigns a new
+Room, assigns an existing orphaned Room, and unassigns an unplaced Room. Entry
+Room selection also lives here and offers only Rooms already placed within the
+Location.
 
-Place > Rooms selects a Hub and displays its sparse room grid. Each Hub starts
-with a 10×10 viewport covering coordinates `0–9` on both axes. The viewport
-expands to include authored coordinates beyond that area; 10×10 is not a world
-limit. A designer selects any Room and either clicks an empty cell or enters
-non-negative `x` and `y` values. Placing an already assigned Room moves it.
-Occupied cells can be explicitly unassigned.
+### Location and Room placement
 
-The grid stores only occupied cells in `placements.json`; empty cells are not
-serialized. `z` and `w` are zero in version 1. Ordinary cardinal exits are
+Place > Locations selects a Hub and displays its sparse Location grid. The
+picker contains only Locations already assigned to that Hub. Each Hub
+starts with a 10×10 viewport covering coordinates `0–9` on both axes. Place >
+Rooms selects a Location and displays its sparse interior Room grid, and its
+picker contains only Rooms already assigned to that Location. The grid
+starts with a 5×5 viewport covering `0–4`. Either viewport expands to include
+authored coordinates beyond its initial area; the defaults are not world-size
+limits. A designer selects a child and either clicks an empty cell or enters
+non-negative `x` and `y`. Placing an already assigned child moves it. Occupied
+cells can be explicitly unplaced without removing parent ownership.
+
+The grids store only occupied cells in their respective placement files; empty
+cells are not serialized. `z` and `w` are zero in version 1. Entry Room
+selection is on the Location's Rooms tab. An entry Room must be cleared before
+it can be unplaced or unassigned. A placed child must be unplaced before its
+parent assignment can change. Ordinary cardinal exits are
 intended to derive from adjacent occupied cells when runtime loading is added.
 This editor slice does not rewrite the existing runtime `charts.json` names or
 change player-visible navigation.
@@ -363,7 +398,7 @@ These are capability gaps, not declarations of world content or missions.
 - [x] Rule editor-generated immutable UUIDs hidden behind human-readable names.
 - [x] Define and implement the version-1 world-item JSON schema.
 - [x] Define and implement the version-1 name-only hub JSON schema.
-- [x] Define and implement version-1 Room, NPC, and Terminal JSON schemas.
+- [x] Define and implement version-1 Location, Room, NPC, and Terminal JSON schemas.
 - [x] Define and implement version-1 Corporation-network and network-assignment JSON
   schemas.
 - [x] Define and implement version-1 User and terminal-access JSON schemas.
@@ -371,7 +406,7 @@ These are capability gaps, not declarations of world content or missions.
   persistence.
 - [x] Implement editor-side hub create, list, search, update, and delete
   persistence.
-- [x] Implement editor-side Room, NPC, and Terminal CRUD persistence.
+- [x] Implement editor-side Location, Room, NPC, and Terminal CRUD persistence.
 - [x] Implement Corporation CRUD and nested terminal assignment.
 - [x] Implement User CRUD and reusable terminal-access grants.
 - [ ] Load authored world items into the game and map `Takeable`, `Fixed`, and
@@ -388,9 +423,12 @@ These are capability gaps, not declarations of world content or missions.
 
 - [ ] Put chart/node-grid authoring beneath `Place` rather than opening it at
   program startup.
-- [x] Implement Hub-owned 10×10-default sparse Room placement with UUID
-  relationships and duplicate-cell validation.
-- [ ] Bridge authored room placements into runtime charts and assembled-world
+- [x] Implement Hub-owned 10×10-default sparse Location placement and
+  Location-owned 5×5-default sparse Room placement with UUID relationships,
+  optional entry Rooms, and duplicate-cell validation.
+- [x] Separate spatial parent assignments from coordinates and add nested Hub
+  Locations and Location Rooms authoring workflows.
+- [ ] Bridge authored Location and Room placements into runtime charts and assembled-world
   identity validation.
 - [ ] Add chart, gluing, metamap, and node authoring only after their screens
   and relationships are declared.

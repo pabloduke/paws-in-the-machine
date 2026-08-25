@@ -19,7 +19,7 @@ type roomPlacementStore struct {
 }
 
 func newRoomPlacementStore(contentDir string) *roomPlacementStore {
-	return &roomPlacementStore{path: filepath.Join(contentDir, "placements.json")}
+	return &roomPlacementStore{path: filepath.Join(contentDir, "room_placements.json")}
 }
 
 func (s *roomPlacementStore) List() ([]gamecontent.RoomPlacement, error) {
@@ -34,14 +34,14 @@ func (s *roomPlacementStore) List() ([]gamecontent.RoomPlacement, error) {
 	return out, nil
 }
 
-func (s *roomPlacementStore) Place(roomID, hubID string, x, y int) (gamecontent.RoomPlacement, error) {
+func (s *roomPlacementStore) Place(roomID, locationID string, x, y int) (gamecontent.RoomPlacement, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	file, old, mode, err := s.loadLocked()
 	if err != nil {
 		return gamecontent.RoomPlacement{}, err
 	}
-	placement := gamecontent.RoomPlacement{RoomID: roomID, HubID: hubID, X: x, Y: y}
+	placement := gamecontent.RoomPlacement{RoomID: roomID, LocationID: locationID, X: x, Y: y}
 	for i := range file.Placements {
 		if file.Placements[i].RoomID == roomID {
 			file.Placements[i] = placement

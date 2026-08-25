@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -165,6 +166,9 @@ type pageData struct {
 	AssignedTerminals   []terminalRow
 	UnassignedTerminals []terminalRow
 	NestedTerminalForm  terminalForm
+	HubView             string
+	DescribedView       string
+	Ownership           spatialOwnershipPage
 	StoreError          string
 	Placement           roomPlacementPage
 }
@@ -172,7 +176,6 @@ type pageData struct {
 var editorRoutes = map[string]routeSpec{
 	"/content/quests": {"content", "quests", "Quests", "placeholder"},
 
-	"/place/rooms":       {"place", "rooms", "Assign Rooms", "assignment-placeholder"},
 	"/place/world-items": {"place", "world-items", "Assign World Items", "assignment-placeholder"},
 	"/place/npcs":        {"place", "npcs", "Assign NPCs", "assignment-placeholder"},
 	"/place/terminals":   {"place", "terminals", "Assign Terminals", "assignment-placeholder"},
@@ -185,6 +188,7 @@ var detailTabs = map[string][]tab{
 		{Label: "Corporations", URL: "/content/corporations", Key: "corporations"},
 	},
 	"place": {
+		{Label: "Locations", URL: "/place/locations", Key: "locations"},
 		{Label: "Rooms", URL: "/place/rooms", Key: "rooms"},
 		{Label: "World Items", URL: "/place/world-items", Key: "world-items"},
 		{Label: "NPCs", URL: "/place/npcs", Key: "npcs"},
@@ -195,6 +199,7 @@ var detailTabs = map[string][]tab{
 var contentSubTabs = map[string][]tab{
 	"world": {
 		{Label: "World Items", URL: "/content/world-items", Key: "world-items"},
+		{Label: "Locations", URL: "/content/locations", Key: "locations"},
 		{Label: "Rooms", URL: "/content/rooms", Key: "rooms"},
 		{Label: "Hubs", URL: "/content/hubs", Key: "hubs"},
 	},
@@ -209,39 +214,50 @@ var contentSubTabs = map[string][]tab{
 }
 
 type editorHandler struct {
-	templates   *template.Template
-	static      http.Handler
-	items       *worldItemStore
-	hubs        *hubStore
-	rooms       *roomStore
-	npcs        *npcStore
-	terminals   *terminalStore
-	networks    *hostNetworkStore
-	assignments *networkAssignmentStore
-	users       *userStore
-	access      *terminalAccessStore
-	placements  *roomPlacementStore
+	templates           *template.Template
+	static              http.Handler
+	items               *worldItemStore
+	hubs                *hubStore
+	locations           *locationStore
+	rooms               *roomStore
+	npcs                *npcStore
+	terminals           *terminalStore
+	networks            *hostNetworkStore
+	assignments         *networkAssignmentStore
+	users               *userStore
+	access              *terminalAccessStore
+	roomPlacements      *roomPlacementStore
+	locationPlacements  *locationPlacementStore
+	locationEntries     *locationEntryStore
+	locationAssignments *locationAssignmentStore
+	roomAssignments     *roomAssignmentStore
 }
 
-func newEditorHandler(items *worldItemStore, hubs *hubStore, rooms *roomStore, npcs *npcStore, terminals *terminalStore, networks *hostNetworkStore, assignments *networkAssignmentStore, users *userStore, access *terminalAccessStore, placements *roomPlacementStore) http.Handler {
+func newEditorHandler(items *worldItemStore, hubs *hubStore, rooms *roomStore, npcs *npcStore, terminals *terminalStore, networks *hostNetworkStore, assignments *networkAssignmentStore, users *userStore, access *terminalAccessStore, roomPlacements *roomPlacementStore) http.Handler {
 	templates := template.Must(template.ParseFS(editorFiles, "templates/*.html"))
 	staticFiles, err := fs.Sub(editorFiles, "static")
 	if err != nil {
 		panic(err)
 	}
+	contentDir := filepath.Dir(rooms.path)
 	h := &editorHandler{
-		templates:   templates,
-		static:      http.StripPrefix("/static/", http.FileServer(http.FS(staticFiles))),
-		items:       items,
-		hubs:        hubs,
-		rooms:       rooms,
-		npcs:        npcs,
-		terminals:   terminals,
-		networks:    networks,
-		assignments: assignments,
-		users:       users,
-		access:      access,
-		placements:  placements,
+		templates:           templates,
+		static:              http.StripPrefix("/static/", http.FileServer(http.FS(staticFiles))),
+		items:               items,
+		hubs:                hubs,
+		locations:           newLocationStore(contentDir),
+		rooms:               rooms,
+		npcs:                npcs,
+		terminals:           terminals,
+		networks:            networks,
+		assignments:         assignments,
+		users:               users,
+		access:              access,
+		roomPlacements:      roomPlacements,
+		locationPlacements:  newLocationPlacementStore(contentDir),
+		locationEntries:     newLocationEntryStore(contentDir),
+		locationAssignments: newLocationAssignmentStore(contentDir),
+		roomAssignments:     newRoomAssignmentStore(contentDir),
 	}
 	mux := http.NewServeMux()
 	mux.Handle("/static/", h.static)
@@ -274,7 +290,7 @@ func (h *editorHandler) serveEditor(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "editor writes require a same-origin request", http.StatusForbidden)
 		return
 	}
-	if r.Method == http.MethodPost && (strings.HasPrefix(r.URL.Path, terminalBasePath) || strings.HasPrefix(r.URL.Path, hostNetworkBasePath) || strings.HasPrefix(r.URL.Path, userBasePath) || strings.HasPrefix(r.URL.Path, roomPlacementBasePath) || strings.HasPrefix(r.URL.Path, "/content/rooms") || strings.HasPrefix(r.URL.Path, "/content/hubs")) {
+	if r.Method == http.MethodPost && (strings.HasPrefix(r.URL.Path, terminalBasePath) || strings.HasPrefix(r.URL.Path, hostNetworkBasePath) || strings.HasPrefix(r.URL.Path, userBasePath) || strings.HasPrefix(r.URL.Path, roomPlacementBasePath) || strings.HasPrefix(r.URL.Path, locationPlacementBasePath) || strings.HasPrefix(r.URL.Path, "/content/locations") || strings.HasPrefix(r.URL.Path, "/content/rooms") || strings.HasPrefix(r.URL.Path, "/content/hubs")) {
 		if err := h.validateEditorRelationships(); err != nil {
 			http.Error(w, "editor relationships are invalid: "+err.Error(), http.StatusConflict)
 			return
@@ -296,6 +312,18 @@ func (h *editorHandler) serveEditor(w http.ResponseWriter, r *http.Request) {
 		h.serveHostNetworks(w, r, "")
 	case strings.HasPrefix(r.URL.Path, corporationBasePath+"/"):
 		h.routeHostNetworkID(w, r)
+	case r.URL.Path == "/content/locations/list":
+		h.serveDescribedList(w, r, h.locationScreen())
+	case r.URL.Path == "/content/locations" || r.URL.Path == "/content/locations/new":
+		h.serveDescribed(w, r, h.locationScreen(), "")
+	case strings.HasPrefix(r.URL.Path, "/content/locations/"):
+		h.routeLocationID(w, r)
+	case r.URL.Path == locationPlacementBasePath:
+		h.serveLocationPlacements(w, r)
+	case r.URL.Path == locationPlacementBasePath+"/place":
+		h.placeLocation(w, r)
+	case r.URL.Path == locationPlacementBasePath+"/unassign":
+		h.unassignLocation(w, r)
 	case r.URL.Path == roomPlacementBasePath:
 		h.serveRoomPlacements(w, r)
 	case r.URL.Path == roomPlacementBasePath+"/place":
@@ -324,20 +352,8 @@ func (h *editorHandler) serveEditor(w http.ResponseWriter, r *http.Request) {
 		h.serveHubList(w, r)
 	case r.URL.Path == "/content/hubs" || r.URL.Path == "/content/hubs/new":
 		h.serveHubs(w, r, "")
-	case strings.HasSuffix(r.URL.Path, "/delete") && strings.HasPrefix(r.URL.Path, "/content/hubs/"):
-		id := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/content/hubs/"), "/delete")
-		if id == "" || strings.Contains(id, "/") {
-			http.NotFound(w, r)
-			return
-		}
-		h.deleteHub(w, r, id)
 	case strings.HasPrefix(r.URL.Path, "/content/hubs/"):
-		id := strings.TrimPrefix(r.URL.Path, "/content/hubs/")
-		if id == "" || strings.Contains(id, "/") {
-			http.NotFound(w, r)
-			return
-		}
-		h.serveHubs(w, r, id)
+		h.routeHubID(w, r)
 	case r.URL.Path == "/content/world-items/list":
 		h.serveWorldItemList(w, r)
 	case r.URL.Path == "/content/world-items" || r.URL.Path == "/content/world-items/new":
@@ -451,11 +467,11 @@ func (h *editorHandler) deleteHub(w http.ResponseWriter, r *http.Request, id str
 	form := hubForm{}
 	if err != nil {
 		form.GeneralError = err.Error()
-	} else if placed, placementErr := h.hubHasRooms(id); placementErr != nil {
+	} else if placed, placementErr := h.hubHasLocations(id); placementErr != nil {
 		form.GeneralError = placementErr.Error()
 	} else if placed {
 		form = formFromHub(hub)
-		form.GeneralError = "Unassign every Room before deleting this Hub."
+		form.GeneralError = "Unassign every Location before deleting this Hub."
 	} else {
 		deleted, deleteErr := h.hubs.Delete(id)
 		if deleteErr != nil {
@@ -497,6 +513,7 @@ func (h *editorHandler) hubsPage(query string, form hubForm) pageData {
 	data := basePage("content", "hubs", "Hubs", "hubs")
 	data.Query = strings.TrimSpace(query)
 	data.HubForm = form
+	data.HubView = "details"
 	hubs, err := h.hubs.List()
 	if err != nil {
 		data.StoreError = err.Error()
@@ -733,7 +750,7 @@ func basePage(section, detail, title, content string) pageData {
 
 func contentGroup(detail string) string {
 	switch detail {
-	case "world-items", "rooms", "hubs":
+	case "world-items", "locations", "rooms", "hubs":
 		return "world"
 	case "npcs", "quests":
 		return "characters"
@@ -747,7 +764,7 @@ func contentGroup(detail string) string {
 func headerTabs(active string) []tab {
 	return activeTabs([]tab{
 		{Label: "Content", URL: "/content/world-items", Key: "content"},
-		{Label: "Place", URL: "/place/rooms", Key: "place"},
+		{Label: "Place", URL: "/place/locations", Key: "place"},
 	}, active)
 }
 

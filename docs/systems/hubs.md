@@ -5,10 +5,10 @@ Status: spec agreed.
 ## Model
 
 The city is organized into hubs (districts): The Neighborhood, The
-Plaza, Industrial Zone, Microslop HQ, ... Each hub contains explorable
-rooms. In the world tree a hub is an ordinary entity:
+Plaza, Industrial Zone, Microslop HQ, ... In the editor hierarchy a Hub
+contains Locations, and a Location may contain interior Rooms:
 
-    Root → hub → rooms → things
+    Root → hub → locations → rooms → things
 
 Buddy has lived in this city his whole life, so **every hub is known
 and travelable from the start**. There are no locked or hidden hubs.
@@ -71,8 +71,8 @@ two-level model above to arbitrary depth. The containment chain:
   `(x, y)` within it.
 - **location** — a cell of a node's grid. Carries a grid of its own;
   rooms sit at `(x, y)` within it.
-- **room** — a cell of a location's grid. Holds prose and objects, and
-  is where the player stands. A room **may contain a metamap**, which
+- **room** — a cell of a location's grid. Holds prose and objects. Both a
+  location and an interior room are player-standable. A room **may contain a metamap**, which
   is what makes the chain recursive rather than four fixed levels.
 
 Node and location are the same structure at different depths — a grid
@@ -98,16 +98,23 @@ metamap has no coordinate space at all — not in play, and not as an
 authoring convenience. Its nodes are an unordered set joined by travel,
 exactly as the subway model requires. Everything positional happens one level
 down, inside a node's grid. A future metamap screen will list and link its
-nodes; only a node screen draws a grid. The current editor creates name-only
-Hub definitions and separately authors Room coordinates beneath `Place`.
+nodes; only a node screen draws a grid. The current editor creates Hub,
+Location, and Room definitions and separately authors both coordinate layers
+beneath `Place`.
 See `docs/EDITOR.md`.
 
 **Open questions (parked, not ruled):**
 
-- **Ruled for editor v1 (2026-08-24):** each authored Hub directly owns one
-  sparse Room grid. Its default editor viewport is 10×10, not a hard bound.
-  Runtime migration from UUID-based `placements.json` into chart cells remains
-  separate work.
+- **Ruled for editor v1 (2026-08-24):** each authored Hub owns a sparse
+  Location grid with a 10×10 default viewport, and each Location owns an
+  optional sparse Room grid with a 5×5 default viewport. Locations are
+  player-standable. A Location may designate one placed Room as its optional
+  entry Room. Runtime migration from these UUID relationships into chart cells
+  remains separate work.
+- **Editor containment and placement are separate (2026-08-24):** Content tabs
+  assign Locations to Hubs and Rooms to Locations without coordinates. Place
+  grids position only children already assigned to that parent. Unplacing a
+  child preserves ownership; parent reassignment requires unplacement first.
 - How deep act one actually goes; nothing requires using every level.
 
 **Design rule: geometry is lawful.** The scrambled-exit fakery of

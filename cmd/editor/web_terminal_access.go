@@ -265,5 +265,5 @@ func (h *editorHandler) validateEditorRelationships() error {
 	if err := h.validateAuthRelationships(); err != nil {
 		return err
 	}
-	return h.validateRoomPlacementRelationships()
+	return h.validateSpatialRelationships()
 }

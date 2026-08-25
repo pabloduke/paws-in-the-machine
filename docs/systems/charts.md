@@ -125,9 +125,12 @@ it.
 
 The current editor scope and future work are documented in
 [`docs/EDITOR.md`](../EDITOR.md). `cmd/editor` now persists UUID-based
-Room-to-Hub coordinates in `placements.json` with a 10×10 default sparse
-viewport. It does not rewrite the existing runtime `charts.json`; bridging
-those placements into runtime chart geometry remains separate work.
+Location-to-Hub coordinates with a 10×10 default sparse viewport and
+Room-to-Location coordinates with a 5×5 default sparse viewport. It does not
+rewrite the existing runtime `charts.json`; bridging those editor
+relationships into runtime chart geometry remains separate work.
+Parent ownership is stored independently from coordinates, so assigned but
+unplaced Locations and Rooms are valid editor content.
 
 The retired chart-grid implementation remains in Git history. When geometry
 authoring returns, it belongs beneath the editor's declared `Place` workflow.

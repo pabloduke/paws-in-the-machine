@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "placements": [
+    {
+      "room_id": "3024886f-3c29-43a7-9dca-52e5c2aab0f3",
+      "location_id": "a90406ac-9345-4cea-818f-eb0f5f180563",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 0
+    },
+    {
+      "room_id": "65167489-98fa-4efe-b478-2543f41f06b2",
+      "location_id": "a90406ac-9345-4cea-818f-eb0f5f180563",
+      "x": 2,
+      "y": 1,
+      "z": 0,
+      "w": 0
+    },
+    {
+      "room_id": "a0c39783-9a9b-40f1-89ff-0d1f6e7cb56c",
+      "location_id": "a90406ac-9345-4cea-818f-eb0f5f180563",
+      "x": 1,
+      "y": 0,
+      "z": 0,
+      "w": 0
+    }
+  ]
+}

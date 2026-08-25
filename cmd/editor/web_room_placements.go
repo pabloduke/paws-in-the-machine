@@ -1,138 +1,249 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"sort"
 	"strconv"
 	"strings"
-
-	gamecontent "github.com/pabloduke/paws-in-the-machine/internal/content"
 )
 
+const locationPlacementBasePath = "/place/locations"
 const roomPlacementBasePath = "/place/rooms"
-const defaultRoomGridSize = 10
+const defaultLocationGridSize = 10
+const defaultRoomGridSize = 5
 
-type placementHubOption struct {
+type placementOption struct {
 	ID, Name string
 	Selected bool
 }
-
-type placementRoomOption struct {
-	ID, Name, Location string
+type placementEntityOption struct{ ID, Name, Placement string }
+type spatialPlacement struct {
+	EntityID, ParentID string
+	X, Y               int
 }
-
-type roomGridCell struct {
-	X, Y             int
-	RoomID, RoomName string
-	Occupied         bool
+type spatialGridCell struct {
+	X, Y                 int
+	EntityID, EntityName string
+	Occupied             bool
 }
-
-type roomGridRow struct {
+type spatialGridRow struct {
 	Y     int
-	Cells []roomGridCell
+	Cells []spatialGridCell
 }
 
 type roomPlacementPage struct {
-	Hubs            []placementHubOption
-	Rooms           []placementRoomOption
-	SelectedHubID   string
-	SelectedHubName string
-	XHeaders        []int
-	Rows            []roomGridRow
-	GridWidth       int
-	Notice          string
-	GeneralError    string
-	CoordinateError string
+	Parents                               []placementOption
+	Entities                              []placementEntityOption
+	SelectedParentID, SelectedParentName  string
+	ParentLabel, EntityLabel, BasePath    string
+	XHeaders                              []int
+	Rows                                  []spatialGridRow
+	GridWidth                             int
+	Notice, GeneralError, CoordinateError string
 }
 
+type placementScreen struct {
+	key, title, parentLabel, entityLabel, basePath string
+	gridSize                                       int
+	listParents                                    func() ([]describedFields, error)
+	getParent                                      func(string) (describedFields, error)
+	listEntities                                   func() ([]describedFields, error)
+	getEntity                                      func(string) (describedFields, error)
+	listPlacements                                 func() ([]spatialPlacement, error)
+	listAssignments                                func() (map[string]string, error)
+	place                                          func(string, string, int, int) error
+	unassign                                       func(string) error
+}
+
+func (h *editorHandler) locationPlacementScreen() placementScreen {
+	return placementScreen{
+		key: "locations", title: "Assign Locations", parentLabel: "Hub", entityLabel: "Location", basePath: locationPlacementBasePath, gridSize: defaultLocationGridSize,
+		listParents: func() ([]describedFields, error) {
+			records, err := h.hubs.List()
+			out := make([]describedFields, len(records))
+			for i, v := range records {
+				out[i] = describedFields{ID: v.ID, Name: v.Name}
+			}
+			return out, err
+		},
+		getParent: func(id string) (describedFields, error) {
+			v, err := h.hubs.Get(id)
+			return describedFields{ID: v.ID, Name: v.Name}, err
+		},
+		listEntities: func() ([]describedFields, error) {
+			records, err := h.locations.List()
+			out := make([]describedFields, len(records))
+			for i, v := range records {
+				out[i] = fieldsFromLocation(v)
+			}
+			return out, err
+		},
+		getEntity: func(id string) (describedFields, error) {
+			v, err := h.locations.Get(id)
+			return fieldsFromLocation(v), err
+		},
+		listPlacements: func() ([]spatialPlacement, error) {
+			records, err := h.locationPlacements.List()
+			out := make([]spatialPlacement, len(records))
+			for i, v := range records {
+				out[i] = spatialPlacement{EntityID: v.LocationID, ParentID: v.HubID, X: v.X, Y: v.Y}
+			}
+			return out, err
+		},
+		listAssignments: func() (map[string]string, error) {
+			records, err := h.locationAssignments.List()
+			out := map[string]string{}
+			for _, v := range records {
+				out[v.LocationID] = v.HubID
+			}
+			return out, err
+		},
+		place: func(entityID, parentID string, x, y int) error {
+			_, err := h.locationPlacements.Place(entityID, parentID, x, y)
+			return err
+		},
+		unassign: func(id string) error { _, err := h.locationPlacements.Unassign(id); return err },
+	}
+}
+
+func (h *editorHandler) roomPlacementScreen() placementScreen {
+	return placementScreen{
+		key: "rooms", title: "Assign Rooms", parentLabel: "Location", entityLabel: "Room", basePath: roomPlacementBasePath, gridSize: defaultRoomGridSize,
+		listParents: func() ([]describedFields, error) {
+			records, err := h.locations.List()
+			out := make([]describedFields, len(records))
+			for i, v := range records {
+				out[i] = fieldsFromLocation(v)
+			}
+			return out, err
+		},
+		getParent: func(id string) (describedFields, error) {
+			v, err := h.locations.Get(id)
+			return fieldsFromLocation(v), err
+		},
+		listEntities: func() ([]describedFields, error) {
+			records, err := h.rooms.List()
+			out := make([]describedFields, len(records))
+			for i, v := range records {
+				out[i] = fieldsFromRoom(v)
+			}
+			return out, err
+		},
+		getEntity: func(id string) (describedFields, error) { v, err := h.rooms.Get(id); return fieldsFromRoom(v), err },
+		listPlacements: func() ([]spatialPlacement, error) {
+			records, err := h.roomPlacements.List()
+			out := make([]spatialPlacement, len(records))
+			for i, v := range records {
+				out[i] = spatialPlacement{EntityID: v.RoomID, ParentID: v.LocationID, X: v.X, Y: v.Y}
+			}
+			return out, err
+		},
+		listAssignments: func() (map[string]string, error) {
+			records, err := h.roomAssignments.List()
+			out := map[string]string{}
+			for _, v := range records {
+				out[v.RoomID] = v.LocationID
+			}
+			return out, err
+		},
+		place: func(entityID, parentID string, x, y int) error {
+			_, err := h.roomPlacements.Place(entityID, parentID, x, y)
+			return err
+		},
+		unassign: func(id string) error { _, err := h.roomPlacements.Unassign(id); return err },
+	}
+}
+
+func (h *editorHandler) serveLocationPlacements(w http.ResponseWriter, r *http.Request) {
+	h.servePlacements(w, r, h.locationPlacementScreen())
+}
 func (h *editorHandler) serveRoomPlacements(w http.ResponseWriter, r *http.Request) {
+	h.servePlacements(w, r, h.roomPlacementScreen())
+}
+func (h *editorHandler) placeLocation(w http.ResponseWriter, r *http.Request) {
+	h.placeSpatialEntity(w, r, h.locationPlacementScreen())
+}
+func (h *editorHandler) placeRoom(w http.ResponseWriter, r *http.Request) {
+	h.placeSpatialEntity(w, r, h.roomPlacementScreen())
+}
+func (h *editorHandler) unassignLocation(w http.ResponseWriter, r *http.Request) {
+	h.unassignSpatialEntity(w, r, h.locationPlacementScreen())
+}
+func (h *editorHandler) unassignRoom(w http.ResponseWriter, r *http.Request) {
+	h.unassignSpatialEntity(w, r, h.roomPlacementScreen())
+}
+
+func (h *editorHandler) servePlacements(w http.ResponseWriter, r *http.Request, screen placementScreen) {
 	if r.Method != http.MethodGet {
 		h.methodNotAllowed(w, http.MethodGet)
 		return
 	}
-	data := h.roomPlacementsPage(r.URL.Query().Get("hub_id"), "", "", "")
-	h.renderPage(w, r, data)
+	h.renderPage(w, r, h.spatialPlacementsPage(screen, r.URL.Query().Get("parent_id"), "", "", ""))
 }
 
-func (h *editorHandler) placeRoom(w http.ResponseWriter, r *http.Request) {
+func (h *editorHandler) placeSpatialEntity(w http.ResponseWriter, r *http.Request, screen placementScreen) {
 	if r.Method != http.MethodPost {
 		h.methodNotAllowed(w, http.MethodPost)
 		return
 	}
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "invalid room placement form", http.StatusBadRequest)
+		http.Error(w, "invalid placement form", http.StatusBadRequest)
 		return
 	}
-	hubID, roomID := r.FormValue("hub_id"), r.FormValue("room_id")
+	parentID, entityID := r.FormValue("parent_id"), r.FormValue("entity_id")
 	x, y, coordinateErr := placementCoordinates(r)
 	var notice, generalError string
 	if coordinateErr == "" {
-		if _, err := h.hubs.Get(hubID); errors.Is(err, errHubNotFound) {
-			generalError = "Choose an existing Hub."
-		} else if err != nil {
+		if _, err := screen.getParent(parentID); err != nil {
+			generalError = "Choose an existing " + screen.parentLabel + "."
+		} else if entity, err := screen.getEntity(entityID); err != nil {
+			generalError = "Choose an existing " + screen.entityLabel + "."
+		} else if assignments, err := screen.listAssignments(); err != nil {
 			generalError = err.Error()
-		} else if room, err := h.rooms.Get(roomID); errors.Is(err, errDescribedEntityNotFound) {
-			generalError = "Choose an existing Room."
-		} else if err != nil {
-			generalError = err.Error()
-		} else if occupied, err := h.roomCellOccupied(hubID, roomID, x, y); err != nil {
+		} else if assignments[entityID] != parentID {
+			generalError = "Assign this " + screen.entityLabel + " to the selected " + screen.parentLabel + " before placing it."
+		} else if occupied, err := h.spatialCellOccupied(screen, parentID, entityID, x, y); err != nil {
 			generalError = err.Error()
 		} else if occupied {
-			coordinateErr = "That cell is already occupied by another Room."
-		} else if _, err := h.placements.Place(roomID, hubID, x, y); err != nil {
+			coordinateErr = "That cell is already occupied by another " + screen.entityLabel + "."
+		} else if screen.key == "rooms" && h.roomIsEntryElsewhere(entityID, parentID) {
+			generalError = "Clear this Room as its current Location entry before moving it."
+		} else if err := screen.place(entityID, parentID, x, y); err != nil {
 			generalError = err.Error()
 		} else {
-			notice = fmt.Sprintf("Placed %s at %d, %d.", room.Name, x, y)
+			notice = fmt.Sprintf("Placed %s at %d, %d.", entity.Name, x, y)
 		}
 	}
-	data := h.roomPlacementsPage(hubID, notice, generalError, coordinateErr)
-	h.renderRoomPlacementResponse(w, r, data)
+	h.renderPlacementResponse(w, r, screen, h.spatialPlacementsPage(screen, parentID, notice, generalError, coordinateErr))
 }
 
-func (h *editorHandler) unassignRoom(w http.ResponseWriter, r *http.Request) {
+func (h *editorHandler) unassignSpatialEntity(w http.ResponseWriter, r *http.Request, screen placementScreen) {
 	if r.Method != http.MethodPost {
 		h.methodNotAllowed(w, http.MethodPost)
 		return
 	}
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "invalid room placement form", http.StatusBadRequest)
+		http.Error(w, "invalid placement form", http.StatusBadRequest)
 		return
 	}
-	hubID, roomID := r.FormValue("hub_id"), r.FormValue("unassign_room_id")
-	room, roomErr := h.rooms.Get(roomID)
+	parentID, entityID := r.FormValue("parent_id"), r.FormValue("unassign_entity_id")
+	entity, _ := screen.getEntity(entityID)
 	var notice, generalError string
-	if roomErr != nil && !errors.Is(roomErr, errDescribedEntityNotFound) {
-		generalError = roomErr.Error()
-	} else if matches, err := h.roomPlacementMatches(roomID, hubID); err != nil {
+	if matches, err := h.spatialPlacementMatches(screen, entityID, parentID); err != nil {
 		generalError = err.Error()
 	} else if !matches {
 		http.NotFound(w, r)
 		return
-	} else if _, err := h.placements.Unassign(roomID); err != nil {
+	} else if screen.key == "rooms" && h.roomIsEntryElsewhere(entityID, "") {
+		generalError = "Clear this Room as the Location entry before unassigning it."
+	} else if err := screen.unassign(entityID); err != nil {
 		generalError = err.Error()
-	} else if roomErr == nil {
-		notice = "Unassigned " + room.Name + "."
 	} else {
-		notice = "Room unassigned."
+		notice = "Unplaced " + entity.Name + "."
 	}
-	data := h.roomPlacementsPage(hubID, notice, generalError, "")
-	h.renderRoomPlacementResponse(w, r, data)
-}
-
-func (h *editorHandler) roomPlacementMatches(roomID, hubID string) (bool, error) {
-	placements, err := h.placements.List()
-	if err != nil {
-		return false, err
-	}
-	for _, placement := range placements {
-		if placement.RoomID == roomID {
-			return placement.HubID == hubID, nil
-		}
-	}
-	return false, nil
+	h.renderPlacementResponse(w, r, screen, h.spatialPlacementsPage(screen, parentID, notice, generalError, ""))
 }
 
 func placementCoordinates(r *http.Request) (int, int, string) {
@@ -152,7 +263,7 @@ func placementCoordinates(r *http.Request) (int, int, string) {
 	return x, y, ""
 }
 
-func (h *editorHandler) renderRoomPlacementResponse(w http.ResponseWriter, r *http.Request, data pageData) {
+func (h *editorHandler) renderPlacementResponse(w http.ResponseWriter, r *http.Request, screen placementScreen, data pageData) {
 	if isHTMX(r) {
 		if data.Placement.Notice != "" {
 			w.Header().Set("HX-Trigger", "contentSaved")
@@ -161,84 +272,97 @@ func (h *editorHandler) renderRoomPlacementResponse(w http.ResponseWriter, r *ht
 		return
 	}
 	if data.Placement.Notice != "" {
-		http.Redirect(w, r, roomPlacementBasePath+"?hub_id="+url.QueryEscape(data.Placement.SelectedHubID)+"&saved=1", http.StatusSeeOther)
+		http.Redirect(w, r, screen.basePath+"?parent_id="+url.QueryEscape(data.Placement.SelectedParentID), http.StatusSeeOther)
 		return
 	}
 	h.render(w, "page", data)
 }
 
-func (h *editorHandler) roomPlacementsPage(hubID, notice, generalError, coordinateError string) pageData {
-	data := basePage("place", "rooms", "Assign Rooms", "room-placement")
-	data.Placement = roomPlacementPage{Notice: notice, GeneralError: generalError, CoordinateError: coordinateError}
-	if err := h.validateRoomPlacementRelationships(); err != nil {
+func (h *editorHandler) spatialPlacementsPage(screen placementScreen, parentID, notice, generalError, coordinateError string) pageData {
+	data := basePage("place", screen.key, screen.title, "room-placement")
+	data.Placement = roomPlacementPage{Notice: notice, GeneralError: generalError, CoordinateError: coordinateError, ParentLabel: screen.parentLabel, EntityLabel: screen.entityLabel, BasePath: screen.basePath}
+	if err := h.validateSpatialRelationships(); err != nil {
 		data.StoreError = err.Error()
 		return data
 	}
-	hubs, err := h.hubs.List()
+	parents, err := screen.listParents()
 	if err != nil {
 		data.StoreError = err.Error()
 		return data
 	}
-	sort.SliceStable(hubs, func(i, j int) bool { return strings.ToLower(hubs[i].Name) < strings.ToLower(hubs[j].Name) })
-	if hubID == "" && len(hubs) != 0 {
-		hubID = hubs[0].ID
+	sort.SliceStable(parents, func(i, j int) bool { return strings.ToLower(parents[i].Name) < strings.ToLower(parents[j].Name) })
+	if parentID == "" && len(parents) > 0 {
+		parentID = parents[0].ID
 	}
-	for _, hub := range hubs {
-		selected := hub.ID == hubID
-		data.Placement.Hubs = append(data.Placement.Hubs, placementHubOption{ID: hub.ID, Name: hub.Name, Selected: selected})
+	for _, parent := range parents {
+		selected := parent.ID == parentID
+		data.Placement.Parents = append(data.Placement.Parents, placementOption{ID: parent.ID, Name: parent.Name, Selected: selected})
 		if selected {
-			data.Placement.SelectedHubID, data.Placement.SelectedHubName = hub.ID, hub.Name
+			data.Placement.SelectedParentID, parentID = data.Placement.Parents[len(data.Placement.Parents)-1].ID, parent.ID
+			data.Placement.SelectedParentName = parent.Name
 		}
 	}
-	if hubID != "" && data.Placement.SelectedHubID == "" {
-		data.Placement.GeneralError = "The selected Hub no longer exists."
+	if parentID != "" && data.Placement.SelectedParentID == "" {
+		data.Placement.GeneralError = "The selected " + screen.parentLabel + " no longer exists."
 		return data
 	}
-	rooms, err := h.rooms.List()
+	entities, err := screen.listEntities()
 	if err != nil {
 		data.StoreError = err.Error()
 		return data
 	}
-	placements, err := h.placements.List()
+	placements, err := screen.listPlacements()
 	if err != nil {
 		data.StoreError = err.Error()
 		return data
 	}
-	roomByID := make(map[string]gamecontent.Room, len(rooms))
-	placementByRoom := make(map[string]gamecontent.RoomPlacement, len(placements))
-	for _, room := range rooms {
-		roomByID[room.ID] = room
+	assignments, err := screen.listAssignments()
+	if err != nil {
+		data.StoreError = err.Error()
+		return data
 	}
-	for _, placement := range placements {
-		placementByRoom[placement.RoomID] = placement
+	entityByID, placementByEntity := map[string]describedFields{}, map[string]spatialPlacement{}
+	for _, entity := range entities {
+		entityByID[entity.ID] = entity
 	}
-	sort.SliceStable(rooms, func(i, j int) bool { return strings.ToLower(rooms[i].Name) < strings.ToLower(rooms[j].Name) })
-	for _, room := range rooms {
-		option := placementRoomOption{ID: room.ID, Name: room.Name, Location: "Unassigned"}
-		if placement, ok := placementByRoom[room.ID]; ok {
-			hubName := "Unknown Hub"
-			for _, hub := range hubs {
-				if hub.ID == placement.HubID {
-					hubName = hub.Name
+	for _, p := range placements {
+		placementByEntity[p.EntityID] = p
+	}
+	ownedEntities := make([]describedFields, 0, len(entities))
+	for _, entity := range entities {
+		if assignments[entity.ID] == parentID {
+			ownedEntities = append(ownedEntities, entity)
+		}
+	}
+	sort.SliceStable(ownedEntities, func(i, j int) bool {
+		return strings.ToLower(ownedEntities[i].Name) < strings.ToLower(ownedEntities[j].Name)
+	})
+	for _, entity := range ownedEntities {
+		option := placementEntityOption{ID: entity.ID, Name: entity.Name, Placement: "Unplaced"}
+		if p, ok := placementByEntity[entity.ID]; ok {
+			parentName := "Unknown"
+			for _, parent := range parents {
+				if parent.ID == p.ParentID {
+					parentName = parent.Name
 					break
 				}
 			}
-			option.Location = fmt.Sprintf("%s at %d,%d", hubName, placement.X, placement.Y)
+			option.Placement = fmt.Sprintf("%s at %d,%d", parentName, p.X, p.Y)
 		}
-		data.Placement.Rooms = append(data.Placement.Rooms, option)
+		data.Placement.Entities = append(data.Placement.Entities, option)
 	}
-	width, height := defaultRoomGridSize, defaultRoomGridSize
-	cellByCoordinate := make(map[string]gamecontent.RoomPlacement)
-	for _, placement := range placements {
-		if placement.HubID != hubID {
+	width, height := screen.gridSize, screen.gridSize
+	cells := map[string]spatialPlacement{}
+	for _, p := range placements {
+		if p.ParentID != parentID {
 			continue
 		}
-		cellByCoordinate[fmt.Sprintf("%d,%d", placement.X, placement.Y)] = placement
-		if placement.X >= width {
-			width = placement.X + 1
+		cells[fmt.Sprintf("%d,%d", p.X, p.Y)] = p
+		if p.X >= width {
+			width = p.X + 1
 		}
-		if placement.Y >= height {
-			height = placement.Y + 1
+		if p.Y >= height {
+			height = p.Y + 1
 		}
 	}
 	data.Placement.GridWidth = width
@@ -246,12 +370,11 @@ func (h *editorHandler) roomPlacementsPage(hubID, notice, generalError, coordina
 		data.Placement.XHeaders = append(data.Placement.XHeaders, x)
 	}
 	for y := 0; y < height; y++ {
-		row := roomGridRow{Y: y}
+		row := spatialGridRow{Y: y}
 		for x := 0; x < width; x++ {
-			cell := roomGridCell{X: x, Y: y}
-			if placement, ok := cellByCoordinate[fmt.Sprintf("%d,%d", x, y)]; ok {
-				cell.RoomID, cell.Occupied = placement.RoomID, true
-				cell.RoomName = roomByID[placement.RoomID].Name
+			cell := spatialGridCell{X: x, Y: y}
+			if p, ok := cells[fmt.Sprintf("%d,%d", x, y)]; ok {
+				cell.EntityID, cell.EntityName, cell.Occupied = p.EntityID, entityByID[p.EntityID].Name, true
 			}
 			row.Cells = append(row.Cells, cell)
 		}
@@ -260,47 +383,50 @@ func (h *editorHandler) roomPlacementsPage(hubID, notice, generalError, coordina
 	return data
 }
 
-func (h *editorHandler) roomCellOccupied(hubID, exceptRoomID string, x, y int) (bool, error) {
-	placements, err := h.placements.List()
+func (h *editorHandler) spatialCellOccupied(screen placementScreen, parentID, exceptID string, x, y int) (bool, error) {
+	ps, err := screen.listPlacements()
 	if err != nil {
 		return false, err
 	}
-	for _, placement := range placements {
-		if placement.HubID == hubID && placement.RoomID != exceptRoomID && placement.X == x && placement.Y == y {
+	for _, p := range ps {
+		if p.ParentID == parentID && p.EntityID != exceptID && p.X == x && p.Y == y {
 			return true, nil
 		}
 	}
 	return false, nil
 }
-
-func (h *editorHandler) roomIsPlaced(roomID string) (bool, error) {
-	placements, err := h.placements.List()
+func (h *editorHandler) spatialPlacementMatches(screen placementScreen, entityID, parentID string) (bool, error) {
+	ps, err := screen.listPlacements()
 	if err != nil {
 		return false, err
 	}
-	for _, placement := range placements {
-		if placement.RoomID == roomID {
-			return true, nil
+	for _, p := range ps {
+		if p.EntityID == entityID {
+			return p.ParentID == parentID, nil
 		}
 	}
 	return false, nil
 }
 
-func (h *editorHandler) hubHasRooms(hubID string) (bool, error) {
-	placements, err := h.placements.List()
+func (h *editorHandler) roomIsEntryElsewhere(roomID, allowedLocationID string) bool {
+	entries, err := h.locationEntries.List()
 	if err != nil {
-		return false, err
+		return false
 	}
-	for _, placement := range placements {
-		if placement.HubID == hubID {
-			return true, nil
+	for _, e := range entries {
+		if e.RoomID == roomID && e.LocationID != allowedLocationID {
+			return true
 		}
 	}
-	return false, nil
+	return false
 }
 
-func (h *editorHandler) validateRoomPlacementRelationships() error {
+func (h *editorHandler) validateSpatialRelationships() error {
 	hubs, err := h.hubs.List()
+	if err != nil {
+		return err
+	}
+	locations, err := h.locations.List()
 	if err != nil {
 		return err
 	}
@@ -308,25 +434,161 @@ func (h *editorHandler) validateRoomPlacementRelationships() error {
 	if err != nil {
 		return err
 	}
-	placements, err := h.placements.List()
+	lp, err := h.locationPlacements.List()
 	if err != nil {
 		return err
 	}
-	hubIDs := make(map[string]bool, len(hubs))
-	roomIDs := make(map[string]bool, len(rooms))
-	for _, hub := range hubs {
-		hubIDs[hub.ID] = true
+	rp, err := h.roomPlacements.List()
+	if err != nil {
+		return err
 	}
-	for _, room := range rooms {
-		roomIDs[room.ID] = true
+	entries, err := h.locationEntries.List()
+	if err != nil {
+		return err
 	}
-	for _, placement := range placements {
-		if !roomIDs[placement.RoomID] {
-			return fmt.Errorf("placement references missing room %s", placement.RoomID)
+	locationAssignments, err := h.locationAssignments.List()
+	if err != nil {
+		return err
+	}
+	roomAssignments, err := h.roomAssignments.List()
+	if err != nil {
+		return err
+	}
+	hubIDs, locationIDs, roomIDs := map[string]bool{}, map[string]bool{}, map[string]bool{}
+	for _, v := range hubs {
+		hubIDs[v.ID] = true
+	}
+	for _, v := range locations {
+		locationIDs[v.ID] = true
+	}
+	for _, v := range rooms {
+		roomIDs[v.ID] = true
+	}
+	locationParent, roomParent, roomPlacementParent := map[string]string{}, map[string]string{}, map[string]string{}
+	for _, a := range locationAssignments {
+		if !locationIDs[a.LocationID] {
+			return fmt.Errorf("assignment references missing location %s", a.LocationID)
 		}
-		if !hubIDs[placement.HubID] {
-			return fmt.Errorf("room %s references missing hub %s", placement.RoomID, placement.HubID)
+		if !hubIDs[a.HubID] {
+			return fmt.Errorf("location %s assignment references missing hub %s", a.LocationID, a.HubID)
+		}
+		locationParent[a.LocationID] = a.HubID
+	}
+	for _, a := range roomAssignments {
+		if !roomIDs[a.RoomID] {
+			return fmt.Errorf("assignment references missing room %s", a.RoomID)
+		}
+		if !locationIDs[a.LocationID] {
+			return fmt.Errorf("room %s assignment references missing location %s", a.RoomID, a.LocationID)
+		}
+		roomParent[a.RoomID] = a.LocationID
+	}
+	for _, p := range lp {
+		if !locationIDs[p.LocationID] {
+			return fmt.Errorf("placement references missing location %s", p.LocationID)
+		}
+		if !hubIDs[p.HubID] {
+			return fmt.Errorf("location %s references missing hub %s", p.LocationID, p.HubID)
+		}
+		if locationParent[p.LocationID] != p.HubID {
+			return fmt.Errorf("location %s placement does not match its Hub assignment", p.LocationID)
+		}
+	}
+	for _, p := range rp {
+		if !roomIDs[p.RoomID] {
+			return fmt.Errorf("placement references missing room %s", p.RoomID)
+		}
+		if !locationIDs[p.LocationID] {
+			return fmt.Errorf("room %s references missing location %s", p.RoomID, p.LocationID)
+		}
+		if roomParent[p.RoomID] != p.LocationID {
+			return fmt.Errorf("room %s placement does not match its Location assignment", p.RoomID)
+		}
+		roomPlacementParent[p.RoomID] = p.LocationID
+	}
+	for _, e := range entries {
+		if !locationIDs[e.LocationID] {
+			return fmt.Errorf("entry references missing location %s", e.LocationID)
+		}
+		if !roomIDs[e.RoomID] {
+			return fmt.Errorf("location %s entry references missing room %s", e.LocationID, e.RoomID)
+		}
+		if roomParent[e.RoomID] != e.LocationID || roomPlacementParent[e.RoomID] != e.LocationID {
+			return fmt.Errorf("location %s entry room is not placed in that location", e.LocationID)
 		}
 	}
 	return nil
+}
+
+func (h *editorHandler) roomIsPlaced(id string) (bool, error) {
+	ps, err := h.roomPlacements.List()
+	if err != nil {
+		return false, err
+	}
+	for _, p := range ps {
+		if p.RoomID == id {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+func (h *editorHandler) roomIsAssigned(id string) (bool, error) {
+	assignments, err := h.roomAssignments.List()
+	if err != nil {
+		return false, err
+	}
+	for _, assignment := range assignments {
+		if assignment.RoomID == id {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+func (h *editorHandler) locationIsPlaced(id string) (bool, error) {
+	ps, err := h.locationPlacements.List()
+	if err != nil {
+		return false, err
+	}
+	for _, p := range ps {
+		if p.LocationID == id {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+func (h *editorHandler) locationIsAssigned(id string) (bool, error) {
+	assignments, err := h.locationAssignments.List()
+	if err != nil {
+		return false, err
+	}
+	for _, assignment := range assignments {
+		if assignment.LocationID == id {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+func (h *editorHandler) locationHasRooms(id string) (bool, error) {
+	ps, err := h.roomAssignments.List()
+	if err != nil {
+		return false, err
+	}
+	for _, p := range ps {
+		if p.LocationID == id {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+func (h *editorHandler) hubHasLocations(id string) (bool, error) {
+	ps, err := h.locationAssignments.List()
+	if err != nil {
+		return false, err
+	}
+	for _, p := range ps {
+		if p.HubID == id {
+			return true, nil
+		}
+	}
+	return false, nil
 }

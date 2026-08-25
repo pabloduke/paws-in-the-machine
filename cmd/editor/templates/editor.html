@@ -157,6 +157,17 @@
   </header>
   {{if .HubForm.Notice}}<p class="notice" role="status">{{.HubForm.Notice}}</p>{{end}}
   {{if .HubForm.GeneralError}}<p class="error-banner" role="alert">{{.HubForm.GeneralError}}</p>{{end}}
+  {{if .HubForm.Editing}}
+  <nav class="network-subtabs" aria-label="Hub details">
+    <a class="tab{{if eq .HubView "details"}} active{{end}}" href="/content/hubs/{{.HubForm.ID}}"
+       hx-get="/content/hubs/{{.HubForm.ID}}" hx-target="#hub-editor" hx-swap="outerHTML" hx-push-url="true" data-discard-check>Details</a>
+    <a class="tab{{if eq .HubView "locations"}} active{{end}}" href="/content/hubs/{{.HubForm.ID}}/locations"
+       hx-get="/content/hubs/{{.HubForm.ID}}/locations" hx-target="#hub-editor" hx-swap="outerHTML" hx-push-url="true" data-discard-check>Locations</a>
+  </nav>
+  {{end}}
+  {{if eq .HubView "locations"}}
+    {{template "spatial-ownership" .}}
+  {{else}}
   <form class="editor-form"
         data-dirty-form
         method="post"
@@ -184,6 +195,7 @@
       {{end}}
     </div>
   </form>
+  {{end}}
 </section>
 {{end}}
 
@@ -244,6 +256,17 @@
   </header>
   {{if .DescribedForm.Notice}}<p class="notice" role="status">{{.DescribedForm.Notice}}</p>{{end}}
   {{if .DescribedForm.GeneralError}}<p class="error-banner" role="alert">{{.DescribedForm.GeneralError}}</p>{{end}}
+  {{if and .DescribedForm.Editing (eq .EntityKey "locations")}}
+  <nav class="network-subtabs" aria-label="Location details">
+    <a class="tab{{if eq .DescribedView "details"}} active{{end}}" href="/content/locations/{{.DescribedForm.ID}}"
+       hx-get="/content/locations/{{.DescribedForm.ID}}" hx-target="#locations-editor" hx-swap="outerHTML" hx-push-url="true" data-discard-check>Details</a>
+    <a class="tab{{if eq .DescribedView "rooms"}} active{{end}}" href="/content/locations/{{.DescribedForm.ID}}/rooms"
+       hx-get="/content/locations/{{.DescribedForm.ID}}/rooms" hx-target="#locations-editor" hx-swap="outerHTML" hx-push-url="true" data-discard-check>Rooms</a>
+  </nav>
+  {{end}}
+  {{if eq .DescribedView "rooms"}}
+    {{template "spatial-ownership" .}}
+  {{else}}
   <form class="editor-form"
         data-dirty-form
         method="post"
@@ -276,7 +299,84 @@
       {{end}}
     </div>
   </form>
+  {{end}}
 </section>
+{{end}}
+
+{{define "spatial-ownership"}}
+<div class="network-terminal-editor">
+  {{if .Ownership.Notice}}<p class="notice" role="status">{{.Ownership.Notice}}</p>{{end}}
+  {{if .Ownership.GeneralError}}<p class="error-banner" role="alert">{{.Ownership.GeneralError}}</p>{{end}}
+  <section aria-labelledby="assigned-spatial-children-title">
+    <h3 id="assigned-spatial-children-title">Assigned {{.Ownership.ChildPlural}}</h3>
+    <div class="assigned-list">
+      {{range .Ownership.Assigned}}
+      <div class="assigned-row">
+        <a href="{{$.Ownership.ChildBasePath}}/{{.ID}}">{{.Name}}</a>
+        <span class="catalog-description">{{.Placement}}</span>
+        <button class="danger compact" type="button"
+                hx-post="{{$.Ownership.BasePath}}/{{$.Ownership.ParentID}}/unassign/{{.ID}}"
+                hx-target="#{{if eq $.Ownership.ParentLabel "Hub"}}hub{{else}}locations{{end}}-editor" hx-swap="outerHTML"
+                hx-confirm="Unassign {{.Name}} from {{$.Ownership.ParentName}}?">Unassign</button>
+      </div>
+      {{else}}<p class="empty-catalog">No {{.Ownership.ChildPlural}} are assigned to this {{.Ownership.ParentLabel}}.</p>{{end}}
+    </div>
+  </section>
+
+  <section aria-labelledby="create-spatial-child-title">
+    <h3 id="create-spatial-child-title">Create {{.Ownership.ChildLabel}} in {{.Ownership.ParentName}}</h3>
+    {{if .Ownership.NestedForm.GeneralError}}<p class="error-banner" role="alert">{{.Ownership.NestedForm.GeneralError}}</p>{{end}}
+    <form class="editor-form" data-dirty-form method="post"
+          action="{{.Ownership.BasePath}}/{{.Ownership.ParentID}}/{{.Ownership.ChildPath}}"
+          hx-post="{{.Ownership.BasePath}}/{{.Ownership.ParentID}}/{{.Ownership.ChildPath}}"
+          hx-target="#{{if eq .Ownership.ParentLabel "Hub"}}hub{{else}}locations{{end}}-editor" hx-swap="outerHTML">
+      <label>{{.Ownership.ChildLabel}} Name
+        <input name="name" value="{{.Ownership.NestedForm.Name}}" autocomplete="off" aria-invalid="{{if index .Ownership.NestedForm.Errors "name"}}true{{else}}false{{end}}">
+        {{template "field-error" (index .Ownership.NestedForm.Errors "name")}}
+      </label>
+      <label>Description
+        <textarea name="description" rows="6" aria-invalid="{{if index .Ownership.NestedForm.Errors "description"}}true{{else}}false{{end}}">{{.Ownership.NestedForm.Description}}</textarea>
+        {{template "field-error" (index .Ownership.NestedForm.Errors "description")}}
+      </label>
+      <div class="actions"><button type="submit" {{if .StoreError}}disabled{{end}}>Create and Assign</button></div>
+    </form>
+  </section>
+
+  {{if .Ownership.Unassigned}}
+  <section aria-labelledby="assign-existing-spatial-child-title">
+    <h3 id="assign-existing-spatial-child-title">Assign Existing {{.Ownership.ChildLabel}}</h3>
+    <form class="editor-form inline-assignment" method="post"
+          action="{{.Ownership.BasePath}}/{{.Ownership.ParentID}}/assign"
+          hx-post="{{.Ownership.BasePath}}/{{.Ownership.ParentID}}/assign"
+          hx-target="#{{if eq .Ownership.ParentLabel "Hub"}}hub{{else}}locations{{end}}-editor" hx-swap="outerHTML">
+      <label>Unassigned {{.Ownership.ChildLabel}}
+        <select name="child_id">{{range .Ownership.Unassigned}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select>
+      </label>
+      <div class="actions"><button type="submit">Assign</button></div>
+    </form>
+  </section>
+  {{end}}
+
+  {{if .Ownership.SupportsEntry}}
+  <section aria-labelledby="location-entry-room-title">
+    <h3 id="location-entry-room-title">Entry Room</h3>
+    {{if .Ownership.EligibleEntries}}
+    <form class="editor-form inline-assignment" method="post"
+          action="/content/locations/{{.Ownership.ParentID}}/entry"
+          hx-post="/content/locations/{{.Ownership.ParentID}}/entry"
+          hx-target="#locations-editor" hx-swap="outerHTML">
+      <label>Optional Entry Room
+        <select name="entry_room_id">{{range .Ownership.EligibleEntries}}<option value="{{.ID}}" {{if .Selected}}selected{{end}}>{{.Name}}</option>{{end}}</select>
+      </label>
+      <div class="actions">
+        <button type="submit">Set Entry</button>
+        {{if .Ownership.HasEntry}}<button class="secondary" type="submit" formaction="/content/locations/{{.Ownership.ParentID}}/entry-clear" hx-post="/content/locations/{{.Ownership.ParentID}}/entry-clear">Clear Entry</button>{{end}}
+      </div>
+    </form>
+    {{else}}<p class="empty-catalog">Place a Room in this Location before selecting an entry Room.</p>{{end}}
+  </section>
+  {{end}}
+</div>
 {{end}}
 
 {{define "described-body"}}
@@ -639,33 +739,33 @@
 {{end}}
 
 {{define "room-placement-body"}}
-{{if .StoreError}}<p class="error-banner" role="alert">Room placement storage is unavailable: {{.StoreError}}</p>{{end}}
+{{if .StoreError}}<p class="error-banner" role="alert">Spatial placement storage is unavailable: {{.StoreError}}</p>{{end}}
 {{if .Placement.Notice}}<p class="notice" role="status">{{.Placement.Notice}}</p>{{end}}
 {{if .Placement.GeneralError}}<p class="error-banner" role="alert">{{.Placement.GeneralError}}</p>{{end}}
 <div class="placement-layout">
   <aside class="placement-controls">
-    <form method="get" action="/place/rooms"
-          hx-get="/place/rooms" hx-target="#workspace" hx-push-url="true">
+    <form method="get" action="{{.Placement.BasePath}}"
+          hx-get="{{.Placement.BasePath}}" hx-target="#workspace" hx-push-url="true">
       <label>
-        Hub
-        <select name="hub_id" onchange="this.form.requestSubmit()">
-          {{range .Placement.Hubs}}<option value="{{.ID}}" {{if .Selected}}selected{{end}}>{{.Name}}</option>{{end}}
+        {{.Placement.ParentLabel}}
+        <select name="parent_id" onchange="this.form.requestSubmit()">
+          {{range .Placement.Parents}}<option value="{{.ID}}" {{if .Selected}}selected{{end}}>{{.Name}}</option>{{end}}
         </select>
       </label>
-      <noscript><button type="submit">Open Hub</button></noscript>
+      <noscript><button type="submit">Open {{.Placement.ParentLabel}}</button></noscript>
     </form>
-    {{if not .Placement.Hubs}}
-      <p class="empty-catalog">Create a Hub before placing Rooms.</p>
-    {{else if not .Placement.Rooms}}
-      <p class="empty-catalog">Create a Room before placing it.</p>
+    {{if not .Placement.Parents}}
+      <p class="empty-catalog">Create a {{.Placement.ParentLabel}} before placing {{.Placement.EntityLabel}}s.</p>
+    {{else if not .Placement.Entities}}
+      <p class="empty-catalog">Assign a {{.Placement.EntityLabel}} to this {{.Placement.ParentLabel}} before placing it.</p>
     {{else}}
-    <form class="editor-form" method="post" action="/place/rooms/place"
-          hx-post="/place/rooms/place" hx-target="#room-placement-workspace">
-      <input type="hidden" name="hub_id" value="{{.Placement.SelectedHubID}}">
+    <form class="editor-form" method="post" action="{{.Placement.BasePath}}/place"
+          hx-post="{{.Placement.BasePath}}/place" hx-target="#room-placement-workspace">
+      <input type="hidden" name="parent_id" value="{{.Placement.SelectedParentID}}">
       <label>
-        Room
-        <select name="room_id">
-          {{range .Placement.Rooms}}<option value="{{.ID}}">{{.Name}} — {{.Location}}</option>{{end}}
+        {{.Placement.EntityLabel}}
+        <select name="entity_id">
+          {{range .Placement.Entities}}<option value="{{.ID}}">{{.Name}} — {{.Placement}}</option>{{end}}
         </select>
       </label>
       <div class="coordinate-fields">
@@ -673,8 +773,8 @@
         <label>Y <input name="y" type="number" min="0" step="1" value="0"></label>
       </div>
       {{template "field-error" .Placement.CoordinateError}}
-      <p class="field-note">Enter coordinates or select an empty grid cell. Moving a placed Room preserves its UUID.</p>
-      <div class="actions"><button type="submit">Place Room</button></div>
+      <p class="field-note">Enter coordinates or select an empty grid cell. Moving a placed {{.Placement.EntityLabel}} preserves its UUID and nested content.</p>
+      <div class="actions"><button type="submit">Place {{.Placement.EntityLabel}}</button></div>
 
       <div class="room-grid-scroll">
         <div class="room-grid" style="grid-template-columns: auto repeat({{.Placement.GridWidth}}, minmax(5.5rem, 1fr));">
@@ -684,17 +784,17 @@
             <span class="grid-axis">{{.Y}}</span>
             {{range .Cells}}
               {{if .Occupied}}
-              <span class="room-cell occupied" title="{{.RoomName}} at {{.X}},{{.Y}}">
-                <span>{{.RoomName}}</span>
+              <span class="room-cell occupied" title="{{.EntityName}} at {{.X}},{{.Y}}">
+                <span>{{.EntityName}}</span>
                 <button class="danger compact" type="submit"
-                        name="unassign_room_id" value="{{.RoomID}}"
-                        formaction="/place/rooms/unassign"
-                        hx-post="/place/rooms/unassign"
+                        name="unassign_entity_id" value="{{.EntityID}}"
+                        formaction="{{$.Placement.BasePath}}/unassign"
+                        hx-post="{{$.Placement.BasePath}}/unassign"
                         hx-target="#room-placement-workspace"
-                        hx-confirm="Unassign {{.RoomName}}?">Unassign</button>
+                        hx-confirm="Remove {{.EntityName}} from this grid?">Unplace</button>
               </span>
               {{else}}
-              <button class="room-cell empty" type="submit" name="cell" value="{{.X}},{{.Y}}" title="Place selected Room at {{.X}},{{.Y}}">{{.X}},{{.Y}}</button>
+              <button class="room-cell empty" type="submit" name="cell" value="{{.X}},{{.Y}}" title="Place selected {{$.Placement.EntityLabel}} at {{.X}},{{.Y}}">{{.X}},{{.Y}}</button>
               {{end}}
             {{end}}
           {{end}}

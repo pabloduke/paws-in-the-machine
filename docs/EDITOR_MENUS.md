@@ -16,7 +16,7 @@ implicitly carry the TUI border or keyboard-selection rules below.
 
 Browser CRUD ruling (2026-08-23): creation and editing use the same screen.
 The Header tabs are `Content` and `Place`; Content Detail tabs select the
-entity type. World Items, Hubs, Rooms, NPCs, Terminals, Corporations, and Users now keep a searchable
+entity type. World Items, Hubs, Locations, Rooms, NPCs, Terminals, Corporations, and Users now keep a searchable
 catalog on the left and a shared create/edit form on the right.
 
 ## TUI prototype presentation
@@ -241,16 +241,14 @@ with an editor-generated immutable UUID and the display name. Duplicate names
 are valid. The initial catalog starts empty; the editor does not import the
 runtime's hard-coded hubs.
 
-A hub with no entry room and no assigned rooms is valid. Entry room selection,
-room membership, coordinates, and grid authoring do not belong on this Content
-form; they remain future Place-screen responsibilities. Delete is confirmed
-and currently safe because no authored relationship can reference a hub. Once
-placement exists, deletion must refuse or report referenced hubs rather than
-leave dangling UUIDs.
+A Hub with no assigned Locations is valid. A selected Hub's Locations tab
+lists its children, creates and assigns a Location, assigns an existing
+orphaned Location, and unassigns an unplaced Location. Coordinates do not
+belong on this Content form; Place > Locations authors them separately.
 
-## Room and NPC CRUD workflows
+## Location, Room, and NPC CRUD workflows
 
-Initial browser ruling (2026-08-24): Rooms and NPCs each use a shared
+Initial browser ruling (2026-08-24): Locations, Rooms, and NPCs each use a shared
 searchable catalog and create/edit form with two required fields:
 
 ```text
@@ -258,13 +256,19 @@ Name:
 Description:
 ```
 
-Room Description is the room's general prose. NPC Description is the NPC's
+Location and Room Description are general place prose. NPC Description is the NPC's
 general examine text. Both schemas store an editor-generated immutable UUID;
 duplicate display names are valid because UUIDs establish identity. These
-definition forms do not assign a room to a hub or parent, place an NPC, or
+definition forms do not assign a Location to a Hub, a Room to a Location, place an NPC, or
 author dialogue, presence rules, aliases, or keywords.
 
-Save creates or updates the corresponding `rooms.json` or `npcs.json` catalog.
+A selected Location's Rooms tab mirrors the Hub workflow for Room ownership.
+It lists assigned Rooms and their placement status, creates and assigns Rooms,
+assigns existing orphaned Rooms, and unassigns unplaced Rooms. It also manages
+the optional entry Room from eligible Rooms already placed in that Location.
+
+Save creates or updates the corresponding `locations.json`, `rooms.json`, or
+`npcs.json` catalog.
 Delete requires confirmation and preserves the prior catalog as a recovery
 copy. Orphaned rooms and unassigned NPCs are valid.
 
@@ -354,18 +358,31 @@ In the retired TUI prototype, undeclared choices opened framed screens with one
 selectable `Back` entry. In the browser editor, Quests and the Place screens
 other than Rooms remain visible placeholders among these workflows.
 
-## Place Rooms workflow
+## Place Locations and Rooms workflow
 
-User ruling (2026-08-24): every authored Hub owns one sparse Room grid. The
-default viewport is 10×10 with `x` and `y` coordinates `0–9`, but that viewport
-may expand and is not a world-size limit. Version 1 fixes `z=0` and `w=0`.
+User ruling (2026-08-24): the editor hierarchy is `Hub → Location → Room`.
+Locations are player-standable and may optionally contain Rooms; recursive
+Location nesting is not part of version 1.
 
-Place > Rooms selects a Hub, then places a selected Room by clicking an empty
-cell or entering non-negative `x` and `y`. Placing an already assigned Room
-moves it. An occupied cell can be unassigned. Rooms may remain unassigned; one
-Room cannot occupy two cells, and two Rooms cannot occupy the same Hub cell.
-Definitions remain in `rooms.json` and `hubs.json`; UUID relationships and
-coordinates persist separately in `placements.json`.
+Content establishes ownership first: Locations are optionally assigned to one
+Hub, and Rooms are optionally assigned to one Location. Place > Locations
+selects a Hub and uses a 10×10-default sparse grid containing only that Hub's
+assigned Locations. Place > Rooms selects a Location and uses a 5×5-default
+sparse interior grid containing only that Location's assigned Rooms. Either
+grid may expand and is not a world-size limit. Version 1 fixes `z=0` and `w=0`.
+Clicking an empty cell or entering non-negative `x` and `y` places the selected
+child; placing it again moves it. Unplacing preserves ownership. A child must
+be unplaced before it can be unassigned or moved to another parent. Children
+may remain orphaned or assigned-but-unplaced, each child has at most one
+parent, and each cell has at most one child.
+
+A Location may optionally designate one Room already placed within it as its
+entry Room from Content > Locations > Rooms. An unset entry is valid. The
+entry must be cleared before that Room is unplaced or unassigned. Definitions remain in
+`hubs.json`, `locations.json`, and `rooms.json`; relationships persist in
+`location_assignments.json`, `room_assignments.json`,
+`location_placements.json`, `room_placements.json`, and
+`location_entry_rooms.json`.
 
 ## Open behavior gaps
 

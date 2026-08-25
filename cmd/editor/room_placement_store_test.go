@@ -25,7 +25,7 @@ func TestRoomPlacementStorePlaceMoveUnassignAndRecovery(t *testing.T) {
 	if _, err := store.Unassign(roomID); !errors.Is(err, errRoomPlacementNotFound) {
 		t.Fatalf("missing unassign error = %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, "placements.json.bak")); err != nil {
+	if _, err := os.Stat(filepath.Join(dir, "room_placements.json.bak")); err != nil {
 		t.Fatalf("recovery copy missing: %v", err)
 	}
 }

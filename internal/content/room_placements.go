@@ -9,12 +9,12 @@ import (
 const RoomPlacementsVersion = 1
 
 type RoomPlacement struct {
-	RoomID string `json:"room_id"`
-	HubID  string `json:"hub_id"`
-	X      int    `json:"x"`
-	Y      int    `json:"y"`
-	Z      int    `json:"z"`
-	W      int    `json:"w"`
+	RoomID     string `json:"room_id"`
+	LocationID string `json:"location_id"`
+	X          int    `json:"x"`
+	Y          int    `json:"y"`
+	Z          int    `json:"z"`
+	W          int    `json:"w"`
 }
 
 type RoomPlacementsFile struct {
@@ -70,8 +70,8 @@ func ValidateRoomPlacements(file RoomPlacementsFile) error {
 		if !validUUID(placement.RoomID) {
 			return fmt.Errorf("%s has invalid room UUID %q", where, placement.RoomID)
 		}
-		if !validUUID(placement.HubID) {
-			return fmt.Errorf("%s has invalid hub UUID %q", where, placement.HubID)
+		if !validUUID(placement.LocationID) {
+			return fmt.Errorf("%s has invalid location UUID %q", where, placement.LocationID)
 		}
 		if placement.X < 0 || placement.Y < 0 {
 			return fmt.Errorf("%s has negative x or y coordinate", where)
@@ -83,7 +83,7 @@ func ValidateRoomPlacements(file RoomPlacementsFile) error {
 			return fmt.Errorf("%s duplicates room UUID %q", where, placement.RoomID)
 		}
 		rooms[placement.RoomID] = struct{}{}
-		cell := fmt.Sprintf("%s:%d,%d,%d,%d", placement.HubID, placement.X, placement.Y, placement.Z, placement.W)
+		cell := fmt.Sprintf("%s:%d,%d,%d,%d", placement.LocationID, placement.X, placement.Y, placement.Z, placement.W)
 		if other, exists := cells[cell]; exists {
 			return fmt.Errorf("%s occupies the same cell as room %s", where, other)
 		}

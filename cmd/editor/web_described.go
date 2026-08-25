@@ -52,6 +52,36 @@ func (h *editorHandler) roomScreen() describedScreen {
 	}
 }
 
+func (h *editorHandler) locationScreen() describedScreen {
+	return describedScreen{
+		key: "locations", label: "Location", plural: "Locations", basePath: "/content/locations",
+		list: func() ([]describedFields, error) {
+			records, err := h.locations.List()
+			out := make([]describedFields, len(records))
+			for i, record := range records {
+				out[i] = fieldsFromLocation(record)
+			}
+			return out, err
+		},
+		get: func(id string) (describedFields, error) {
+			record, err := h.locations.Get(id)
+			return fieldsFromLocation(record), err
+		},
+		create: func(input describedInput) (describedFields, error) {
+			record, err := h.locations.Create(input)
+			return fieldsFromLocation(record), err
+		},
+		update: func(id string, input describedInput) (describedFields, error) {
+			record, err := h.locations.Update(id, input)
+			return fieldsFromLocation(record), err
+		},
+		delete: func(id string) (describedFields, error) {
+			record, err := h.locations.Delete(id)
+			return fieldsFromLocation(record), err
+		},
+	}
+}
+
 func (h *editorHandler) npcScreen() describedScreen {
 	return describedScreen{
 		key: "npcs", label: "NPC", plural: "NPCs", basePath: "/content/npcs",
@@ -83,6 +113,10 @@ func (h *editorHandler) npcScreen() describedScreen {
 }
 
 func fieldsFromRoom(record gamecontent.Room) describedFields {
+	return describedFields{ID: record.ID, Name: record.Name, Description: record.Description}
+}
+
+func fieldsFromLocation(record gamecontent.Location) describedFields {
 	return describedFields{ID: record.ID, Name: record.Name, Description: record.Description}
 }
 
@@ -206,14 +240,39 @@ func (h *editorHandler) deleteDescribed(w http.ResponseWriter, r *http.Request, 
 	if err != nil {
 		form.GeneralError = err.Error()
 	} else if screen.key == "rooms" {
-		placed, placementErr := h.roomIsPlaced(id)
+		placed, placementErr := h.roomIsAssigned(id)
 		if placementErr != nil {
 			form = formFromDescribed(existing)
 			form.GeneralError = placementErr.Error()
 		} else if placed {
 			form = formFromDescribed(existing)
-			form.GeneralError = "Unassign this Room from its Hub before deleting it."
+			form.GeneralError = "Unassign this Room from its Location before deleting it."
 		} else {
+			deleted, deleteErr := screen.delete(id)
+			if deleteErr != nil {
+				form = formFromDescribed(existing)
+				form.GeneralError = deleteErr.Error()
+			} else {
+				form.Notice = "Deleted " + deleted.Name + "."
+			}
+		}
+	} else if screen.key == "locations" {
+		placed, placementErr := h.locationIsAssigned(id)
+		containsRooms, roomsErr := h.locationHasRooms(id)
+		switch {
+		case placementErr != nil:
+			form = formFromDescribed(existing)
+			form.GeneralError = placementErr.Error()
+		case roomsErr != nil:
+			form = formFromDescribed(existing)
+			form.GeneralError = roomsErr.Error()
+		case placed:
+			form = formFromDescribed(existing)
+			form.GeneralError = "Unassign this Location from its Hub before deleting it."
+		case containsRooms:
+			form = formFromDescribed(existing)
+			form.GeneralError = "Unassign every Room before deleting this Location."
+		default:
 			deleted, deleteErr := screen.delete(id)
 			if deleteErr != nil {
 				form = formFromDescribed(existing)
@@ -264,6 +323,7 @@ func (h *editorHandler) describedPage(screen describedScreen, query string, form
 	data := basePage("content", screen.key, screen.plural, "described")
 	data.Query = strings.TrimSpace(query)
 	data.DescribedForm = form
+	data.DescribedView = "details"
 	data.EntityKey = screen.key
 	data.EntityLabel = screen.label
 	data.EntityPlural = screen.plural

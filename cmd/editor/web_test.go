@@ -98,7 +98,7 @@ func TestFullPageHasContentPlaceTabsAndWorldItemWorkspace(t *testing.T) {
 	body := rec.Body.String()
 	for _, want := range []string{
 		"<!doctype html>", "PAWS_IN_THE_SHELL", `href="/content/world-items"`,
-		`href="/place/rooms"`, `aria-label="content details"`,
+		`href="/place/locations"`, `aria-label="content details"`,
 		`hx-target="#workspace"`, `aria-current="page"`, "New Item",
 		"Item Name", "Takeable", "Fixed", "Scenery", "Short Description",
 		"Full Description", "htmx.org@2.0.10", "/static/editor.js",
@@ -143,6 +143,7 @@ func TestUndeclaredAndAssignmentScreensStayPlaceholders(t *testing.T) {
 func TestRemainingCRUDPagesExposeDeclaredForms(t *testing.T) {
 	handler, _, _, _ := testRemainingEditorHandler(t)
 	for path, wants := range map[string][]string{
+		"/content/locations": {"New Location", "Location Name", "Description", "Search by name"},
 		"/content/rooms":     {"New Room", "Room Name", "Description", "Search by name"},
 		"/content/npcs":      {"New NPC", "NPC Name", "Description", "Search by name"},
 		"/content/terminals": {"New Terminal", "Machine Hostname", "Search by machine hostname"},

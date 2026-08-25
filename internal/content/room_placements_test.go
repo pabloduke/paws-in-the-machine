@@ -4,7 +4,7 @@ import "testing"
 
 func TestRoomPlacementsRoundTripAndValidation(t *testing.T) {
 	hubID := "123e4567-e89b-42d3-a456-426614174001"
-	file := RoomPlacementsFile{Version: RoomPlacementsVersion, Placements: []RoomPlacement{{RoomID: testUUID, HubID: hubID, X: 9, Y: 4}}}
+	file := RoomPlacementsFile{Version: RoomPlacementsVersion, Placements: []RoomPlacement{{RoomID: testUUID, LocationID: hubID, X: 9, Y: 4}}}
 	data, err := EncodeRoomPlacements(file)
 	if err != nil {
 		t.Fatal(err)
@@ -16,12 +16,12 @@ func TestRoomPlacementsRoundTripAndValidation(t *testing.T) {
 	otherRoom := "123e4567-e89b-42d3-a456-426614174002"
 	for name, invalid := range map[string]RoomPlacementsFile{
 		"version":        {Version: 2, Placements: []RoomPlacement{}},
-		"room UUID":      {Version: 1, Placements: []RoomPlacement{{RoomID: "bad", HubID: hubID}}},
-		"hub UUID":       {Version: 1, Placements: []RoomPlacement{{RoomID: testUUID, HubID: "bad"}}},
-		"negative":       {Version: 1, Placements: []RoomPlacement{{RoomID: testUUID, HubID: hubID, X: -1}}},
-		"z dimension":    {Version: 1, Placements: []RoomPlacement{{RoomID: testUUID, HubID: hubID, Z: 1}}},
-		"duplicate room": {Version: 1, Placements: []RoomPlacement{{RoomID: testUUID, HubID: hubID}, {RoomID: testUUID, HubID: hubID, X: 1}}},
-		"occupied cell":  {Version: 1, Placements: []RoomPlacement{{RoomID: testUUID, HubID: hubID}, {RoomID: otherRoom, HubID: hubID}}},
+		"room UUID":      {Version: 1, Placements: []RoomPlacement{{RoomID: "bad", LocationID: hubID}}},
+		"location UUID":  {Version: 1, Placements: []RoomPlacement{{RoomID: testUUID, LocationID: "bad"}}},
+		"negative":       {Version: 1, Placements: []RoomPlacement{{RoomID: testUUID, LocationID: hubID, X: -1}}},
+		"z dimension":    {Version: 1, Placements: []RoomPlacement{{RoomID: testUUID, LocationID: hubID, Z: 1}}},
+		"duplicate room": {Version: 1, Placements: []RoomPlacement{{RoomID: testUUID, LocationID: hubID}, {RoomID: testUUID, LocationID: hubID, X: 1}}},
+		"occupied cell":  {Version: 1, Placements: []RoomPlacement{{RoomID: testUUID, LocationID: hubID}, {RoomID: otherRoom, LocationID: hubID}}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			if err := ValidateRoomPlacements(invalid); err == nil {

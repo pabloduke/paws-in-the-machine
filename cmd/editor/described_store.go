@@ -46,6 +46,9 @@ type describedStore[T any] struct {
 type roomStore struct {
 	*describedStore[gamecontent.Room]
 }
+type locationStore struct {
+	*describedStore[gamecontent.Location]
+}
 type npcStore struct {
 	*describedStore[gamecontent.NPC]
 }
@@ -67,6 +70,27 @@ func newRoomStore(contentDir string) *roomStore {
 		},
 		makeItem: func(fields describedFields) gamecontent.Room {
 			return gamecontent.Room{ID: fields.ID, Name: fields.Name, Description: fields.Description}
+		},
+	}}
+}
+
+func newLocationStore(contentDir string) *locationStore {
+	return &locationStore{&describedStore[gamecontent.Location]{
+		path:  filepath.Join(contentDir, "locations.json"),
+		label: "locations",
+		empty: func() []gamecontent.Location { return []gamecontent.Location{} },
+		decode: func(data []byte) ([]gamecontent.Location, error) {
+			file, err := gamecontent.DecodeLocations(data)
+			return file.Locations, err
+		},
+		encode: func(records []gamecontent.Location) ([]byte, error) {
+			return gamecontent.EncodeLocations(gamecontent.LocationsFile{Version: gamecontent.LocationsVersion, Locations: records})
+		},
+		fields: func(location gamecontent.Location) describedFields {
+			return describedFields{ID: location.ID, Name: location.Name, Description: location.Description}
+		},
+		makeItem: func(fields describedFields) gamecontent.Location {
+			return gamecontent.Location{ID: fields.ID, Name: fields.Name, Description: fields.Description}
 		},
 	}}
 }
