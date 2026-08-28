@@ -3,7 +3,8 @@
 Status: local browser editor with world-item, hub, location, room, NPC,
 terminal, corporation/network, user, terminal-access, spatial placement, and
 cell-contents persistence implemented, plus a World Overview that draws the
-authored world as a tree and reports every relationship problem at once.
+authored world as a tree and reports every relationship problem at once, and
+switchable worlds for trying variations side by side over time.
 Quests, terminal filesystem authoring, network entry/routing, and the bridge
 that loads any of this into the running game are not implemented
 (2026-08-27).
@@ -189,6 +190,53 @@ first preserves its prior bytes as an ignored `.bak` recovery file. Terminal
 filesystem content may require its own subdirectory rather than one large JSON
 document; its exact on-disk representation remains open.
 
+## Worlds
+
+A world is one content directory holding a complete, independent set of the
+authored catalogs. Worlds exist so a designer can try a variation without
+disturbing what already works.
+
+The editor works in exactly one world at a time. `Worlds` lists them, loads
+one, copies one, and starts an empty one, and every screen's header names the
+world currently loaded. Loading builds a fresh editor over that directory and
+swaps it in, so no store is ever pointed at a different directory while it is
+in use.
+
+The repository's own `internal/game/content` is always offered as the world
+named `main`, so the real game content is reachable from the same screen as
+everything else rather than being a directory to remember. Other worlds live
+under `-worlds-dir` (default `<repo>/worlds`), which is ignored by Git so
+experiments do not become commit noise. World names are restricted to letters,
+digits, hyphens, and underscores: the name becomes a directory entry, and that
+restriction is the only thing between a submitted name and the filesystem.
+
+**Copy duplicates; it does not load.** Switching worlds stays a deliberate,
+separate act, so no copy silently changes what is being edited. Recovery
+copies are not carried into a copy: a `.bak` belongs to the world that wrote
+it, and copying one would offer a restore point the new world never had.
+
+**There is no separate save.** Every screen writes its catalog immediately, so
+a copy duplicates exactly what is on disk at that moment. This means forking a
+world *after* editing it does not rewind the original — the edits are already
+there. Fork before experimenting, not after. For `main` specifically, Git is
+the safety net; other worlds have none, and the single `.bak` per catalog is a
+one-write recovery copy rather than an undo history.
+
+**The selection is per-editor, not per-browser-tab.** Two tabs follow the same
+loaded world, so a tab left open on one world starts editing another after a
+switch. The header badge names the current world on every screen to keep that
+visible. Scoping worlds to the URL would make tabs independent and remains
+possible later; nothing here forecloses it.
+
+Passing `-content-dir` pins the editor to a single directory and disables
+world switching, which is what tests, scripts, and one-off inspections want.
+The `Worlds` screen then says so rather than offering controls that cannot
+work.
+
+Worlds are an editor concept only. The game does not read them: it still
+embeds `charts.json` at build time and loads no authored catalog, so extra
+worlds have no player-visible effect until the runtime bridge exists.
+
 ## Running the editor
 
 From the repository root:
@@ -204,10 +252,11 @@ The server listens on `0.0.0.0:8080` by default. From the same machine, open
 go run ./cmd/editor -addr 127.0.0.1:8081
 ```
 
-`-content-dir <path>` overrides the default `<repo>/internal/game/content`
-directory. Without that flag, the editor walks upward from its working
-directory to find `go.mod`, so it can be launched from a repository
-subdirectory.
+`-content-dir <path>` pins the editor to one content directory and disables
+world switching. `-worlds-dir <path>` overrides where worlds live (default
+`<repo>/worlds`). Without `-content-dir`, the editor walks upward from its
+working directory to find `go.mod`, so it can be launched from a repository
+subdirectory, and offers that repository's content as the world `main`.
 
 The default binding makes the editor reachable through the machine's network
 interfaces; access control is not implemented. Writes require a browser Origin
@@ -239,6 +288,8 @@ Game Editor
     ├── World Items (cell contents)
     ├── NPCs (cell contents)
     └── Terminals (cell contents)
+└── Worlds (Header tab)
+    └── Load, copy, or start a content directory
 ```
 
 Opening the editor lands on the Overview, because the first useful question
@@ -473,6 +524,8 @@ These are capability gaps, not declarations of world content or missions.
 - [x] Replace the declared Room, NPC, and Terminal placeholders with CRUD
   screens.
 - [ ] Replace the Quest placeholder after its model is declared.
+- [x] Load, copy, and create worlds from the editor rather than restarting it
+  against a different directory.
 - [x] Land on a World Overview that draws the authored world and reports
   every problem at once.
 

@@ -964,6 +964,65 @@
 {{end}}
 {{end}}
 
+{{define "worlds-body"}}
+{{if .Worlds.Unavailable}}
+<div class="placeholder">
+  <p>This editor was started against a single content directory, so there is nothing to switch between.</p>
+  <p>Restart it without <code>-content-dir</code> to work with worlds.</p>
+</div>
+{{else}}
+{{if .StoreError}}<p class="error-banner" role="alert">Worlds are unavailable: {{.StoreError}}</p>{{end}}
+{{if .Worlds.Notice}}<p class="notice" role="status">{{.Worlds.Notice}}</p>{{end}}
+{{if .Worlds.GeneralError}}<p class="error-banner" role="alert">{{.Worlds.GeneralError}}</p>{{end}}
+
+<section class="report" aria-labelledby="worlds-list-title">
+  <h2 id="worlds-list-title">Worlds</h2>
+  <p class="field-note">Each world is its own complete set of authored content. The editor works in one at a time, and every change is written immediately &mdash; there is no separate save.</p>
+  <div class="assigned-list">
+    {{range .Worlds.Worlds}}
+    <div class="assigned-row world-row">
+      <span class="world-name">{{.Name}}{{if .Current}} <span class="tree-entry">loaded</span>{{end}}{{if .IsMain}} <span class="tree-kind">the game&rsquo;s own content</span>{{end}}</span>
+      <span class="catalog-description">{{.Dir}}</span>
+      {{if not .Current}}
+      <form method="post" action="/worlds/load" hx-post="/worlds/load">
+        <input type="hidden" name="name" value="{{.Name}}">
+        <button type="submit" data-discard-check>Load</button>
+      </form>
+      {{end}}
+    </div>
+    {{end}}
+  </div>
+</section>
+
+<section class="report" aria-labelledby="copy-world-title">
+  <h2 id="copy-world-title">Copy a world</h2>
+  <p class="field-note">Copies the catalogs exactly as they are on disk right now. The copy is not loaded &mdash; load it when you want to work in it.</p>
+  <form class="editor-form inline-assignment" method="post" action="/worlds/copy" hx-post="/worlds/copy" hx-target="#worlds-workspace">
+    <label>Copy from
+      <select name="from">
+        {{range .Worlds.Worlds}}<option value="{{.Name}}" {{if eq .Name $.Worlds.CopyFrom}}selected{{end}}>{{.Name}}</option>{{end}}
+      </select>
+    </label>
+    <label>New name
+      <input name="name" autocomplete="off" placeholder="variant-a" aria-invalid="{{if .Worlds.NameError}}true{{else}}false{{end}}">
+      {{template "field-error" .Worlds.NameError}}
+    </label>
+    <div class="actions"><button type="submit">Copy</button></div>
+  </form>
+</section>
+
+<section class="report" aria-labelledby="new-world-title">
+  <h2 id="new-world-title">Start an empty world</h2>
+  <form class="editor-form inline-assignment" method="post" action="/worlds/new" hx-post="/worlds/new" hx-target="#worlds-workspace">
+    <label>Name
+      <input name="name" autocomplete="off" placeholder="sketch">
+    </label>
+    <div class="actions"><button type="submit">Create</button></div>
+  </form>
+</section>
+{{end}}
+{{end}}
+
 {{define "workspace"}}
 <nav class="header-tabs" aria-label="Editor workflow">
   {{range .HeaderTabs}}{{template "tab" .}}{{end}}
@@ -1000,6 +1059,8 @@
   <div id="contents-workspace">{{template "contents-body" .}}</div>
   {{else if eq .Content "overview"}}
   <div id="overview-workspace">{{template "overview-body" .}}</div>
+  {{else if eq .Content "worlds"}}
+  <div id="worlds-workspace">{{template "worlds-body" .}}</div>
   {{else}}
   <div class="placeholder">
     <p><strong>(Placeholder)</strong></p>
@@ -1026,6 +1087,7 @@
   <header class="app-header">
     <span class="brand">PAWS_IN_THE_SHELL</span>
     <span class="app-name">Game Editor</span>
+    {{if .WorldName}}<a class="world-badge" href="/worlds" title="Switch worlds">world: {{.WorldName}}</a>{{end}}
   </header>
   <main id="workspace">
     {{template "workspace" .}}

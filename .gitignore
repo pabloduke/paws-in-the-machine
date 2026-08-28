@@ -42,3 +42,6 @@ cmd/pawsinthemachine/pawsinthemachine
 
 # Local editor recovery copies
 /internal/game/content/*.bak
+
+# Local editor worlds (experiments; the game content is the world named "main")
+/worlds/

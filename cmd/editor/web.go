@@ -173,6 +173,8 @@ type pageData struct {
 	Placement           roomPlacementPage
 	Contents            contentsPage
 	Overview            overviewPage
+	Worlds              worldsPage
+	WorldName           string
 }
 
 var editorRoutes = map[string]routeSpec{
@@ -182,6 +184,9 @@ var editorRoutes = map[string]routeSpec{
 var detailTabs = map[string][]tab{
 	"overview": {
 		{Label: "World Overview", URL: overviewBasePath, Key: "overview"},
+	},
+	"worlds": {
+		{Label: "Worlds", URL: worldsBasePath, Key: "worlds"},
 	},
 	"content": {
 		{Label: "World", URL: "/content/world-items", Key: "world"},
@@ -233,16 +238,34 @@ type editorHandler struct {
 	locationAssignments *locationAssignmentStore
 	roomAssignments     *roomAssignmentStore
 	contents            *contentsStore
+	worlds              *worldRegistry
 }
 
-func newEditorHandler(items *worldItemStore, hubs *hubStore, rooms *roomStore, npcs *npcStore, terminals *terminalStore, networks *hostNetworkStore, assignments *networkAssignmentStore, users *userStore, access *terminalAccessStore, roomPlacements *roomPlacementStore) http.Handler {
+// newWorldHandler builds a complete editor over one content directory.
+// The registry is carried so the Worlds screen can list and switch
+// worlds; it is nil in tests that construct a handler directly.
+func newWorldHandler(contentDir string, worlds *worldRegistry) http.Handler {
+	return newEditorHandler(
+		newWorldItemStore(contentDir), newHubStore(contentDir), newRoomStore(contentDir),
+		newNPCStore(contentDir), newTerminalStore(contentDir), newHostNetworkStore(contentDir),
+		newNetworkAssignmentStore(contentDir), newUserStore(contentDir),
+		newTerminalAccessStore(contentDir), newRoomPlacementStore(contentDir), worlds,
+	)
+}
+
+func newEditorHandler(items *worldItemStore, hubs *hubStore, rooms *roomStore, npcs *npcStore, terminals *terminalStore, networks *hostNetworkStore, assignments *networkAssignmentStore, users *userStore, access *terminalAccessStore, roomPlacements *roomPlacementStore, worlds ...*worldRegistry) http.Handler {
 	templates := template.Must(template.ParseFS(editorFiles, "templates/*.html"))
 	staticFiles, err := fs.Sub(editorFiles, "static")
 	if err != nil {
 		panic(err)
 	}
 	contentDir := filepath.Dir(rooms.path)
+	var registry *worldRegistry
+	if len(worlds) > 0 {
+		registry = worlds[0]
+	}
 	h := &editorHandler{
+		worlds:              registry,
 		templates:           templates,
 		static:              http.StripPrefix("/static/", http.FileServer(http.FS(staticFiles))),
 		items:               items,
@@ -303,6 +326,8 @@ func (h *editorHandler) serveEditor(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case r.URL.Path == overviewBasePath:
 		h.serveOverview(w, r)
+	case r.URL.Path == worldsBasePath || strings.HasPrefix(r.URL.Path, worldsBasePath+"/"):
+		h.routeWorlds(w, r)
 	case strings.HasPrefix(r.URL.Path, worldItemContentsBasePath),
 		strings.HasPrefix(r.URL.Path, npcContentsBasePath),
 		strings.HasPrefix(r.URL.Path, terminalContentsBasePath):
@@ -744,6 +769,7 @@ func (h *editorHandler) serveStaticScreen(w http.ResponseWriter, r *http.Request
 }
 
 func (h *editorHandler) renderPage(w http.ResponseWriter, r *http.Request, data pageData) {
+	data.WorldName = h.currentWorldName()
 	name := "page"
 	if isHTMX(r) {
 		name = "workspace"
@@ -752,6 +778,9 @@ func (h *editorHandler) renderPage(w http.ResponseWriter, r *http.Request, data 
 }
 
 func (h *editorHandler) render(w http.ResponseWriter, name string, data pageData) {
+	if data.WorldName == "" {
+		data.WorldName = h.currentWorldName()
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Add("Vary", "HX-Request")
 	if err := h.templates.ExecuteTemplate(w, name, data); err != nil {
@@ -797,6 +826,7 @@ func headerTabs(active string) []tab {
 		{Label: "Overview", URL: overviewBasePath, Key: "overview"},
 		{Label: "Content", URL: "/content/world-items", Key: "content"},
 		{Label: "Place", URL: "/place/locations", Key: "place"},
+		{Label: "Worlds", URL: worldsBasePath, Key: "worlds"},
 	}, active)
 }
 
