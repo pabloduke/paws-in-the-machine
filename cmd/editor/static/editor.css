@@ -487,3 +487,161 @@ button.danger:focus-visible {
     grid-template-columns: 1fr;
   }
 }
+
+/* Overview: the world tree and the validation report. */
+
+.report {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.report h2 {
+  color: var(--magenta);
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0 0 0.5rem;
+}
+
+.report.problems {
+  border-color: #ff6b6b;
+}
+
+.report.problems ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.problem {
+  color: #ffb4b4;
+  margin-bottom: 0.35rem;
+}
+
+.world-tree,
+.world-tree ul {
+  list-style: none;
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.world-tree {
+  padding-left: 0;
+}
+
+.world-tree li {
+  padding: 0.15rem 0;
+  border-left: 1px solid var(--line);
+  padding-left: 0.75rem;
+}
+
+.world-tree > li {
+  border-left: none;
+  padding-left: 0;
+  margin-bottom: 0.75rem;
+}
+
+.tree-hub > a {
+  color: var(--cyan);
+  font-weight: 600;
+}
+
+.tree-location > a,
+.tree-room > a {
+  color: var(--text);
+}
+
+.tree-kind,
+.tree-status,
+.tree-entry,
+.tree-thing {
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  margin-left: 0.35rem;
+}
+
+.tree-kind,
+.tree-status {
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+
+.tree-entry {
+  color: var(--background);
+  background: var(--cyan);
+}
+
+.tree-thing {
+  color: var(--magenta);
+  border: 1px dashed var(--line);
+}
+
+.tree-empty {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.waiting-group {
+  margin-top: 0.75rem;
+}
+
+.waiting-group h3 {
+  font-size: 0.85rem;
+  margin: 0 0 0.15rem;
+  color: var(--text);
+}
+
+.waiting-names {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* Place screens for cell contents. */
+
+.cell-layout {
+  display: grid;
+  grid-template-columns: minmax(16rem, 22rem) 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.cell-picker,
+.cell-contents {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.cell-picker h2,
+.cell-contents h2 {
+  color: var(--magenta);
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0 0 0.75rem;
+}
+
+.cell-picker select {
+  width: 100%;
+}
+
+.assigned-row form {
+  margin: 0;
+}
+
+@media (max-width: 60rem) {
+  .cell-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tree-unrooted {
+  color: var(--muted);
+  font-weight: 600;
+}

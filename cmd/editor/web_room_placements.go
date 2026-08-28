@@ -1,12 +1,15 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"sort"
 	"strconv"
 	"strings"
+
+	gamecontent "github.com/pabloduke/paws-in-the-machine/internal/content"
 )
 
 const locationPlacementBasePath = "/place/locations"
@@ -421,103 +424,183 @@ func (h *editorHandler) roomIsEntryElsewhere(roomID, allowedLocationID string) b
 	return false
 }
 
+// validateSpatialRelationships fails on the first problem, for the
+// write path: an editor write is refused while the content graph is
+// already broken. The Overview report uses spatialProblems to list
+// every problem instead.
 func (h *editorHandler) validateSpatialRelationships() error {
-	hubs, err := h.hubs.List()
+	problems, err := h.spatialProblems()
 	if err != nil {
 		return err
+	}
+	if len(problems) > 0 {
+		return errors.New(problems[0])
+	}
+	return nil
+}
+
+func (h *editorHandler) spatialProblems() ([]string, error) {
+	var problems []string
+	report := func(format string, args ...any) { problems = append(problems, fmt.Sprintf(format, args...)) }
+	hubs, err := h.hubs.List()
+	if err != nil {
+		return nil, err
 	}
 	locations, err := h.locations.List()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	rooms, err := h.rooms.List()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	lp, err := h.locationPlacements.List()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	rp, err := h.roomPlacements.List()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	entries, err := h.locationEntries.List()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	locationAssignments, err := h.locationAssignments.List()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	roomAssignments, err := h.roomAssignments.List()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	hubIDs, locationIDs, roomIDs := map[string]bool{}, map[string]bool{}, map[string]bool{}
+	hubName, locationName, roomName := map[string]string{}, map[string]string{}, map[string]string{}
 	for _, v := range hubs {
-		hubIDs[v.ID] = true
+		hubName[v.ID] = v.Name
 	}
 	for _, v := range locations {
-		locationIDs[v.ID] = true
+		locationName[v.ID] = v.Name
 	}
 	for _, v := range rooms {
-		roomIDs[v.ID] = true
+		roomName[v.ID] = v.Name
 	}
+	// Reports name the entity when it exists and its UUID when it does
+	// not, because a dangling UUID is the only thing left to identify.
+	named := func(names map[string]string, id, kind string) string {
+		if name, ok := names[id]; ok {
+			return name
+		}
+		return "missing " + kind + " " + id
+	}
+
 	locationParent, roomParent, roomPlacementParent := map[string]string{}, map[string]string{}, map[string]string{}
 	for _, a := range locationAssignments {
-		if !locationIDs[a.LocationID] {
-			return fmt.Errorf("assignment references missing location %s", a.LocationID)
+		_, hasLocation := locationName[a.LocationID]
+		_, hasHub := hubName[a.HubID]
+		if !hasLocation {
+			report("A Hub assignment names a Location that no longer exists (%s).", a.LocationID)
+			continue
 		}
-		if !hubIDs[a.HubID] {
-			return fmt.Errorf("location %s assignment references missing hub %s", a.LocationID, a.HubID)
+		if !hasHub {
+			report("Location %q is assigned to a Hub that no longer exists (%s).", locationName[a.LocationID], a.HubID)
+			continue
 		}
 		locationParent[a.LocationID] = a.HubID
 	}
 	for _, a := range roomAssignments {
-		if !roomIDs[a.RoomID] {
-			return fmt.Errorf("assignment references missing room %s", a.RoomID)
+		_, hasRoom := roomName[a.RoomID]
+		_, hasLocation := locationName[a.LocationID]
+		if !hasRoom {
+			report("A Location assignment names a Room that no longer exists (%s).", a.RoomID)
+			continue
 		}
-		if !locationIDs[a.LocationID] {
-			return fmt.Errorf("room %s assignment references missing location %s", a.RoomID, a.LocationID)
+		if !hasLocation {
+			report("Room %q is assigned to a Location that no longer exists (%s).", roomName[a.RoomID], a.LocationID)
+			continue
 		}
 		roomParent[a.RoomID] = a.LocationID
 	}
 	for _, p := range lp {
-		if !locationIDs[p.LocationID] {
-			return fmt.Errorf("placement references missing location %s", p.LocationID)
+		if _, ok := locationName[p.LocationID]; !ok {
+			report("A placement names a Location that no longer exists (%s).", p.LocationID)
+			continue
 		}
-		if !hubIDs[p.HubID] {
-			return fmt.Errorf("location %s references missing hub %s", p.LocationID, p.HubID)
+		if _, ok := hubName[p.HubID]; !ok {
+			report("Location %q is placed in a Hub that no longer exists (%s).", locationName[p.LocationID], p.HubID)
+			continue
 		}
 		if locationParent[p.LocationID] != p.HubID {
-			return fmt.Errorf("location %s placement does not match its Hub assignment", p.LocationID)
+			report("Location %q is placed in %q but assigned to a different Hub.", locationName[p.LocationID], hubName[p.HubID])
 		}
 	}
 	for _, p := range rp {
-		if !roomIDs[p.RoomID] {
-			return fmt.Errorf("placement references missing room %s", p.RoomID)
+		if _, ok := roomName[p.RoomID]; !ok {
+			report("A placement names a Room that no longer exists (%s).", p.RoomID)
+			continue
 		}
-		if !locationIDs[p.LocationID] {
-			return fmt.Errorf("room %s references missing location %s", p.RoomID, p.LocationID)
+		if _, ok := locationName[p.LocationID]; !ok {
+			report("Room %q is placed in a Location that no longer exists (%s).", roomName[p.RoomID], p.LocationID)
+			continue
 		}
 		if roomParent[p.RoomID] != p.LocationID {
-			return fmt.Errorf("room %s placement does not match its Location assignment", p.RoomID)
+			report("Room %q is placed in %q but assigned to a different Location.", roomName[p.RoomID], locationName[p.LocationID])
 		}
 		roomPlacementParent[p.RoomID] = p.LocationID
 	}
 	for _, e := range entries {
-		if !locationIDs[e.LocationID] {
-			return fmt.Errorf("entry references missing location %s", e.LocationID)
+		if _, ok := locationName[e.LocationID]; !ok {
+			report("An entry Room is set on a Location that no longer exists (%s).", e.LocationID)
+			continue
 		}
-		if !roomIDs[e.RoomID] {
-			return fmt.Errorf("location %s entry references missing room %s", e.LocationID, e.RoomID)
+		if _, ok := roomName[e.RoomID]; !ok {
+			report("Location %q has an entry Room that no longer exists (%s).", locationName[e.LocationID], e.RoomID)
+			continue
 		}
 		if roomParent[e.RoomID] != e.LocationID || roomPlacementParent[e.RoomID] != e.LocationID {
-			return fmt.Errorf("location %s entry room is not placed in that location", e.LocationID)
+			report("Location %q names %q as its entry Room, but that Room is not placed in it.",
+				locationName[e.LocationID], named(roomName, e.RoomID, "Room"))
 		}
 	}
-	return nil
+	return problems, nil
+}
+
+// contentsProblems reports every cell-contents record that points at
+// something that no longer exists.
+func (h *editorHandler) contentsProblems() ([]string, error) {
+	records, err := h.contents.List()
+	if err != nil {
+		return nil, err
+	}
+	var problems []string
+	for _, record := range records {
+		name, exists, err := h.entityName(record.EntityKind, record.EntityID)
+		if err != nil {
+			return nil, err
+		}
+		if !exists {
+			problems = append(problems, fmt.Sprintf(
+				"A cell holds a %s that no longer exists (%s).", contentKindLabel(record.EntityKind), record.EntityID))
+			continue
+		}
+		if !h.containerExists(record.ParentKind, record.ParentID) {
+			problems = append(problems, fmt.Sprintf(
+				"%s %q is in a %s that no longer exists (%s).",
+				contentKindLabel(record.EntityKind), name, record.ParentKind, record.ParentID))
+		}
+	}
+	return problems, nil
+}
+
+func contentKindLabel(kind string) string {
+	switch kind {
+	case gamecontent.ContentKindWorldItem:
+		return "World Item"
+	case gamecontent.ContentKindNPC:
+		return "NPC"
+	case gamecontent.ContentKindTerminal:
+		return "Terminal"
+	}
+	return kind
 }
 
 func (h *editorHandler) roomIsPlaced(id string) (bool, error) {

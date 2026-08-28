@@ -78,14 +78,14 @@ func validItemForm(name string) url.Values {
 	}
 }
 
-func TestRootRedirectsToWorldItemContent(t *testing.T) {
+func TestRootRedirectsToOverview(t *testing.T) {
 	handler, _ := testEditorHandler(t)
 	rec := getRequest(t, handler, "/", nil)
 	if rec.Code != http.StatusSeeOther {
 		t.Fatalf("root status = %d, want %d", rec.Code, http.StatusSeeOther)
 	}
-	if got := rec.Header().Get("Location"); got != "/content/world-items" {
-		t.Fatalf("root redirect = %q, want /content/world-items", got)
+	if got := rec.Header().Get("Location"); got != "/overview" {
+		t.Fatalf("root redirect = %q, want /overview", got)
 	}
 }
 
@@ -101,7 +101,7 @@ func TestFullPageHasContentPlaceTabsAndWorldItemWorkspace(t *testing.T) {
 		`href="/place/locations"`, `aria-label="content details"`,
 		`hx-target="#workspace"`, `aria-current="page"`, "New Item",
 		"Item Name", "Takeable", "Fixed", "Scenery", "Short Description",
-		"Full Description", "htmx.org@2.0.10", "/static/editor.js",
+		"Full Description", "/static/htmx.min.js", "/static/editor.js",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("world-item page missing %q", want)
@@ -126,7 +126,6 @@ func TestUndeclaredAndAssignmentScreensStayPlaceholders(t *testing.T) {
 	handler, _ := testEditorHandler(t)
 	for _, path := range []string{
 		"/content/quests",
-		"/place/world-items", "/place/npcs", "/place/terminals",
 	} {
 		t.Run(path, func(t *testing.T) {
 			rec := getRequest(t, handler, path, nil)
@@ -759,8 +758,12 @@ func TestNetworkRelationshipValidationRejectsDanglingReferences(t *testing.T) {
 		t.Fatal(err)
 	}
 	rec := getRequest(t, handler, "/content/corporations/"+network.ID+"/terminals", nil)
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "references missing terminal") || !strings.Contains(rec.Body.String(), "storage is unavailable") {
-		t.Fatalf("dangling relationship was not reported: %d %s", rec.Code, rec.Body.String())
+	body := rec.Body.String()
+	if rec.Code != http.StatusOK || !strings.Contains(body, "is assigned a Terminal that no longer exists") || !strings.Contains(body, "storage is unavailable") {
+		t.Fatalf("dangling relationship was not reported: %d %s", rec.Code, body)
+	}
+	if !strings.Contains(body, "Network") || !strings.Contains(body, missingTerminal) {
+		t.Fatalf("report should name the surviving corporation and the dangling UUID: %s", body)
 	}
 	rec = postForm(t, handler, "/content/corporations", url.Values{"name": {"Blocked"}}, "http://example.com", true)
 	if rec.Code != http.StatusConflict {

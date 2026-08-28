@@ -118,3 +118,57 @@ func TestSpatialAssignmentsRoundTripAndValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestContentsRoundTripAndRejectContradictions(t *testing.T) {
+	file := ContentsFile{Version: ContentsVersion, Contents: []Content{
+		{EntityID: "11111111-1111-4111-8111-111111111111", EntityKind: ContentKindWorldItem,
+			ParentID: "22222222-2222-4222-8222-222222222222", ParentKind: ContainerKindRoom},
+	}}
+	data, err := EncodeContents(file)
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	decoded, err := DecodeContents(data)
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(decoded.Contents) != 1 || decoded.Contents[0] != file.Contents[0] {
+		t.Fatalf("round trip = %+v", decoded)
+	}
+	again, err := EncodeContents(decoded)
+	if err != nil || string(again) != string(data) {
+		t.Fatalf("re-encode is not byte-identical")
+	}
+
+	duplicate := ContentsFile{Version: ContentsVersion, Contents: []Content{
+		file.Contents[0],
+		{EntityID: file.Contents[0].EntityID, EntityKind: ContentKindWorldItem,
+			ParentID: "33333333-3333-4333-8333-333333333333", ParentKind: ContainerKindLocation},
+	}}
+	if err := ValidateContents(duplicate); err == nil {
+		t.Fatal("one entity in two cells was accepted")
+	}
+
+	unknownKind := ContentsFile{Version: ContentsVersion, Contents: []Content{
+		{EntityID: file.Contents[0].EntityID, EntityKind: "quest",
+			ParentID: file.Contents[0].ParentID, ParentKind: ContainerKindRoom},
+	}}
+	if err := ValidateContents(unknownKind); err == nil {
+		t.Fatal("unknown entity kind was accepted")
+	}
+
+	unknownParent := ContentsFile{Version: ContentsVersion, Contents: []Content{
+		{EntityID: file.Contents[0].EntityID, EntityKind: ContentKindNPC,
+			ParentID: file.Contents[0].ParentID, ParentKind: "hub"},
+	}}
+	if err := ValidateContents(unknownParent); err == nil {
+		t.Fatal("a Hub was accepted as a container; only cells hold things")
+	}
+
+	if _, err := DecodeContents([]byte(`{"version":1,"contents":[],"extra":1}`)); err == nil {
+		t.Fatal("unknown field was accepted")
+	}
+	if _, err := DecodeContents([]byte(`{"version":2,"contents":[]}`)); err == nil {
+		t.Fatal("wrong version was accepted")
+	}
+}

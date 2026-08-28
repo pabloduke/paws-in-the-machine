@@ -147,6 +147,10 @@ func (h *editorHandler) deleteTerminal(w http.ResponseWriter, r *http.Request, i
 		form.GeneralError = accessErr.Error()
 	} else if granted {
 		form.GeneralError = "Revoke every user's access before deleting this terminal."
+	} else if blocked, guardErr := h.contentsBlockingDelete(gamecontent.ContentKindTerminal, id); guardErr != nil {
+		form.GeneralError = guardErr.Error()
+	} else if blocked != "" {
+		form.GeneralError = blocked
 	} else {
 		deleted, deleteErr := h.terminals.Delete(id)
 		if deleteErr != nil {

@@ -138,8 +138,14 @@ func TestDanglingTerminalAccessIsReportedAndBlocksWrites(t *testing.T) {
 		t.Fatal(err)
 	}
 	rec := getRequest(t, handler, "/content/users", nil)
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "missing user") {
-		t.Fatalf("dangling access was not reported: %d %s", rec.Code, rec.Body.String())
+	// The Terminal still exists, so the report names it and prints the
+	// UUID only for the User that is gone.
+	body := rec.Body.String()
+	if rec.Code != http.StatusOK || !strings.Contains(body, "grants access to a User that no longer exists") {
+		t.Fatalf("dangling access was not reported: %d %s", rec.Code, body)
+	}
+	if !strings.Contains(body, "workstation") || !strings.Contains(body, missingUser) {
+		t.Fatalf("report should name the surviving terminal and the dangling UUID: %s", body)
 	}
 	rec = postForm(t, handler, "/content/terminals", url.Values{"host_name": {"other"}}, "http://example.com", true)
 	if rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), "editor relationships are invalid") {

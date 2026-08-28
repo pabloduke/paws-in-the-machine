@@ -428,22 +428,37 @@ func (h *editorHandler) terminalNetwork(terminalID string) (string, error) {
 	return assignment.HostNetworkID, nil
 }
 
+// validateNetworkRelations stops at the first problem, for the write
+// gate. networkProblems collects them all, for the Overview.
 func (h *editorHandler) validateNetworkRelations() error {
-	networks, err := h.networks.List()
+	problems, err := h.networkProblems()
 	if err != nil {
 		return err
+	}
+	if len(problems) > 0 {
+		return errors.New(problems[0])
+	}
+	return nil
+}
+
+func (h *editorHandler) networkProblems() ([]string, error) {
+	var problems []string
+	report := func(format string, args ...any) { problems = append(problems, fmt.Sprintf(format, args...)) }
+	networks, err := h.networks.List()
+	if err != nil {
+		return nil, err
 	}
 	terminals, err := h.terminals.List()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	assignments, err := h.assignments.List()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	networkIDs := make(map[string]struct{}, len(networks))
+	networkName := make(map[string]string, len(networks))
 	for _, network := range networks {
-		networkIDs[network.ID] = struct{}{}
+		networkName[network.ID] = network.Name
 	}
 	terminalByID := make(map[string]gamecontent.Terminal, len(terminals))
 	for _, terminal := range terminals {
@@ -451,21 +466,34 @@ func (h *editorHandler) validateNetworkRelations() error {
 	}
 	hostnames := make(map[string]map[string]string)
 	for _, assignment := range assignments {
-		if _, exists := networkIDs[assignment.HostNetworkID]; !exists {
-			return fmt.Errorf("terminal %s references missing corporation %s", assignment.TerminalID, assignment.HostNetworkID)
-		}
-		terminal, exists := terminalByID[assignment.TerminalID]
-		if !exists {
-			return fmt.Errorf("corporation %s references missing terminal %s", assignment.HostNetworkID, assignment.TerminalID)
+		terminal, hasTerminal := terminalByID[assignment.TerminalID]
+		corporation, hasNetwork := networkName[assignment.HostNetworkID]
+		// Name whichever end still exists; a UUID is all that is left
+		// to identify the end that does not.
+		switch {
+		case !hasTerminal && !hasNetwork:
+			report("An assignment names a Corporation (%s) and a Terminal (%s) that no longer exist.",
+				assignment.HostNetworkID, assignment.TerminalID)
+			continue
+		case !hasNetwork:
+			report("Terminal %q is assigned to a Corporation that no longer exists (%s).",
+				terminal.HostName, assignment.HostNetworkID)
+			continue
+		case !hasTerminal:
+			report("Corporation %q is assigned a Terminal that no longer exists (%s).",
+				corporation, assignment.TerminalID)
+			continue
 		}
 		key := strings.ToLower(terminal.HostName)
 		if hostnames[assignment.HostNetworkID] == nil {
 			hostnames[assignment.HostNetworkID] = map[string]string{}
 		}
-		if otherID, exists := hostnames[assignment.HostNetworkID][key]; exists {
-			return fmt.Errorf("corporation %s assigns duplicate hostname %q to terminals %s and %s", assignment.HostNetworkID, terminal.HostName, otherID, terminal.ID)
+		if other, exists := hostnames[assignment.HostNetworkID][key]; exists {
+			report("Corporation %q has two Terminals named %q (%s and %s); hostnames must be unique within a network.",
+				corporation, terminal.HostName, other, terminal.ID)
+			continue
 		}
 		hostnames[assignment.HostNetworkID][key] = terminal.ID
 	}
-	return nil
+	return problems, nil
 }

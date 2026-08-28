@@ -806,6 +806,164 @@
 </div>
 {{end}}
 
+{{define "contents-body"}}
+{{if .StoreError}}<p class="error-banner" role="alert">Content storage is unavailable: {{.StoreError}}</p>{{end}}
+{{if .Contents.Notice}}<p class="notice" role="status">{{.Contents.Notice}}</p>{{end}}
+{{if .Contents.GeneralError}}<p class="error-banner" role="alert">{{.Contents.GeneralError}}</p>{{end}}
+{{if not .Contents.Containers}}
+<div class="placeholder">
+  <p>There is nowhere to put {{.Contents.EntityPlural}} yet.</p>
+  <p>Create a Hub, add a Location to it, and come back. Rooms inside a Location can hold things too.</p>
+  <p><a class="button compact" href="/content/hubs" hx-get="/content/hubs" hx-target="#workspace" hx-push-url="true">Go to Hubs</a></p>
+</div>
+{{else}}
+<div class="cell-layout">
+  <section class="cell-picker" aria-labelledby="cell-picker-title">
+    <h2 id="cell-picker-title">Choose a place</h2>
+    <form method="get" action="{{.Contents.BasePath}}"
+          hx-get="{{.Contents.BasePath}}" hx-target="#workspace" hx-push-url="true">
+      <label>
+        Location or Room
+        <select name="container" onchange="this.form.requestSubmit()">
+          {{range .Contents.Containers}}<option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Path}}</option>{{end}}
+        </select>
+      </label>
+      <noscript><button type="submit">Open</button></noscript>
+    </form>
+    <p class="field-note">Every Location and Room is player-standable, so either can hold things. Contents have no coordinates &mdash; a place simply holds them.</p>
+  </section>
+
+  <section class="cell-contents" aria-labelledby="cell-contents-title">
+    <h2 id="cell-contents-title">{{.Contents.EntityPlural}} in {{.Contents.SelectedPath}}</h2>
+    <div class="assigned-list">
+      {{range .Contents.Held}}
+      <div class="assigned-row">
+        <a href="{{$.Contents.CatalogPath}}/{{.ID}}">{{.Name}}</a>
+        <form method="post" action="{{$.Contents.BasePath}}/remove"
+              hx-post="{{$.Contents.BasePath}}/remove" hx-target="#contents-workspace">
+          <input type="hidden" name="container" value="{{$.Contents.SelectedValue}}">
+          <input type="hidden" name="entity_id" value="{{.ID}}">
+          <button class="danger compact" type="submit"
+                  hx-confirm="Take {{.Name}} out of this {{$.Contents.SelectedKindLabel}}? It stays in the catalog.">Remove</button>
+        </form>
+      </div>
+      {{else}}
+      <p class="empty-catalog">No {{.Contents.EntityPlural}} are here yet.</p>
+      {{end}}
+    </div>
+
+    {{if .Contents.Choices}}
+    <form class="editor-form inline-assignment" method="post" action="{{.Contents.BasePath}}/add"
+          hx-post="{{.Contents.BasePath}}/add" hx-target="#contents-workspace">
+      <input type="hidden" name="container" value="{{.Contents.SelectedValue}}">
+      <label>
+        Put a {{.Contents.EntityLabel}} here
+        <select name="entity_id">
+          {{range .Contents.Choices}}<option value="{{.ID}}">{{.Name}} &mdash; {{.Status}}</option>{{end}}
+        </select>
+      </label>
+      <div class="actions"><button type="submit" {{if .StoreError}}disabled{{end}}>Put Here</button></div>
+      <p class="field-note">Choosing one that is already somewhere else moves it here.</p>
+    </form>
+    {{else if .Contents.Held}}
+    <p class="empty-catalog">Every {{.Contents.EntityLabel}} in the catalog is already here.
+      <a href="{{.Contents.CatalogPath}}">Create another {{.Contents.EntityLabel}}</a>.</p>
+    {{else}}
+    <p class="empty-catalog">No {{.Contents.EntityPlural}} have been created yet.
+      <a href="{{.Contents.CatalogPath}}">Create one</a>, then come back to place it.</p>
+    {{end}}
+  </section>
+</div>
+{{end}}
+{{end}}
+
+{{define "tree-location"}}
+<li class="tree-location">
+  <a href="/content/locations/{{.ID}}">{{.Name}}</a>
+  <span class="tree-status">{{.Status}}</span>
+  {{range .Contents}}<span class="tree-thing">{{.Name}}</span>{{end}}
+  <ul>
+    {{range .Rooms}}
+    <li class="tree-room">
+      <a href="/content/rooms/{{.ID}}">{{.Name}}</a>
+      <span class="tree-status">{{.Status}}</span>
+      {{if .IsEntry}}<span class="tree-entry">entry</span>{{end}}
+      {{range .Contents}}<span class="tree-thing">{{.Name}}</span>{{end}}
+    </li>
+    {{end}}
+  </ul>
+</li>
+{{end}}
+
+{{define "overview-body"}}
+{{if .StoreError}}<p class="error-banner" role="alert">Content storage is unavailable: {{.StoreError}}</p>{{end}}
+
+{{if .Overview.Problems}}
+<section class="report problems" aria-labelledby="problems-title">
+  <h2 id="problems-title">Problems ({{len .Overview.Problems}})</h2>
+  <p class="field-note">These are contradictions in what has been authored. The editor refuses further writes until they are resolved.</p>
+  <ul>{{range .Overview.Problems}}<li class="problem">{{.}}</li>{{end}}</ul>
+</section>
+{{else}}
+<p class="notice" role="status">No problems found. Every authored relationship is consistent.</p>
+{{end}}
+
+{{if .Overview.Empty}}
+<div class="placeholder">
+  <p>The world is empty.</p>
+  <p>Start with a Hub, add Locations to it, then add Rooms inside a Location.</p>
+  <p><a class="button compact" href="/content/hubs" hx-get="/content/hubs" hx-target="#workspace" hx-push-url="true">Create a Hub</a></p>
+</div>
+{{else}}
+<section class="report" aria-labelledby="world-tree-title">
+  <h2 id="world-tree-title">The world</h2>
+  <ul class="world-tree">
+    {{range .Overview.Hubs}}
+    <li class="tree-hub">
+      <a href="/content/hubs/{{.ID}}">{{.Name}}</a> <span class="tree-kind">Hub</span>
+      <ul>
+        {{range .Locations}}{{template "tree-location" .}}
+        {{else}}
+        <li class="tree-empty">No Locations in this Hub yet.</li>
+        {{end}}
+      </ul>
+    </li>
+    {{else}}
+    <li class="tree-empty">No Hubs have been created.</li>
+    {{end}}
+    {{if .Overview.Unrooted}}
+    <li class="tree-hub">
+      <span class="tree-unrooted">(no Hub)</span>
+      <span class="tree-kind">not on any Hub grid yet</span>
+      <ul>
+        {{range .Overview.Unrooted}}{{template "tree-location" .}}{{end}}
+      </ul>
+    </li>
+    {{end}}
+  </ul>
+</section>
+{{end}}
+
+{{if or .Overview.Advisories .Overview.Loose}}
+<section class="report" aria-labelledby="waiting-title">
+  <h2 id="waiting-title">Still waiting for you</h2>
+  <p class="field-note">None of these are errors. An entity may stay unassigned, unplaced, or in no cell for as long as you like.</p>
+  {{range .Overview.Advisories}}
+  <div class="waiting-group">
+    <h3><a href="{{.Path}}">{{.Label}}</a> ({{len .Names}})</h3>
+    <p class="waiting-names">{{range $i, $n := .Names}}{{if $i}}, {{end}}{{$n}}{{end}}</p>
+  </div>
+  {{end}}
+  {{range .Overview.Loose}}
+  <div class="waiting-group">
+    <h3><a href="{{.Path}}">{{.Label}}</a> ({{len .Names}})</h3>
+    <p class="waiting-names">{{range $i, $n := .Names}}{{if $i}}, {{end}}{{$n}}{{end}}</p>
+  </div>
+  {{end}}
+</section>
+{{end}}
+{{end}}
+
 {{define "workspace"}}
 <nav class="header-tabs" aria-label="Editor workflow">
   {{range .HeaderTabs}}{{template "tab" .}}{{end}}
@@ -838,11 +996,10 @@
   <div id="users-workspace">{{template "users-body" .}}</div>
   {{else if eq .Content "room-placement"}}
   <div id="room-placement-workspace">{{template "room-placement-body" .}}</div>
-  {{else if eq .Content "assignment-placeholder"}}
-  <div class="placeholder">
-    <p>Assignment screen <strong>(Placeholder)</strong></p>
-    <p>No assignment fields or behavior have been implemented.</p>
-  </div>
+  {{else if eq .Content "contents"}}
+  <div id="contents-workspace">{{template "contents-body" .}}</div>
+  {{else if eq .Content "overview"}}
+  <div id="overview-workspace">{{template "overview-body" .}}</div>
   {{else}}
   <div class="placeholder">
     <p><strong>(Placeholder)</strong></p>
@@ -860,9 +1017,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{.Title}} — PAWS_IN_THE_SHELL Game Editor</title>
   <link rel="stylesheet" href="/static/editor.css">
-  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js"
-          integrity="sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V"
-          crossorigin="anonymous"></script>
+  <!-- htmx 2.0.10, vendored so the editor works without internet access.
+       Verified against sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V -->
+  <script src="/static/htmx.min.js"></script>
   <script src="/static/editor.js" defer></script>
 </head>
 <body>

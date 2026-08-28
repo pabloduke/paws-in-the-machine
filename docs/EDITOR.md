@@ -1,11 +1,12 @@
 # Game editor
 
 Status: local browser editor with world-item, hub, location, room, NPC,
-terminal, corporation/network, user, terminal-access, and spatial placement
-persistence implemented. Other entity placement, quests, terminal filesystem authoring, network entry/routing, and
-comprehensive validation outside the implemented network and authentication
-relationships are not implemented
-(2026-08-24).
+terminal, corporation/network, user, terminal-access, spatial placement, and
+cell-contents persistence implemented, plus a World Overview that draws the
+authored world as a tree and reports every relationship problem at once.
+Quests, terminal filesystem authoring, network entry/routing, and the bridge
+that loads any of this into the running game are not implemented
+(2026-08-27).
 
 ## What the editor is
 
@@ -21,7 +22,11 @@ would have made spatial assignment and large-form editing slower than the
 agreed browser interface. Its decisions remain useful design input and its
 implementation remains in Git history.
 
-The implementation lives in `cmd/editor/`. The original menu hierarchy, form
+The implementation lives in `cmd/editor/`. Definition catalogs share one
+generic store (`described_store.go`) and relation catalogs share another
+(`relation_store.go`), so a new entity or relationship is a table of
+functions rather than another copy of load/validate/write. Adding a depth to
+the containment chain should stay that cheap. The original menu hierarchy, form
 fields, and interpretation rules live in
 [`EDITOR_MENUS.md`](EDITOR_MENUS.md).
 
@@ -96,6 +101,18 @@ that same Location. A Location itself is player-standable; the entry Room is
 the destination when play descends into its optional interior grid. Runtime
 loading of these authored relationships is deferred.
 
+Cell-contents validation is implemented. An entity may be in at most one
+cell; the entity kind is part of that key because UUIDs are only unique within
+their own catalog. Both the entity and the cell must exist, and only a
+Location or a Room may be a cell — a Hub can never hold things directly,
+because a Hub has no coordinate space of its own.
+
+Deletion is refused while any authored relationship still points at the
+entity, so a delete can never leave a dangling UUID. An entity inside a cell
+must be removed from it first, and a Location or Room holding anything must be
+emptied first. This joins the existing rules for network assignments and
+access grants.
+
 World-item screen validation is implemented: name, kind, short description,
 and full description are all required, and kind must be Takeable, Fixed, or
 Scenery. Invalid submissions retain their authored values. Duplicate names are
@@ -145,6 +162,7 @@ internal/game/content/
 ├── location_placements.json
 ├── room_placements.json
 ├── location_entry_rooms.json
+├── contents.json
 └── charts.json
 ```
 
@@ -157,7 +175,8 @@ files store optional coordinates within those assigned parents, and
 `location_entry_rooms.json` stores optional Location entry Rooms. A network-assignment record
 relates one terminal UUID to one Corporation UUID. The persisted field remains
 `host_network_id` for version-1 compatibility. A terminal-access record
-relates one User UUID to one Terminal UUID. No spatial ownership assignment
+relates one User UUID to one Terminal UUID. `contents.json` holds cell contents: which World Item, NPC, or Terminal sits
+inside which Location or Room. No spatial ownership assignment
 means a Location or Room is an orphan; an ownership assignment without a
 placement means it is valid and unplaced. Missing network assignments and
 terminal-access grants likewise remain valid. The existing versioned
@@ -200,6 +219,8 @@ editor. The server does not open a browser automatically.
 
 ```text
 Game Editor
+├── Overview (Header tab)
+│   └── World Overview (tree, problem report, and what is still unplaced)
 ├── Content (Header tab)
 │   ├── World (group tab)
 │   │   ├── World Items
@@ -213,12 +234,15 @@ Game Editor
 │       ├── Terminals
 │       └── Users
 └── Place (Header tab)
-    ├── Locations (Hub grid assignment)
-    ├── Rooms (Location grid assignment and optional entry Room)
-    ├── World Items (assignment placeholder)
-    ├── NPCs (assignment placeholder)
-    └── Terminals (assignment placeholder)
+    ├── Locations on a Hub (grid assignment)
+    ├── Rooms in a Location (grid assignment and optional entry Room)
+    ├── World Items (cell contents)
+    ├── NPCs (cell contents)
+    └── Terminals (cell contents)
 ```
+
+Opening the editor lands on the Overview, because the first useful question
+is "what does my world look like right now".
 
 The browser retains a restrained version of the prototype's cyberpunk palette:
 dark panels, cyan primary tabs, magenta section labels, and high-contrast form
@@ -295,6 +319,63 @@ intended to derive from adjacent occupied cells when runtime loading is added.
 This editor slice does not rewrite the existing runtime `charts.json` names or
 change player-visible navigation.
 
+### Cell contents
+
+Two different things are called "placement" in this editor, and they are not
+the same relation:
+
+- **A cell of a grid.** A Location is a cell of its Hub's grid; a Room is a
+  cell of its Location's grid. One child per cell, and the child carries a
+  coordinate. This is what `Place > Locations on a Hub` and
+  `Place > Rooms in a Location` author.
+- **The contents of a cell.** A World Item, NPC, or Terminal sits *inside* a
+  player-standable cell. Many things may share one cell and none of them
+  carries a coordinate. This is what `Place > World Items`, `Place > NPCs`,
+  and `Place > Terminals` author, and it is stored in `contents.json`.
+
+Both a Location and an interior Room are player-standable
+(`docs/systems/hubs.md`), so either may hold contents. A contents screen picks
+one cell from a single list showing full ancestry — `Bajor › Megasoft ›
+Megasoft Lobby` — then lists what is in it and offers everything of that kind
+to add. Choosing something that is already in another cell moves it; an entity
+is in at most one cell at a time. Removing something from a cell never deletes
+it: it returns to the catalog, unplaced.
+
+An entity in no cell is valid and stays valid. The Overview lists such
+entities so they are easy to find, but never as an error.
+
+**What this authors, and what it does not.** For a Takeable item, the cell is
+where the item *starts*; once the player moves it, its position is mutable
+save state. For an NPC, the cell is an unconditional position. Story-owned
+NPCs whose position is a function of flags use `engine.Placed`
+(`docs/systems/presence.md`) and are not authored here — that model has not
+been declared for the editor, and inventing it would be inventing content.
+Runtime loading of cell contents is deferred along with every other authored
+catalog.
+
+### World Overview
+
+The Overview is the editor's home screen and answers three questions without
+clicking into anything:
+
+- **Is the authored content consistent?** Every spatial, cell-contents,
+  Corporation-network, and terminal-access problem is collected and listed at
+  once, in prose, naming entities rather than UUIDs. A dangling UUID is
+  printed only when the entity it named is gone, because then the UUID is all
+  that is left to identify it. "No problems found" is stated explicitly.
+- **What does the world look like?** Hub → Location → Room drawn as a tree,
+  each cell showing its coordinate or `Unplaced`, the entry Room marked, and
+  each cell's contents listed beside it.
+- **What is still waiting?** Orphaned Locations and Rooms, assigned-but-unplaced
+  children, Locations with Rooms but no entry Room, and entities in no cell.
+  These are advisories, never errors: the Overview says so on the screen.
+
+Each catalog has two validators over the same records: a collecting form for
+this report and a fail-fast wrapper for the write path, which refuses an
+editor write while the content graph is already broken. Because they read the
+same records, the write gate and the Overview cannot disagree about whether
+the graph is valid.
+
 ### Terminals
 
 The browser form exposes:
@@ -356,10 +437,12 @@ more relationships are implemented, the same dependency rule must prevent
 dangling IDs.
 
 The editor still does not create terminal filesystems, quests, runtime charts,
-non-room placements, network entry points, or routes between Corporations. The game
-does not yet load any of the editor-authored definition or assignment catalogs,
-including Users and terminal access, so authored catalog entities have no
-player-visible effect.
+network entry points, or routes between Corporations. The game
+does not yet load any of the editor-authored definition, assignment, placement,
+or contents catalogs, so authored content still has no player-visible effect.
+Closing that gap is the next substantial piece of work: the precedent set by
+`internal/game/charts.go` is that the runtime embeds and reads the same file
+the editor writes, with no generated Go in between.
 
 ## Existing systems left intact
 
@@ -390,6 +473,8 @@ These are capability gaps, not declarations of world content or missions.
 - [x] Replace the declared Room, NPC, and Terminal placeholders with CRUD
   screens.
 - [ ] Replace the Quest placeholder after its model is declared.
+- [x] Land on a World Overview that draws the authored world and reports
+  every problem at once.
 
 ### Establish writable content
 
@@ -432,7 +517,7 @@ These are capability gaps, not declarations of world content or missions.
   identity validation.
 - [ ] Add chart, gluing, metamap, and node authoring only after their screens
   and relationships are declared.
-- [ ] Report downstream references affected by unplacement.
+- [x] Report downstream references affected by unplacement.
 
 ### Replace the TUI with the browser editor
 
@@ -440,26 +525,28 @@ These are capability gaps, not declarations of world content or missions.
 - [x] Implement routable Header tabs and Detail tabs with HTMX enhancement and
   ordinary-link fallback.
 - [x] Retire the Bubble Tea implementation after covering its navigation.
-- [ ] Vendor HTMX so enhanced navigation also works without internet access.
+- [x] Vendor HTMX so enhanced navigation also works without internet access.
 - [x] Implement the searchable world-item catalog and shared create/edit form.
 - [x] Implement the searchable name-only hub catalog and shared create/edit
   form.
 - [x] Implement terminal-to-Host-Network assignment using names in the UI and
   UUID references in storage.
-- [ ] Implement the remaining spatial Assignment screens.
-- [ ] Add screen-level validation to the remaining forms and a comprehensive
-  relationship-validation report.
+- [x] Implement the remaining spatial Assignment screens as cell-contents
+  screens for World Items, NPCs, and Terminals.
+- [x] Add a comprehensive relationship-validation report.
+- [ ] Add screen-level validation to the remaining forms.
 
 ### Full game editing
 
 - [x] Create NPC definitions.
-- [ ] Place NPCs in the world.
+- [x] Place NPCs in the world by cell. Flag-conditional presence
+  (`engine.Placed`) remains undeclared for the editor.
 - [ ] Create basic, data-driven quest lines. Advanced quests may remain
   hand-written in Go when their behavior does not fit the editor's model.
 - [ ] Author room, item, and NPC descriptions and dialogue.
 - [ ] Add and manage world keywords.
-- [ ] Extend deletion with dependency checks before entities can be referenced
-  by placements or other authored relationships.
+- [x] Extend deletion with dependency checks so no delete can leave a
+  dangling reference.
 - [ ] Preserve content authority: the editor stores designer-authored prose and
   structure but never generates missing lore or missions.
 

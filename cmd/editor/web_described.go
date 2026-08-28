@@ -237,8 +237,17 @@ func (h *editorHandler) deleteDescribed(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	form := describedForm{Errors: map[string]string{}}
+	// A cell that still holds things, or an NPC still standing
+	// somewhere, cannot be deleted: the relation would dangle.
+	blocked, guardErr := h.describedDeleteGuard(screen, id)
 	if err != nil {
 		form.GeneralError = err.Error()
+	} else if guardErr != nil {
+		form = formFromDescribed(existing)
+		form.GeneralError = guardErr.Error()
+	} else if blocked != "" {
+		form = formFromDescribed(existing)
+		form.GeneralError = blocked
 	} else if screen.key == "rooms" {
 		placed, placementErr := h.roomIsAssigned(id)
 		if placementErr != nil {
@@ -355,4 +364,18 @@ func (h *editorHandler) describedPage(screen describedScreen, query string, form
 
 func formFromDescribed(record describedFields) describedForm {
 	return describedForm{ID: record.ID, Name: record.Name, Description: record.Description, Errors: map[string]string{}}
+}
+
+// describedDeleteGuard reports why a Room, Location, or NPC cannot be
+// deleted yet, or "" when nothing else refers to it.
+func (h *editorHandler) describedDeleteGuard(screen describedScreen, id string) (string, error) {
+	switch screen.key {
+	case "rooms":
+		return h.cellBlockingDelete(gamecontent.ContainerKindRoom, id)
+	case "locations":
+		return h.cellBlockingDelete(gamecontent.ContainerKindLocation, id)
+	case "npcs":
+		return h.contentsBlockingDelete(gamecontent.ContentKindNPC, id)
+	}
+	return "", nil
 }

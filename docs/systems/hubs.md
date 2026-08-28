@@ -115,6 +115,11 @@ See `docs/EDITOR.md`.
   assign Locations to Hubs and Rooms to Locations without coordinates. Place
   grids position only children already assigned to that parent. Unplacing a
   child preserves ownership; parent reassignment requires unplacement first.
+- **Cell contents are a second, distinct relation (2026-08-27):** a Location or
+  Room is a *cell of a grid* and carries a coordinate; a World Item, NPC, or
+  Terminal is *contents of a cell* and carries none. Many things may share a
+  cell, and an entity is in at most one cell. Both a Location and an interior
+  Room are player-standable, so both may hold contents. See `docs/EDITOR.md`.
 - How deep act one actually goes; nothing requires using every level.
 
 **Design rule: geometry is lawful.** The scrambled-exit fakery of

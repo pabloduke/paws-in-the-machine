@@ -171,28 +171,29 @@ type pageData struct {
 	Ownership           spatialOwnershipPage
 	StoreError          string
 	Placement           roomPlacementPage
+	Contents            contentsPage
+	Overview            overviewPage
 }
 
 var editorRoutes = map[string]routeSpec{
 	"/content/quests": {"content", "quests", "Quests", "placeholder"},
-
-	"/place/world-items": {"place", "world-items", "Assign World Items", "assignment-placeholder"},
-	"/place/npcs":        {"place", "npcs", "Assign NPCs", "assignment-placeholder"},
-	"/place/terminals":   {"place", "terminals", "Assign Terminals", "assignment-placeholder"},
 }
 
 var detailTabs = map[string][]tab{
+	"overview": {
+		{Label: "World Overview", URL: overviewBasePath, Key: "overview"},
+	},
 	"content": {
 		{Label: "World", URL: "/content/world-items", Key: "world"},
 		{Label: "Characters", URL: "/content/npcs", Key: "characters"},
 		{Label: "Corporations", URL: "/content/corporations", Key: "corporations"},
 	},
 	"place": {
-		{Label: "Locations", URL: "/place/locations", Key: "locations"},
-		{Label: "Rooms", URL: "/place/rooms", Key: "rooms"},
-		{Label: "World Items", URL: "/place/world-items", Key: "world-items"},
-		{Label: "NPCs", URL: "/place/npcs", Key: "npcs"},
-		{Label: "Terminals", URL: "/place/terminals", Key: "terminals"},
+		{Label: "Locations on a Hub", URL: "/place/locations", Key: "locations"},
+		{Label: "Rooms in a Location", URL: "/place/rooms", Key: "rooms"},
+		{Label: "World Items", URL: worldItemContentsBasePath, Key: "world-items"},
+		{Label: "NPCs", URL: npcContentsBasePath, Key: "npcs"},
+		{Label: "Terminals", URL: terminalContentsBasePath, Key: "terminals"},
 	},
 }
 
@@ -231,6 +232,7 @@ type editorHandler struct {
 	locationEntries     *locationEntryStore
 	locationAssignments *locationAssignmentStore
 	roomAssignments     *roomAssignmentStore
+	contents            *contentsStore
 }
 
 func newEditorHandler(items *worldItemStore, hubs *hubStore, rooms *roomStore, npcs *npcStore, terminals *terminalStore, networks *hostNetworkStore, assignments *networkAssignmentStore, users *userStore, access *terminalAccessStore, roomPlacements *roomPlacementStore) http.Handler {
@@ -258,6 +260,7 @@ func newEditorHandler(items *worldItemStore, hubs *hubStore, rooms *roomStore, n
 		locationEntries:     newLocationEntryStore(contentDir),
 		locationAssignments: newLocationAssignmentStore(contentDir),
 		roomAssignments:     newRoomAssignmentStore(contentDir),
+		contents:            newContentsStore(contentDir),
 	}
 	mux := http.NewServeMux()
 	mux.Handle("/static/", h.static)
@@ -271,7 +274,7 @@ func (h *editorHandler) serveEditor(w http.ResponseWriter, r *http.Request) {
 			h.methodNotAllowed(w, http.MethodGet)
 			return
 		}
-		http.Redirect(w, r, "/content/world-items", http.StatusSeeOther)
+		http.Redirect(w, r, overviewBasePath, http.StatusSeeOther)
 		return
 	}
 	if target, ok := legacyRoute(r.URL.Path); ok {
@@ -290,7 +293,7 @@ func (h *editorHandler) serveEditor(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "editor writes require a same-origin request", http.StatusForbidden)
 		return
 	}
-	if r.Method == http.MethodPost && (strings.HasPrefix(r.URL.Path, terminalBasePath) || strings.HasPrefix(r.URL.Path, hostNetworkBasePath) || strings.HasPrefix(r.URL.Path, userBasePath) || strings.HasPrefix(r.URL.Path, roomPlacementBasePath) || strings.HasPrefix(r.URL.Path, locationPlacementBasePath) || strings.HasPrefix(r.URL.Path, "/content/locations") || strings.HasPrefix(r.URL.Path, "/content/rooms") || strings.HasPrefix(r.URL.Path, "/content/hubs")) {
+	if r.Method == http.MethodPost && (strings.HasPrefix(r.URL.Path, terminalBasePath) || strings.HasPrefix(r.URL.Path, hostNetworkBasePath) || strings.HasPrefix(r.URL.Path, userBasePath) || strings.HasPrefix(r.URL.Path, roomPlacementBasePath) || strings.HasPrefix(r.URL.Path, locationPlacementBasePath) || strings.HasPrefix(r.URL.Path, "/content/locations") || strings.HasPrefix(r.URL.Path, "/content/rooms") || strings.HasPrefix(r.URL.Path, "/content/hubs") || strings.HasPrefix(r.URL.Path, worldItemContentsBasePath) || strings.HasPrefix(r.URL.Path, npcContentsBasePath) || strings.HasPrefix(r.URL.Path, terminalContentsBasePath)) {
 		if err := h.validateEditorRelationships(); err != nil {
 			http.Error(w, "editor relationships are invalid: "+err.Error(), http.StatusConflict)
 			return
@@ -298,6 +301,17 @@ func (h *editorHandler) serveEditor(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch {
+	case r.URL.Path == overviewBasePath:
+		h.serveOverview(w, r)
+	case strings.HasPrefix(r.URL.Path, worldItemContentsBasePath),
+		strings.HasPrefix(r.URL.Path, npcContentsBasePath),
+		strings.HasPrefix(r.URL.Path, terminalContentsBasePath):
+		screen, ok := h.contentsScreenFor(r.URL.Path)
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+		h.routeContents(w, r, screen)
 	case r.URL.Path == "/content/users/list":
 		h.serveUserList(w, r)
 	case r.URL.Path == "/content/users" || r.URL.Path == "/content/users/new":
@@ -626,16 +640,33 @@ func (h *editorHandler) deleteWorldItem(w http.ResponseWriter, r *http.Request, 
 		h.methodNotAllowed(w, http.MethodPost)
 		return
 	}
-	deleted, err := h.items.Delete(id)
-	if errors.Is(err, errWorldItemNotFound) {
-		http.NotFound(w, r)
-		return
-	}
+	blocked, guardErr := h.contentsBlockingDelete(gamecontent.ContentKindWorldItem, id)
 	form := worldItemForm{Kind: "takeable", Errors: map[string]string{}}
-	if err != nil {
-		form.GeneralError = err.Error()
+	var err error
+	if guardErr != nil || blocked != "" {
+		existing, getErr := h.items.Get(id)
+		if errors.Is(getErr, errWorldItemNotFound) {
+			http.NotFound(w, r)
+			return
+		}
+		form = formFromItem(existing)
+		form.GeneralError = blocked
+		if guardErr != nil {
+			form.GeneralError = guardErr.Error()
+		}
+		err = errors.New(form.GeneralError)
 	} else {
-		form.Notice = "Deleted " + deleted.Name + "."
+		var deleted gamecontent.WorldItem
+		deleted, err = h.items.Delete(id)
+		if errors.Is(err, errWorldItemNotFound) {
+			http.NotFound(w, r)
+			return
+		}
+		if err != nil {
+			form.GeneralError = err.Error()
+		} else {
+			form.Notice = "Deleted " + deleted.Name + "."
+		}
 	}
 	data := h.worldItemsPage("", form)
 	if isHTMX(r) {
@@ -763,6 +794,7 @@ func contentGroup(detail string) string {
 
 func headerTabs(active string) []tab {
 	return activeTabs([]tab{
+		{Label: "Overview", URL: overviewBasePath, Key: "overview"},
 		{Label: "Content", URL: "/content/world-items", Key: "content"},
 		{Label: "Place", URL: "/place/locations", Key: "place"},
 	}, active)

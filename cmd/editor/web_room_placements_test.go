@@ -208,7 +208,7 @@ func TestSpatialValidationRejectsPlacementOwnershipMismatchAndUnplacedEntry(t *t
 	_, _ = e.locationAssignments.Assign(location.ID, firstHub.ID)
 	_, _ = e.locationPlacements.Place(location.ID, secondHub.ID, 0, 0)
 	rec := getRequest(t, e.handler, "/place/locations", nil)
-	if !strings.Contains(rec.Body.String(), "placement does not match its Hub assignment") {
+	if !strings.Contains(rec.Body.String(), "but assigned to a different Hub") {
 		t.Fatalf("mismatch not reported: %s", rec.Body.String())
 	}
 
@@ -218,7 +218,7 @@ func TestSpatialValidationRejectsPlacementOwnershipMismatchAndUnplacedEntry(t *t
 	_, _ = e.roomAssignments.Assign(room.ID, location.ID)
 	_, _ = e.entries.Set(location.ID, room.ID)
 	rec = getRequest(t, e.handler, "/place/rooms", nil)
-	if !strings.Contains(rec.Body.String(), "entry room is not placed") {
+	if !strings.Contains(rec.Body.String(), "but that Room is not placed in it") {
 		t.Fatalf("unplaced entry not reported: %s", rec.Body.String())
 	}
 }

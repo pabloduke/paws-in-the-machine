@@ -219,43 +219,68 @@ func (h *editorHandler) validateUserRename(userID, username string) error {
 	return nil
 }
 
+// validateAuthRelationships stops at the first problem, for the write
+// gate. authProblems collects them all, for the Overview.
 func (h *editorHandler) validateAuthRelationships() error {
-	users, err := h.users.List()
+	problems, err := h.authProblems()
 	if err != nil {
 		return err
+	}
+	if len(problems) > 0 {
+		return errors.New(problems[0])
+	}
+	return nil
+}
+
+func (h *editorHandler) authProblems() ([]string, error) {
+	var problems []string
+	report := func(format string, args ...any) { problems = append(problems, fmt.Sprintf(format, args...)) }
+	users, err := h.users.List()
+	if err != nil {
+		return nil, err
 	}
 	terminals, err := h.terminals.List()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	grants, err := h.access.List()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	userByID := make(map[string]gamecontent.User, len(users))
 	for _, user := range users {
 		userByID[user.ID] = user
 	}
-	terminalIDs := make(map[string]bool, len(terminals))
+	terminalName := make(map[string]string, len(terminals))
 	for _, terminal := range terminals {
-		terminalIDs[terminal.ID] = true
+		terminalName[terminal.ID] = terminal.HostName
 	}
 	seen := make(map[string]string)
 	for _, grant := range grants {
-		user, ok := userByID[grant.UserID]
-		if !ok {
-			return fmt.Errorf("terminal %s grants access to missing user %s", grant.TerminalID, grant.UserID)
-		}
-		if !terminalIDs[grant.TerminalID] {
-			return fmt.Errorf("user %s references missing terminal %s", grant.UserID, grant.TerminalID)
+		user, hasUser := userByID[grant.UserID]
+		host, hasTerminal := terminalName[grant.TerminalID]
+		switch {
+		case !hasUser && !hasTerminal:
+			report("An access grant names a User (%s) and a Terminal (%s) that no longer exist.",
+				grant.UserID, grant.TerminalID)
+			continue
+		case !hasUser:
+			report("Terminal %q grants access to a User that no longer exists (%s).", host, grant.UserID)
+			continue
+		case !hasTerminal:
+			report("User %q is granted access to a Terminal that no longer exists (%s).",
+				user.Username, grant.TerminalID)
+			continue
 		}
 		key := grant.TerminalID + "\x00" + strings.ToLower(user.Username)
-		if otherID, exists := seen[key]; exists {
-			return fmt.Errorf("terminal %s grants duplicate username %q to users %s and %s", grant.TerminalID, user.Username, otherID, user.ID)
+		if other, exists := seen[key]; exists {
+			report("Terminal %q grants access to two Users named %q (%s and %s).",
+				host, user.Username, other, user.ID)
+			continue
 		}
 		seen[key] = user.ID
 	}
-	return nil
+	return problems, nil
 }
 
 func (h *editorHandler) validateEditorRelationships() error {
@@ -265,5 +290,8 @@ func (h *editorHandler) validateEditorRelationships() error {
 	if err := h.validateAuthRelationships(); err != nil {
 		return err
 	}
-	return h.validateSpatialRelationships()
+	if err := h.validateSpatialRelationships(); err != nil {
+		return err
+	}
+	return h.validateContentsRelationships()
 }
