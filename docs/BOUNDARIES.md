@@ -38,6 +38,38 @@ non-append lines in shared files: stop. Either the boundary is wrong
 or the change belongs in a separate engine/integration PR. A reviewer
 should be able to judge a PR's blast radius from its file list alone.
 
+## Authorized integration branches
+
+**User ruling 2026-08-27.** The rules above describe how this repo is meant
+to work. `game-editor` does not follow them, and that is a deliberate
+exception the user called — an audible, overriding both the written rule and
+the reviewing agent's recommendation to split the branch. Human veto; not an
+oversight, and not a precedent an agent may extend on its own.
+
+`game-editor` is an authorized integration branch. It combines the charts
+system, the browser editor, authored-content schemas, and specs owned by
+other systems, and it keeps its combined history.
+
+The reasoning: everything above exists to let multiple agents and branches
+work at once without colliding. That is not the situation. Development runs
+one lane at a time, so splitting the branch would prevent no conflict that
+can occur while making the split itself — moving commits across branches —
+the riskiest operation in play.
+
+Two conditions hold while the exception stands:
+
+- **Changes that touch the running game get their own commits.** The editor
+  is developer tooling and cannot affect play; the charts system can. Keeping
+  them in separate commits preserves the property the litmus test is really
+  protecting — a reviewer can still judge blast radius, and a game-affecting
+  change can be reverted without taking editor work with it.
+- **The exception is named, not general.** Any other branch follows the rules
+  above. Adding a branch to this section is a user decision.
+
+An agent that finds this section contradicting the rules above should not
+resolve the contradiction by splitting the branch, rewriting history, or
+re-opening the question. It was decided here.
+
 ## Extending an existing system
 
 - New files inside `internal/systems/<name>/`; spec grows in
