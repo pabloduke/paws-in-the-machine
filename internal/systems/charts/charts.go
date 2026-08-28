@@ -11,6 +11,7 @@
 package charts
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/pabloduke/paws-in-the-machine/internal/engine"
@@ -53,6 +54,12 @@ func Directions() []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// String renders a coordinate for content-bug reports. Dev-facing only;
+// the player never sees a coordinate.
+func (c Coord) String() string {
+	return fmt.Sprintf("%d,%d,%d,%d", c.X, c.Y, c.Z, c.W)
 }
 
 // Ana and Kata step the fourth axis. Authoring helpers: a fold is
@@ -176,17 +183,59 @@ func (w *Weave) Glue(fromChart string, g Gluing) []string {
 		return append(bugs, "(bug) gluing from "+fromChart+
 			": not a player-facing direction: "+g.Dir)
 	}
-	if _, ok := w.charts[fromChart]; !ok {
+	from, ok := w.charts[fromChart]
+	if !ok {
 		bugs = append(bugs, "(bug) gluing names unknown chart "+fromChart)
 	}
-	if _, ok := w.charts[toChart]; !ok {
+	to, ok := w.charts[toChart]
+	if !ok {
 		bugs = append(bugs, "(bug) gluing names unknown chart "+toChart)
 	}
 	if len(bugs) > 0 {
 		return bugs
 	}
-	w.set(fromChart, g.From, g.Dir, target{toChart, g.To})
-	w.set(toChart, g.To, opposites[g.Dir], target{fromChart, g.From})
+	// Both endpoints must be occupied. A gluing overrides derived
+	// adjacency for its direction, so one pointing at an empty cell
+	// would silently delete a passage instead of creating one.
+	if _, occupied := from.At(g.From); !occupied {
+		bugs = append(bugs, "(bug) gluing from unoccupied cell "+
+			fromChart+" "+g.From.String())
+	}
+	if _, occupied := to.At(g.To); !occupied {
+		bugs = append(bugs, "(bug) gluing to unoccupied cell "+
+			toChart+" "+g.To.String())
+	}
+	if len(bugs) > 0 {
+		return bugs
+	}
+	// Reciprocity is not optional, so a gluing owns two faces: its own
+	// and the return face it installs. Letting a later declaration
+	// overwrite either one would leave the earlier passage pointing
+	// somewhere its return edge no longer comes back from — exactly the
+	// scrambled edge this system forbids. Claiming a taken face is a
+	// content bug, and the weave is left untouched.
+	forward := gkey{fromChart, g.From, g.Dir}
+	reverse := gkey{toChart, g.To, opposites[g.Dir]}
+	forwardTarget := target{toChart, g.To}
+	reverseTarget := target{fromChart, g.From}
+	if claimed, taken := w.gluings[forward]; taken && claimed != forwardTarget {
+		return append(bugs, "(bug) gluing conflict: "+fromChart+" "+
+			g.From.String()+" "+g.Dir+" is already glued to "+
+			claimed.chart+" "+claimed.at.String())
+	}
+	if claimed, taken := w.gluings[reverse]; taken && claimed != reverseTarget {
+		return append(bugs, "(bug) gluing conflict: the return face "+
+			toChart+" "+g.To.String()+" "+opposites[g.Dir]+
+			" is already glued to "+claimed.chart+" "+claimed.at.String()+
+			", so gluing "+fromChart+" "+g.From.String()+" "+g.Dir+
+			" would break the existing passage")
+	}
+	if w.gluings[forward] == forwardTarget && w.gluings[reverse] == reverseTarget {
+		// Already declared exactly this way; nothing to add.
+		return nil
+	}
+	w.set(fromChart, g.From, g.Dir, forwardTarget)
+	w.set(toChart, g.To, opposites[g.Dir], reverseTarget)
 	w.declared = append(w.declared, declaration{fromChart, g})
 	return nil
 }

@@ -48,6 +48,30 @@ stay `north/south/east/west/up/down` (hubs.md ruling). Movement along
 an ordinary compass direction. That is what makes folding invisible in
 the interface and discoverable only cartographically.
 
+## Integrity
+
+Two invariants are checked when a weave is assembled, because violating
+either makes the derived geometry meaningless:
+
+- **Identity.** Chart IDs are unique and non-empty, and an entity
+  occupies exactly one cell across the whole weave. `Apply` iterates
+  maps and rewrites an entity's exits per placement, so an entity in two
+  cells would take whichever geometry the iteration reached last.
+- **Face ownership.** A gluing owns two faces: its own and the return
+  face it installs. A later declaration claiming either face is rejected
+  as a content bug rather than overwriting it. Overwriting a return face
+  would leave the earlier passage reaching its destination while the way
+  back led somewhere else — a scrambled edge, which is exactly what this
+  system forbids. Re-declaring an identical gluing is not a conflict.
+
+Both endpoints of a gluing must be occupied cells. A gluing overrides
+derived adjacency for its direction, so one pointing at an empty cell
+would silently delete a passage rather than create one.
+
+A rejected declaration leaves the weave unchanged, and every check
+reports a content bug rather than panicking, so a bad file surfaces as a
+visible complaint instead of nondeterministic geometry.
+
 ## Gluings
 
 A gluing is a declared identification: leaving one cell in a given
@@ -79,9 +103,12 @@ world is built, and the story layers on top exactly as it does today:
 - `checks.Guarded` puts an obstacle on it
 - authored `Blocked` prose still covers directions with no neighbour
 
-This keeps the system inside its boundary: charts never touch
-`internal/engine`, and every existing gate and check keeps working
-unchanged on top of derived adjacency.
+This keeps the system inside its boundary in the sense that matters:
+charts require no changes to `internal/engine`, and every existing gate
+and check keeps working unchanged on top of derived adjacency. The
+package does import the engine and `Apply` writes `engine.Exits` onto
+room entities — the adapter from geometry to components lives here, in
+the charts package, rather than in the engine.
 
 ## Constraint: no mutable state
 

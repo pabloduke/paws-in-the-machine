@@ -3,6 +3,7 @@ package charts
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -126,14 +127,43 @@ func Unmarshal(data []byte) (*Weave, []string, error) {
 	}
 	cs := make([]*Chart, 0, len(f.Charts))
 	var bugs []string
+	// Identity has to hold before geometry means anything. A duplicate
+	// chart ID silently replaced its twin, and an entity in more than
+	// one cell had its exits rewritten once per placement in map order,
+	// so which geometry won depended on iteration luck. Both are
+	// reported here and the offending cells are dropped, so nothing
+	// nondeterministic can reach Apply.
+	seenChart := map[string]bool{}
+	cellOf := map[string]string{}
 	for _, cd := range f.Charts {
+		if cd.ID == "" {
+			bugs = append(bugs, "(bug) chart with an empty ID")
+			continue
+		}
+		if seenChart[cd.ID] {
+			bugs = append(bugs, "(bug) duplicate chart ID "+cd.ID)
+			continue
+		}
+		seenChart[cd.ID] = true
 		cells := make(map[Coord]string, len(cd.Cells))
-		for at, entity := range cd.Cells {
+		for _, at := range sortedKeys(cd.Cells) {
+			entity := cd.Cells[at]
 			c, err := parseCoord(at)
 			if err != nil {
 				bugs = append(bugs, "(bug) chart "+cd.ID+": "+err.Error())
 				continue
 			}
+			if entity == "" {
+				bugs = append(bugs, "(bug) chart "+cd.ID+" cell "+at+
+					" places an empty entity ID")
+				continue
+			}
+			if where, placed := cellOf[entity]; placed {
+				bugs = append(bugs, "(bug) entity "+entity+
+					" is placed in two cells: "+where+" and "+cd.ID+" "+at)
+				continue
+			}
+			cellOf[entity] = cd.ID + " " + at
 			cells[c] = entity
 		}
 		cs = append(cs, New(cd.ID, cells))
@@ -146,4 +176,15 @@ func Unmarshal(data []byte) (*Weave, []string, error) {
 		})...)
 	}
 	return w, bugs, nil
+}
+
+// sortedKeys orders cell keys so a duplicate entity is always reported
+// against the same cell, whatever order the JSON decoder produced.
+func sortedKeys(cells map[string]string) []string {
+	out := make([]string, 0, len(cells))
+	for at := range cells {
+		out = append(out, at)
+	}
+	sort.Strings(out)
+	return out
 }
