@@ -1,7 +1,7 @@
 # Project State
 
-Current branch: `main` (the `terminal` branch merged as PR #45,
-2026-07-13)
+Current branch: `game-editor` (unmerged;
+the `terminal` branch merged as PR #45, 2026-07-13)
 
 Project phase: **first-draft version of the game**. Current content and
 mission structure are provisional and may be revised or removed as the full
@@ -27,6 +27,16 @@ game takes shape.
 > ruling 2026-07-07" where they live (hubs.md: buildings deepen;
 > hacking.md: deck-at-home + PDA). The road to the real game is
 > issue-tracked as #22–#29 (see "Road to the real game" below).
+
+## Editor-to-game integration (2026-09-06)
+
+The game startup picker can load editor `main` and named worlds for fresh
+exploration playtests. Set a starting cell in World Overview and arrival Locations
+in Hub Details. Placed cells derive lawful grid exits and reciprocal down/up
+interior connections; room scope prevents exterior item access. Authored items,
+NPC descriptions, and terminal placeholders load from disk. Playtest save/load,
+terminal functionality, and authored quests remain outside this slice.
+See `docs/EDITOR.md` for launch options and `docs/GAME_FLOW.md` for executed flow.
 
 ## Current Focus
 
@@ -99,10 +109,52 @@ burning that invitation but remains open at a penalty.
 - Reading and copying the Microslop notice set flags that feed Buddy's
   generated notes.
 
+## The `game-editor` branch (unmerged)
+
+Two things landed here that `main` does not have.
+
+**Charts — geometry from adjacency** (`internal/systems/charts/`,
+`docs/systems/charts.md`). Room exits for charted rooms are derived from
+a lattice instead of hand-declared: `NewWorld` loads
+`internal/game/content/charts.json` (embedded, so the binary stays
+self-contained) and `Weave.Apply` replaces those rooms' `Dirs` while
+preserving authored `Blocked` prose and `Gated` locks. The Neighborhood
+and the Plaza are charted; **Okuda is deliberately not** — its six rooms
+are not lattice-realizable as wired, and charting it is a content
+decision, so charted and hand-wired rooms coexist. Every derived edge is
+reciprocal and `Glue` rejects a conflicting forward or return face, so
+scrambled geometry is unrepresentable. Malformed geometry queues a
+content bug on `w.Pending` rather than panicking. Diagram: `GAME_FLOW.md`
+"Geometry: charted exits".
+
+**Browser game editor** (`cmd/editor/`, `internal/content/`,
+`docs/EDITOR.md`). A local Go + HTMX web app persisting world items,
+hubs, locations, rooms, NPCs, terminals, corporations/networks, users,
+terminal-access grants, spatial ownership and grid placements, location
+entry rooms, and cell contents to versioned JSON, plus a World Overview
+that reports every relationship problem at once and switchable worlds
+for trying variations. Definition catalogs share `described_store.go`
+and relation catalogs share `relation_store.go`, so a new entity type is
+a table of functions. Writes are atomic (temp file + rename) with `.bak`
+recovery. Editor coverage 75.7%.
+
+**Runtime bridge is implemented (2026-09-06).** The startup picker loads
+editor-authored catalogs into fresh exploration sessions. Spatial adjacency,
+interior entry/return, Hub arrivals, NPC descriptions, and item interactions
+are covered by loader and editor-to-game integration tests. The built-in
+mission world remains assembled in Go and is a separate picker choice.
+
+Also unbuilt here: quests, terminal-filesystem authoring, and network
+entry/routing. The terminal filesystem's on-disk representation is still
+an open design question (`docs/EDITOR.md`). The branch-history decision
+(squash or keep 15 commits, one of which restarts a since-retired TUI
+prototype) is deferred to the user; review findings and their
+resolutions are in `docs/game-editor-branch-review.md`.
+
 ## Recent Verification
 
-`go test ./...` passes on `main` after the PR #45 merge (last run
-2026-07-15).
+`go test ./...` passes on `game-editor` (last run 2026-09-06). It also
+passed on `main` after the PR #45 merge (2026-07-15).
 
 ## Next Useful Steps
 

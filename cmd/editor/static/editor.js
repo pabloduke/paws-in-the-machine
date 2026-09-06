@@ -34,6 +34,13 @@
     dirty = false;
   });
 
+  // Ordinary POST forms navigate after saving; that is an intentional submit.
+  document.addEventListener("submit", (event) => {
+    if (event.target.matches("[data-dirty-form]") && !event.target.hasAttribute("hx-post")) {
+      dirty = false;
+    }
+  });
+
   window.addEventListener("beforeunload", (event) => {
     if (!dirty) {
       return;

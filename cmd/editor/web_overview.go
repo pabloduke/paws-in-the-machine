@@ -51,6 +51,7 @@ func (h *editorHandler) serveOverview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data := basePage("overview", "overview", "World Overview", "overview")
+	data.Play = h.playPage("")
 	page := overviewPage{}
 	snapshot, err := h.worldSnapshot()
 	if err != nil {

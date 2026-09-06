@@ -117,10 +117,12 @@ The two former monoliths, split so ownership is per-file:
 - `net.go` — the hacking net content
 
 `internal/content/` contains versioned, data-only authored-content schemas and
-serialization validation shared by editor tooling and future game loaders. It
+serialization and relationship validation shared by editor tooling and game loaders. It
 does not perform filesystem I/O and does not import the engine, systems, game,
 or UI packages. Editor-owned stores perform disk mutation; `internal/game`
-will eventually own runtime assembly from validated content.
+owns read-only catalog loading and runtime assembly from validated content.
+Editor readiness uses this same assembly path; schemas stay independent of
+filesystem I/O and runtime packages.
 
 ## Namespaces
 

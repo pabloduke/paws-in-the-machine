@@ -168,6 +168,15 @@
   {{if eq .HubView "locations"}}
     {{template "spatial-ownership" .}}
   {{else}}
+  {{if .HubForm.Editing}}
+  <form class="editor-form" method="post" action="/content/hubs/{{.HubForm.ID}}/arrival" data-dirty-form>
+    <label>Arrival Location
+      <select name="cell"><option value="">Not set</option>{{range .Play.Options}}<option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>{{end}}</select>
+    </label>
+    {{if .Play.Error}}<p class="error-banner">{{.Play.Error}}</p>{{end}}
+    <button type="submit">Save arrival</button>
+  </form>
+  {{end}}
   <form class="editor-form"
         data-dirty-form
         method="post"
@@ -896,6 +905,19 @@
 {{end}}
 
 {{define "overview-body"}}
+<section class="report" aria-labelledby="play-title">
+  <h2 id="play-title">Playtest</h2>
+  <form class="editor-form" method="post" action="/overview/play-settings" data-dirty-form>
+    <label>Starting Location or Room
+      <select name="cell"><option value="">Not set</option>{{range .Play.Options}}<option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>{{end}}</select>
+    </label>
+    <button type="submit">Save starting point</button>
+  </form>
+  {{if .Play.Error}}<p class="error-banner">{{.Play.Error}}</p>{{end}}
+  {{if .Play.Ready}}<p class="notice">Ready to play. Select this world when starting the game.</p>{{else}}<p>Not ready to play. Resolve the errors below.</p>{{end}}
+  <ul>{{range .Play.Diagnostics}}<li>{{.Severity}}: {{.Message}}</li>{{end}}</ul>
+  <p class="field-note">Set each Hub’s arrival Location in its Details tab. Playtests start fresh; restart the game to load editor changes.</p>
+</section>
 {{if .StoreError}}<p class="error-banner" role="alert">Content storage is unavailable: {{.StoreError}}</p>{{end}}
 
 {{if .Overview.Problems}}

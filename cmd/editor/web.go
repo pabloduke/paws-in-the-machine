@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	gamecontent "github.com/pabloduke/paws-in-the-machine/internal/content"
 )
@@ -136,6 +137,8 @@ type hostNetworkForm struct {
 func (f hostNetworkForm) Editing() bool { return f.ID != "" }
 
 type pageData struct {
+	Play playPage
+
 	Title               string
 	Section             string
 	HeaderTabs          []tab
@@ -220,6 +223,9 @@ var contentSubTabs = map[string][]tab{
 }
 
 type editorHandler struct {
+	mutationMu   sync.Mutex // Serialize cross-catalog reference checks and writes.
+	playSettings *playSettingsStore
+
 	templates           *template.Template
 	static              http.Handler
 	items               *worldItemStore
@@ -284,6 +290,7 @@ func newEditorHandler(items *worldItemStore, hubs *hubStore, rooms *roomStore, n
 		locationAssignments: newLocationAssignmentStore(contentDir),
 		roomAssignments:     newRoomAssignmentStore(contentDir),
 		contents:            newContentsStore(contentDir),
+		playSettings:        newPlaySettingsStore(contentDir),
 	}
 	mux := http.NewServeMux()
 	mux.Handle("/static/", h.static)
@@ -316,6 +323,10 @@ func (h *editorHandler) serveEditor(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "editor writes require a same-origin request", http.StatusForbidden)
 		return
 	}
+	if r.Method == http.MethodPost {
+		h.mutationMu.Lock()
+		defer h.mutationMu.Unlock()
+	}
 	if r.Method == http.MethodPost && (strings.HasPrefix(r.URL.Path, terminalBasePath) || strings.HasPrefix(r.URL.Path, hostNetworkBasePath) || strings.HasPrefix(r.URL.Path, userBasePath) || strings.HasPrefix(r.URL.Path, roomPlacementBasePath) || strings.HasPrefix(r.URL.Path, locationPlacementBasePath) || strings.HasPrefix(r.URL.Path, "/content/locations") || strings.HasPrefix(r.URL.Path, "/content/rooms") || strings.HasPrefix(r.URL.Path, "/content/hubs") || strings.HasPrefix(r.URL.Path, worldItemContentsBasePath) || strings.HasPrefix(r.URL.Path, npcContentsBasePath) || strings.HasPrefix(r.URL.Path, terminalContentsBasePath)) {
 		if err := h.validateEditorRelationships(); err != nil {
 			http.Error(w, "editor relationships are invalid: "+err.Error(), http.StatusConflict)
@@ -323,7 +334,12 @@ func (h *editorHandler) serveEditor(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if !h.guardPlayReferences(w, r) {
+		return
+	}
 	switch {
+	case r.URL.Path == "/overview/play-settings":
+		h.savePlaySettings(w, r, "")
 	case r.URL.Path == overviewBasePath:
 		h.serveOverview(w, r)
 	case r.URL.Path == worldsBasePath || strings.HasPrefix(r.URL.Path, worldsBasePath+"/"):
@@ -553,6 +569,9 @@ func (h *editorHandler) hubsPage(query string, form hubForm) pageData {
 	data.Query = strings.TrimSpace(query)
 	data.HubForm = form
 	data.HubView = "details"
+	if form.ID != "" {
+		data.Play = h.playPage(form.ID)
+	}
 	hubs, err := h.hubs.List()
 	if err != nil {
 		data.StoreError = err.Error()

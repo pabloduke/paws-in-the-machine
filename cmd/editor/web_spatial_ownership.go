@@ -142,6 +142,8 @@ func (h *editorHandler) routeHubID(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case len(parts) == 1:
 		h.serveHubs(w, r, parts[0])
+	case len(parts) == 2 && parts[1] == "arrival":
+		h.savePlaySettings(w, r, parts[0])
 	case len(parts) == 2 && parts[1] == "delete":
 		h.deleteHub(w, r, parts[0])
 	case len(parts) == 2 && parts[1] == "locations":

@@ -5,9 +5,9 @@ terminal, corporation/network, user, terminal-access, spatial placement, and
 cell-contents persistence implemented, plus a World Overview that draws the
 authored world as a tree and reports every relationship problem at once, and
 switchable worlds for trying variations side by side over time.
-Quests, terminal filesystem authoring, network entry/routing, and the bridge
-that loads any of this into the running game are not implemented
-(2026-08-27).
+Quests, terminal filesystem authoring, and network entry/routing remain open.
+The game now loads editor-authored worlds for exploration and item playtests
+(2026-09-06).
 
 ## What the editor is
 
@@ -100,7 +100,8 @@ A Location may optionally name one of its placed Rooms as its entry Room. An
 unset entry is valid. A set entry must reference an existing Room placed in
 that same Location. A Location itself is player-standable; the entry Room is
 the destination when play descends into its optional interior grid. Runtime
-loading of these authored relationships is deferred.
+loading derives grid adjacency and connects the entry Room with a reciprocal
+`down` from the exterior Location and `up` back to it.
 
 Cell-contents validation is implemented. An entity may be in at most one
 cell; the entity kind is part of that key because UUIDs are only unique within
@@ -235,7 +236,7 @@ work.
 
 Worlds are an editor concept only. The game does not read them: it still
 embeds `charts.json` at build time and loads no authored catalog, so extra
-worlds have no player-visible effect until the runtime bridge exists.
+worlds can be selected at game startup for fresh exploration playtests.
 
 ## Running the editor
 
@@ -318,8 +319,8 @@ The shared catalog/form workspace exposes:
   selected.
 
 The editor generates the immutable UUID automatically and does not expose it
-as a normal form control. Persisted items remain unassigned and do not enter
-the game runtime yet.
+as a normal form control. New items remain unassigned until placed in a cell;
+items in playable cells load into authored game sessions.
 
 ### Hubs
 
@@ -366,7 +367,7 @@ cells are not serialized. `z` and `w` are zero in version 1. Entry Room
 selection is on the Location's Rooms tab. An entry Room must be cleared before
 it can be unplaced or unassigned. A placed child must be unplaced before its
 parent assignment can change. Ordinary cardinal exits are
-intended to derive from adjacent occupied cells when runtime loading is added.
+derived from adjacent occupied cells when an authored world is loaded.
 This editor slice does not rewrite the existing runtime `charts.json` names or
 change player-visible navigation.
 
@@ -487,13 +488,11 @@ assignments. User and Terminal deletion refuses existing access grants. As
 more relationships are implemented, the same dependency rule must prevent
 dangling IDs.
 
-The editor still does not create terminal filesystems, quests, runtime charts,
-network entry points, or routes between Corporations. The game
-does not yet load any of the editor-authored definition, assignment, placement,
-or contents catalogs, so authored content still has no player-visible effect.
-Closing that gap is the next substantial piece of work: the precedent set by
-`internal/game/charts.go` is that the runtime embeds and reads the same file
-the editor writes, with no generated Go in between.
+The editor still does not create terminal filesystems, quests, network entry
+points, or routes between Corporations. The game now reads authored definition,
+assignment, placement, contents, and play-settings catalogs from disk. Runtime
+charts derive from those placements without generated Go; the built-in game's
+embedded `charts.json` remains a separate input path.
 
 ## Existing systems left intact
 
@@ -547,9 +546,9 @@ These are capability gaps, not declarations of world content or missions.
 - [x] Implement editor-side Location, Room, NPC, and Terminal CRUD persistence.
 - [x] Implement Corporation CRUD and nested terminal assignment.
 - [x] Implement User CRUD and reusable terminal-access grants.
-- [ ] Load authored world items into the game and map `Takeable`, `Fixed`, and
+- [x] Load authored world items into the game and map `Takeable`, `Fixed`, and
   `Scenery` to engine behavior.
-- [ ] Add distinct short-listing and full-examine descriptions to the runtime
+- [x] Add distinct short-listing and full-examine descriptions to the runtime
   model.
 - [x] Implement terminal metadata persistence.
 - [ ] Implement default terminal filesystem construction and filesystem
@@ -566,7 +565,7 @@ These are capability gaps, not declarations of world content or missions.
   optional entry Rooms, and duplicate-cell validation.
 - [x] Separate spatial parent assignments from coordinates and add nested Hub
   Locations and Location Rooms authoring workflows.
-- [ ] Bridge authored Location and Room placements into runtime charts and assembled-world
+- [x] Bridge authored Location and Room placements into runtime charts and assembled-world
   identity validation.
 - [ ] Add chart, gluing, metamap, and node authoring only after their screens
   and relationships are declared.
@@ -607,3 +606,46 @@ Any future executable change that alters player-visible game behavior or game
 state must update tests and `docs/GAME_FLOW.md` with the code. The present
 editor persistence changes are developer tooling only and do not change game
 flow.
+
+
+## Playing authored worlds
+
+**User ruling and implementation 2026-09-06.** Run `go run ./cmd/pawsinthemachine`
+and choose the built-in game, `main (editor)`, or a named world under `worlds/`.
+Use `-worlds-dir PATH` for alternate world discovery or `-content-dir PATH` to
+pin the picker to one directory. The terminal picker shows load errors and
+warnings; Enter retries a failed load, `r` rereads files, and Esc returns to the
+world list. Enter on a ready world starts its prepared snapshot.
+
+Before playing, set **Starting Location or Room** in World Overview and an
+**Arrival Location** in each nonempty Hub's Details. The selectors offer placed
+cells with placed ancestry. These optional authoring settings live in
+`play_settings.json` (version 1): `start` is an optional `{kind, id}` reference,
+and `hub_arrivals` maps Hub UUIDs to Location UUIDs. Writes are atomic with one
+`.bak` recovery copy, and copying a world includes its settings. Clear dependent
+settings before unplacing or deleting their selected cells or ancestors.
+Cross-catalog editor writes are serialized within each loaded handler.
+
+Missing settings are draft-valid but prevent launching a world that needs them.
+Broken references, malformed catalogs, and conflicting placements block play.
+Unplaced content and empty Hubs are excluded with warnings. Disconnected cells
+and interiors without entry Rooms are reported without inventing passages.
+
+Playtests support grid movement, down/up interior entry and return, Hub travel,
+NPC examination, item descriptions, and take/drop. Takeable items are portable;
+Fixed items are listed but cannot be taken; Scenery is targetable but unlisted.
+Short item descriptions supplement names in YOU SEE; examination uses full
+text. Interior Rooms are scope boundaries: exterior actions cannot reach inside.
+
+Placed terminals display their authored hostname. Their examination/use response
+is `(Placeholder) Terminal functionality is unavailable in this playtest.` This
+is an explicit temporary stub, pending terminal integration. NPC dialogue,
+terminal accounts/filesystems/network behavior, quests, and recursive metamaps
+are not supplied by this loader.
+
+Authored sessions start in the overworld with a fresh seed and existing starting
+stats, without built-in story rules. Save/load is disabled for these sessions;
+restart and reselect the world to pick up saved edits. The built-in game retains
+its terminal opening, missions, and save slot. Runtime assembly belongs to
+`internal/game`; data-only schemas and relationship validation belong to
+`internal/content`. Editor readiness uses the same loader as the game.
