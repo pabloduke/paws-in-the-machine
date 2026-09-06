@@ -146,6 +146,9 @@ func (w *World) walkScope(fn func(*Entity) bool) {
 	var walk func(e *Entity) bool
 	walk = func(e *Entity) bool {
 		for _, c := range e.Contents {
+			if _, boundary := Part[RoomBoundary](c); boundary {
+				continue
+			}
 			if !fn(c) {
 				return false
 			}

@@ -71,11 +71,11 @@ func (e *Entity) removeChild(c *Entity) {
 // strips articles from input, this strips them from the name, and the
 // two meet in the middle.
 func (e *Entity) Matches(name string) bool {
-	if name == e.ID || name == e.Name || name == stripArticle(e.Name) {
+	if name == e.ID || name == strings.ToLower(e.Name) || name == stripArticle(strings.ToLower(e.Name)) {
 		return true
 	}
 	for _, a := range e.Aliases {
-		if name == a {
+		if name == strings.ToLower(a) {
 			return true
 		}
 	}

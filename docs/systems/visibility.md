@@ -16,7 +16,7 @@ can see and reach is a pure function of world state:
   closed until its flag is set) or otherwise absent from the room's
   subtree. A ruby in a shut drawer is not in scope: "take ruby" says
   you don't see any ruby — because you don't.
-- **Scope stops at closed containers.** Name resolution and the YOU
+- **Scope stops at closed containers and nested Room boundaries.** Name resolution and the YOU
   SEE list walk the room subtree but do not descend into a closed
   Openable. The container itself stays visible and targetable; its
   contents don't exist for the player until it opens.
@@ -90,3 +90,18 @@ perception".
 
 - Darkness/light, hiding spots, and smell-based perception for dogs
   (an observer type that ignores visual circumstances).
+
+
+## Authored Room boundaries and item listings (2026-09-06)
+
+User-ruled: a nested Room carrying `engine.RoomBoundary` and its contents are
+excluded from the exterior Location's scope. After entering that Room, its
+contents use the normal scope rules. Ordinary containers keep their existing
+open/closed behavior. This prevents taking interior objects from outside without
+flattening the authored containment tree.
+
+Authored Takeable items use `Portable`, Fixed items use `Notable`, and Scenery
+uses neither. YOU SEE supplements the targetable item name with its short
+description; examination renders the full description. Existing entities without
+short descriptions retain their normal listing. Name matching is case-insensitive,
+including authored capitalized names and aliases.

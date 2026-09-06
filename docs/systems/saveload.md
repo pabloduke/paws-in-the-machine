@@ -60,3 +60,11 @@ overwritten — no restart required.
 - Parser verbs `save` / `load`.
 - No content changes needed at all — the strongest evidence the
   architecture earned this system cheaply.
+
+
+## Authored playtests (2026-09-06)
+
+User-ruled: authored-world sessions start fresh. Their `save` and `load` commands
+explain that saving/loading is disabled and perform no file access or state
+change. Restarting and reselecting the world reads saved editor content again.
+The built-in game retains its existing save slot and snapshot format.

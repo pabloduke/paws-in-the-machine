@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "start": {
+    "kind": "location",
+    "id": "a90406ac-9345-4cea-818f-eb0f5f180563"
+  },
+  "hub_arrivals": {
+    "7e3d3913-1712-42dc-af67-304000d6081e": "a90406ac-9345-4cea-818f-eb0f5f180563"
+  }
+}

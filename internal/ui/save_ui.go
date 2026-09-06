@@ -43,6 +43,9 @@ func (saveSurface) Intercept(m *Model, cmd engine.Command) bool {
 }
 
 func (m *Model) doSave() string {
+	if m.Playtest {
+		return "Saving is disabled in authored playtests. Restart to load editor changes."
+	}
 	if m.SavePath == "" {
 		return "No save location available on this system."
 	}
@@ -60,6 +63,9 @@ func (m *Model) doSave() string {
 }
 
 func (m *Model) doLoad() string {
+	if m.Playtest {
+		return "Loading saves is disabled in authored playtests. Restart to load editor changes."
+	}
 	if m.SavePath == "" {
 		return "No save location available on this system."
 	}

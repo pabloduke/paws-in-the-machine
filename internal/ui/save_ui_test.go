@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -61,5 +62,25 @@ func TestLoadWithoutSave(t *testing.T) {
 	mod = typeLine(mod, "load")
 	if log := lastEntry(mod); !strings.Contains(log, "nothing kept yet") {
 		t.Fatalf("missing-save message expected: %q", log)
+	}
+}
+
+func TestAuthoredPlaytestNeverReadsOrWritesSave(t *testing.T) {
+	w := game.NewWorld()
+	mod := newSaving(t, w).(Model)
+	mod.Playtest = true
+	sentinel := []byte("built-in save must remain untouched")
+	if err := os.WriteFile(mod.SavePath, sentinel, 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, verb := range []string{"save", "load"} {
+		mod = typeLine(mod, verb).(Model)
+		if !strings.Contains(lastEntry(mod), "disabled") {
+			t.Fatalf("%s was not disabled: %s", verb, lastEntry(mod))
+		}
+	}
+	after, err := os.ReadFile(mod.SavePath)
+	if err != nil || string(after) != string(sentinel) {
+		t.Fatal("playtest touched save", err)
 	}
 }

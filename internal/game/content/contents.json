@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "contents": [
+    {
+      "entity_id": "1f078921-2df5-4cef-8ffd-f2b702e7c148",
+      "entity_kind": "world_item",
+      "parent_id": "3024886f-3c29-43a7-9dca-52e5c2aab0f3",
+      "parent_kind": "room"
+    }
+  ]
+}

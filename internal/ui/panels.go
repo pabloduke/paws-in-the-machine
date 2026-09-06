@@ -77,7 +77,7 @@ func (m Model) rightPanel() string {
 
 	b.WriteString("\n\n" + styles.panelTitle.Render("▸ YOU SEE"))
 	for _, e := range w.Obvious() {
-		b.WriteString("\n  " + engine.DisplayName(w, e))
+		b.WriteString("\n  " + engine.Listing(w, e))
 	}
 	if x, ok := engine.Part[engine.Exits](w.Room()); ok && len(x.Dirs) > 0 {
 		b.WriteString("\n\n" + styles.panelTitle.Render("▸ EXITS"))

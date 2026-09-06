@@ -109,8 +109,8 @@ See `docs/EDITOR.md`.
   Location grid with a 10×10 default viewport, and each Location owns an
   optional sparse Room grid with a 5×5 default viewport. Locations are
   player-standable. A Location may designate one placed Room as its optional
-  entry Room. Runtime migration from these UUID relationships into chart cells
-  remains separate work.
+  entry Room. Runtime loading now derives chart cells from these UUID relationships
+  for authored playtests (2026-09-06).
 - **Editor containment and placement are separate (2026-08-24):** Content tabs
   assign Locations to Hubs and Rooms to Locations without coordinates. Place
   grids position only children already assigned to that parent. Unplacing a
@@ -201,3 +201,15 @@ where Buddy is, story output narrates it, and nothing else moves.
   containing the player), `Travel` (move + describe).
 - Content declares a hub by attaching `hubs.Hub` to an entity that is
   a direct child of Root and adding its rooms as children.
+
+
+## Authored playtest integration (2026-09-06)
+
+User-ruled: each included Hub has an explicitly editor-selected arrival Location,
+and each world has an explicitly selected starting Location or Room. Empty Hubs
+are omitted with diagnostics; all included Hubs remain travelable. Hub grids and
+interior grids have separate coordinate spaces. A designated entry Room produces
+a reciprocal chart gluing: exterior `down` enters it and entry-Room `up` returns
+outside. No entry means no invented connection. Unreachable cells are diagnosed.
+The runtime retains Hub → Location → Room containment; Rooms bound action scope.
+This implements the editor's current two grid layers, not recursive metamaps.

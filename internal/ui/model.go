@@ -79,6 +79,9 @@ var surfaces = []surface{
 // persistent transcript. Per-system fields are appended by the system
 // that owns them; the surface registry above dispatches to them.
 type Model struct {
+	// Playtest sessions deliberately cannot read or write the built-in save.
+	Playtest bool
+
 	eng *engine.Engine
 	// themeID selects immutable presentation data. It is UI preference,
 	// never engine or world state.

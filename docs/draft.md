@@ -18,6 +18,11 @@
 > drafting this outside the repo first — this file is where the result
 > lands and gets reconciled against the systems.
 
+## World rule — not a simulation
+
+User ruling (2026-09-04): **this is not a simulated world.** Preserve
+this constraint in future content and design work.
+
 ## 1. Spine — act one
 
 What Buddy is trying to learn or get, and what "act one complete"
