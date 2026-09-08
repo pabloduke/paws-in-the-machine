@@ -106,6 +106,8 @@
       {{end}}
     </div>
   </form>
+{{template "entity-assignment" .}}
+{{template "related-quests" .}}
 </section>
 {{end}}
 
@@ -309,6 +311,8 @@
     </div>
   </form>
   {{end}}
+{{template "entity-assignment" .}}
+{{template "related-quests" .}}
 </section>
 {{end}}
 
@@ -471,6 +475,8 @@
     </div>
   </form>
   {{end}}
+{{template "entity-assignment" .}}
+{{template "related-quests" .}}
 </section>
 {{end}}
 
@@ -785,6 +791,7 @@
       <p class="field-note">Enter coordinates or select an empty grid cell. Moving a placed {{.Placement.EntityLabel}} preserves its UUID and nested content.</p>
       <div class="actions"><button type="submit">Place {{.Placement.EntityLabel}}</button></div>
 
+      <p class="field-note" aria-label="Grid directions">North ↑ · South ↓ · West ← · East →</p>
       <div class="room-grid-scroll">
         <div class="room-grid" style="grid-template-columns: auto repeat({{.Placement.GridWidth}}, minmax(5.5rem, 1fr));">
           <span class="grid-axis grid-corner">Y\X</span>
@@ -997,19 +1004,28 @@
 {{if .Worlds.Notice}}<p class="notice" role="status">{{.Worlds.Notice}}</p>{{end}}
 {{if .Worlds.GeneralError}}<p class="error-banner" role="alert">{{.Worlds.GeneralError}}</p>{{end}}
 
+<section class="report" aria-labelledby="new-world-title">
+  <h2 id="new-world-title">Start an empty world</h2>
+  <form class="editor-form inline-assignment" method="post" action="/worlds/new" hx-post="/worlds/new" hx-target="#worlds-workspace">
+    <label>World Name
+      <input name="name" autocomplete="off" placeholder="sketch">
+    </label>
+    <div class="actions"><button type="submit">Create</button></div>
+  </form>
+</section>
 <section class="report" aria-labelledby="worlds-list-title">
-  <h2 id="worlds-list-title">Worlds</h2>
+  <h2 id="worlds-list-title">Available Worlds</h2>
   <p class="field-note">Each world is its own complete set of authored content. The editor works in one at a time, and every change is written immediately &mdash; there is no separate save.</p>
   <div class="assigned-list">
     {{range .Worlds.Worlds}}
     <div class="assigned-row world-row">
-      <span class="world-name">{{.Name}}{{if .Current}} <span class="tree-entry">loaded</span>{{end}}{{if .IsMain}} <span class="tree-kind">the game&rsquo;s own content</span>{{end}}</span>
-      <span class="catalog-description">{{.Dir}}</span>
-      {{if not .Current}}
-      <form method="post" action="/worlds/load" hx-post="/worlds/load">
-        <input type="hidden" name="name" value="{{.Name}}">
-        <button type="submit" data-discard-check>Load</button>
-      </form>
+      <form method="post" action="/worlds/load" hx-post="/worlds/load"><input type="hidden" name="name" value="{{.Name}}"><button class="secondary" type="submit" data-discard-check>{{.Name}}</button>{{if .Current}} <span class="tree-entry">loaded</span>{{end}}</form>
+
+
+      {{if not .IsMain}}
+      <form class="editor-form" method="post" action="/worlds/rename" hx-post="/worlds/rename" hx-target="#workspace"><input type="hidden" name="from" value="{{.Name}}"><label>World Name<input name="name" value="{{.Name}}" required></label><button {{if .Current}}disabled{{end}}>Rename</button></form>
+      <form method="post" action="/worlds/delete" hx-post="/worlds/delete" hx-target="#workspace" hx-confirm="Delete this world from the available list?"><input type="hidden" name="from" value="{{.Name}}"><button class="danger" {{if .Current}}disabled{{end}}>Delete</button></form>
+      {{if .Current}}<p class="field-note">Load another world to rename or delete this one.</p>{{end}}
       {{end}}
     </div>
     {{end}}
@@ -1033,15 +1049,7 @@
   </form>
 </section>
 
-<section class="report" aria-labelledby="new-world-title">
-  <h2 id="new-world-title">Start an empty world</h2>
-  <form class="editor-form inline-assignment" method="post" action="/worlds/new" hx-post="/worlds/new" hx-target="#worlds-workspace">
-    <label>Name
-      <input name="name" autocomplete="off" placeholder="sketch">
-    </label>
-    <div class="actions"><button type="submit">Create</button></div>
-  </form>
-</section>
+
 {{end}}
 {{end}}
 
@@ -1049,6 +1057,8 @@
 <nav class="header-tabs" aria-label="Editor workflow">
   {{range .HeaderTabs}}{{template "tab" .}}{{end}}
 </nav>
+<nav class="detail-tabs" aria-label="Spatial navigation">{{range .SpatialTabs}}{{template "tab" .}}{{end}}</nav>
+<p class="selection-context">World: <strong>{{if .WorldName}}{{.WorldName}}{{else}}main{{end}}</strong> · Hub: {{if .SelectionHub.ID}}{{.SelectionHub.Name}}{{else}}not selected{{end}} · Location: {{if .SelectionLocation.ID}}{{.SelectionLocation.Name}}{{else}}not selected{{end}}</p>
 <nav class="detail-tabs" aria-label="{{.Section}} details">
   {{range .DetailTabs}}{{template "tab" .}}{{end}}
 </nav>
@@ -1063,7 +1073,11 @@
     <h1 id="screen-title">{{.Title}}</h1>
   </header>
 
-  {{if eq .Content "hub-home"}}
+  {{if eq .Content "quests"}}
+ {{template "quests" .}}
+ {{else if eq .Content "selection-error"}}
+<p class="error-banner" role="alert">{{.StoreError}}</p><p>Select the required parent using the tabs above.</p>
+{{else if eq .Content "hub-home"}}
   {{template "hub-home" .}}
   {{else if eq .Content "library"}}
   {{template "library" .}}
@@ -1111,7 +1125,7 @@
   <script src="/static/htmx.min.js"></script>
   <script src="/static/editor.js" defer></script>
 </head>
-<body>
+<body hx-history="false">
   <header class="app-header">
     <span class="brand">PAWS_IN_THE_SHELL</span>
     <span class="app-name">Game Editor</span>
@@ -1122,4 +1136,14 @@
   </main>
 </body>
 </html>
+{{end}}
+
+{{define "entity-assignment"}}
+{{if .EntityAssignment.ID}}{{$a:=.EntityAssignment}}
+<section class="report"><h2>Assignment</h2>
+{{if $a.Error}}<p class="error-banner">{{$a.Error}}</p>{{else}}
+<form class="editor-form" data-dirty-form method="post" action="/editor-assignment" hx-post="/editor-assignment" hx-target="#workspace">
+<input type="hidden" name="kind" value="{{$a.Kind}}"><input type="hidden" name="id" value="{{$a.ID}}"><input type="hidden" name="current" value="{{$a.Current}}">
+<label>Location or Room<select name="container" aria-label="Location or Room"><option value="">Not assigned</option>{{range $a.Choices}}<option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Path}}</option>{{end}}</select></label><button>Save assignment</button>
+</form>{{end}}</section>{{end}}
 {{end}}

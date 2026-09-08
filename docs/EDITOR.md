@@ -5,7 +5,7 @@ terminal, corporation/network, user, terminal-access, spatial placement, and
 cell-contents persistence implemented, plus a World Overview that draws the
 authored world as a tree and reports every relationship problem at once, and
 switchable worlds for trying variations side by side over time.
-Quests, terminal filesystem authoring, and network entry/routing remain open.
+Basic authored quests are supported; terminal filesystem authoring and network entry/routing remain open.
 The game now loads editor-authored worlds for exploration and item playtests
 (2026-09-06).
 
@@ -41,11 +41,13 @@ the current editor command does not read or write them.
 from **Hubs → Locations → Rooms**, with editing in context. Location remains
 the name of the middle level, covering both buildings and outdoor cells.
 
-- **Hubs** is the landing page. Choose or create a Hub to open its Location grid.
+- **World** is the landing page. Create a World or click its name to load it,
+  then choose or create a Hub.
 - A **Hub** shows its Location grid, assigned-but-unplaced Locations, creation
   and assignment controls, details, and Hub-arrival selection.
-- A **Location** shows its Room grid, unplaced Rooms, contents, details, entry
-  Room, and its own placement controls.
+- A **Location** shows its outdoor description and contents first. Its optional
+  interior contains the Room grid; for a Location without Rooms this section
+  starts collapsed. No entry Room is required for an outdoor-only Location.
 - A **Room** shows its description and contents, with details and placement
   controls on the same page.
 - **Library** holds global catalogs and direct links to unassigned Locations
@@ -283,7 +285,7 @@ editor. The server does not open a browser automatically.
 
 ```text
 Game Editor
-├── Hubs (landing page)
+├── Hub (after selecting a World)
 │   └── Hub: Location grid, unplaced children, details, arrival
 │       └── Location: Room grid, unplaced children, contents, details, entry
 │           └── Room: description, contents, details, placement
@@ -486,7 +488,7 @@ assignments. User and Terminal deletion refuses existing access grants. As
 more relationships are implemented, the same dependency rule must prevent
 dangling IDs.
 
-The editor still does not create terminal filesystems, quests, network entry
+The editor still does not create terminal filesystems, network entry
 points, or routes between Corporations. The game now reads authored definition,
 assignment, placement, contents, and play-settings catalogs from disk. Runtime
 charts derive from those placements without generated Go; the built-in game's
@@ -520,7 +522,7 @@ These are capability gaps, not declarations of world content or missions.
 - [x] Keep a successfully saved item selected and show compact confirmation.
 - [x] Replace the declared Room, NPC, and Terminal placeholders with CRUD
   screens.
-- [ ] Replace the Quest placeholder after its model is declared.
+- [x] Replace the Quest placeholder with world-scoped quest and objective forms.
 - [x] Load, copy, and create worlds from the editor rather than restarting it
   against a different directory.
 - [x] Land on a World Overview that draws the authored world and reports
@@ -591,7 +593,7 @@ These are capability gaps, not declarations of world content or missions.
 - [x] Create NPC definitions.
 - [x] Place NPCs in the world by cell. Flag-conditional presence
   (`engine.Placed`) remains undeclared for the editor.
-- [ ] Create basic, data-driven quest lines. Advanced quests may remain
+- [x] Create basic, data-driven quest lines. Advanced quests may remain
   hand-written in Go when their behavior does not fit the editor's model.
 - [ ] Author room, item, and NPC descriptions and dialogue.
 - [ ] Add and manage world keywords.
@@ -638,7 +640,7 @@ text. Interior Rooms are scope boundaries: exterior actions cannot reach inside.
 Placed terminals display their authored hostname. Their examination/use response
 is `(Placeholder) Terminal functionality is unavailable in this playtest.` This
 is an explicit temporary stub, pending terminal integration. NPC dialogue,
-terminal accounts/filesystems/network behavior, quests, and recursive metamaps
+terminal accounts/filesystems/network behavior, advanced quests, and recursive metamaps
 are not supplied by this loader.
 
 Authored sessions start in the overworld with a fresh seed and existing starting
@@ -651,7 +653,7 @@ its terminal opening, missions, and save slot. Runtime assembly belongs to
 
 ### Contextual route contract
 
-`GET /content/hubs` is the landing page. Canonical `/content/hubs/{id}`,
+`GET /worlds` is the landing page; loading a World opens `/content/hubs`. Canonical `/content/hubs/{id}`,
 `/content/locations/{id}`, and `/content/rooms/{id}` pages derive their context
 from that entity. `?x=…&y=…` opens an empty-cell form; `?new=world_item|npc|terminal`
 opens a contents creation form; `?thing=kind:uuid` edits an entity only if it is
@@ -672,3 +674,85 @@ Hub and Location grids show one signed elevation at a time. Use Go to level to
 open a new floor, then click an empty cell. Placement controls can move cells
 between levels. Vertical connections are edited on their endpoint pages and
 require aligned cells on adjacent levels. Ground is 0; basements are negative.
+
+## Outdoor Locations (user ruling 2026-09-07)
+
+Locations represent outdoor spaces and may be playable with no Rooms at all.
+Items, NPCs, and terminals can be placed directly in a Location. Rooms add an
+optional interior; entry selection is shown only when a Location has assigned
+Rooms. This is an authoring convention, with no indoor/outdoor type field or
+automatic room creation. Existing geometry, contents and movement rules remain
+unchanged.
+
+Spatial grids display north at the top: larger Y coordinates appear above
+smaller Y coordinates, matching the game’s north = y+1 rule. East is right
+(x+1). This display convention does not change saved placements.
+
+## Screen pattern and selection (2026-09-07)
+
+Top tabs: World, Hub, Library, Item, Terminal, NPC, and World Overview. The
+second row always offers Location, Room, and Floor. Location requires a selected
+Hub; Room and Floor require a selected Location, otherwise an inline error says
+“Hub required.” or “Location required.” No first parent is silently selected.
+
+Click a Hub to load its Locations; click a Location to load its Room grid. Floor
+selects a signed level of that grid (initially 0), with Rooms as cells. The
+selected World/Hub/Location is shown above each screen. Browser selection uses
+a validated, world-scoped cookie; changing Hub clears Location and Room, and
+changing World clears lower-level selections. Separate browsers do not share
+Hub/Location selections. World loading itself remains shared by the editor.
+
+Forms, available-entity lists, arrival/entry selectors and applicable assignment
+controls are visible by default. World creation precedes its clickable list;
+Hub pages expose the selected Hub’s name and arrival settings plus creation.
+Spatial pages offer save/delete, create child, clickable child lists and grids.
+Worlds other than main can be renamed or deleted while unloaded. Deleted Worlds
+are moved under `worlds/.deleted-worlds` for recovery and excluded from the list.
+The main World is protected. Library catalogs remain available for unassigned
+definitions. All existing API and content formats remain unchanged.
+
+Item, NPC and Terminal edit forms include a Location-or-Room assignment
+selector, including “Not assigned.” Assignment saves reject stale forms if the
+entity has moved since the form was loaded. Browser history reloads selection
+from the requested page rather than restoring a stale cached parent context.
+
+
+## Quests
+
+Use **Quests** in the top navigation. Create a draft, add steps, and enable it
+when valid. The quest form edits name, description, completion message,
+automatic start, and enabled status. The clickable step list opens each
+objective; arrow buttons reorder it. Each step selects **Carry item** or
+**Visit Location or Room** and an existing target. Enablement requires valid
+objective text and targets; carry targets must be takeable. Unplaced and
+unreachable targets produce readiness warnings.
+
+All forms carry the world revision; stale submissions explain that a reload
+is required. References appear under **Related quests** on target screens.
+Remove references before deleting a target. An enabled carry target cannot
+be changed into a fixed/scenery item. Drafts can remain incomplete.
+
+**Evaluate Preview** uses checked hypothetical facts in a disposable world
+with the same evaluator as the game. It never writes quest progress or moves
+real content. If several visit targets are selected, the last selected step's
+location is the simulated position; only one cell can be occupied at a time.
+
+In game, `quests` shows objectives. Automatically started quests activate at
+world initialization; other quests list `quests start <id>`. Completed steps
+stay complete after dropping an item. Definition changes require a new
+playtest. The authored playtest's existing fresh-session/save restriction
+continues to apply; the engine's save format preserves quest progress.
+
+Press **F12** in game for the developer console, then enter
+`sudo devmode --meow`. This also works in an existing gameplay terminal.
+Use `quest-debug` to inspect conditions and blockers, `quest-debug trace`
+for the last 100 trace entries, and `quest-debug reset <id>` or
+`quest-debug complete <id>` to test a quest. Forced actions mark the session
+MODIFIED. Reset does not move items or the player, so an already-satisfied
+objective completes again at the next action checkpoint. `sudo devmode --off`
+disables controls; Esc/F12 closes the console. Developer mode is never enabled
+by loading a save. These commands are absent from ordinary terminal help.
+
+The **Pick Up the Cup** demo references the existing Paper Cup at Megasoft.
+It has one automatic carry objective, no rewards, and editable text. It is
+created through the REST API, with no migration of the Go-built mission.

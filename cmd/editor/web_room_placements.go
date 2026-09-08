@@ -324,7 +324,7 @@ func (h *editorHandler) renderPlacementResponse(w http.ResponseWriter, r *http.R
 		http.Redirect(w, r, screen.basePath+"?parent_id="+url.QueryEscape(data.Placement.SelectedParentID), http.StatusSeeOther)
 		return
 	}
-	h.render(w, "page", data)
+	h.renderPage(w, r, data)
 }
 
 func (h *editorHandler) spatialPlacementsPage(screen placementScreen, parentID, notice, generalError, coordinateError string) pageData {
@@ -418,7 +418,8 @@ func (h *editorHandler) spatialPlacementsPage(screen placementScreen, parentID, 
 	for x := 0; x < width; x++ {
 		data.Placement.XHeaders = append(data.Placement.XHeaders, x)
 	}
-	for y := 0; y < height; y++ {
+	// North is +Y in the game; draw larger Y above smaller Y.
+	for y := height - 1; y >= 0; y-- {
 		row := spatialGridRow{Y: y}
 		for x := 0; x < width; x++ {
 			cell := spatialGridCell{X: x, Y: y}

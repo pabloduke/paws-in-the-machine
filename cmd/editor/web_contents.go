@@ -218,14 +218,14 @@ func (h *editorHandler) renderContents(w http.ResponseWriter, r *http.Request, s
 		return
 	}
 	if isHTMX(r) {
-		h.render(w, "workspace", data)
+		h.renderPage(w, r, data)
 		return
 	}
 	if data.Contents.Notice != "" && r.Method == http.MethodPost {
 		http.Redirect(w, r, screen.basePath+"?container="+url.QueryEscape(data.Contents.SelectedValue), http.StatusSeeOther)
 		return
 	}
-	h.render(w, "page", data)
+	h.renderPage(w, r, data)
 }
 
 func (h *editorHandler) contentsPageData(screen contentsScreen, containerValue, notice, generalError string) pageData {
@@ -307,6 +307,9 @@ func contentRowsOfKind(contents []worldThing, kind string) []contentsRow {
 // contentsBlockingDelete reports why the entity cannot be deleted, or
 // "" when nothing holds it.
 func (h *editorHandler) contentsBlockingDelete(entityKind, entityID string) (string, error) {
+	if err := h.questReferenceProblem(entityKind, entityID); err != nil {
+		return err.Error(), nil
+	}
 	record, held, err := h.contents.ContainerOf(entityKind, entityID)
 	if err != nil || !held {
 		return "", err

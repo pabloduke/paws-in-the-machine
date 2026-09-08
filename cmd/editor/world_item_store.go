@@ -121,6 +121,25 @@ func (s *worldItemStore) Update(id string, input worldItemInput) (gamecontent.Wo
 		return gamecontent.WorldItem{}, err
 	}
 	input = input.normalized()
+	if string(input.Kind) != "takeable" {
+		if b, e := os.ReadFile(filepath.Join(filepath.Dir(s.path), "quests.json")); e == nil {
+			f, e := gamecontent.DecodeQuests(b)
+			if e != nil {
+				return gamecontent.WorldItem{}, e
+			}
+			for _, q := range f.Quests {
+				if q.Enabled {
+					for _, step := range q.Steps {
+						if step.Kind == "carry" && step.Target.ID == id {
+							return gamecontent.WorldItem{}, fmt.Errorf("Item must remain takeable for quest %q.", q.Name)
+						}
+					}
+				}
+			}
+		} else if !os.IsNotExist(e) {
+			return gamecontent.WorldItem{}, e
+		}
+	}
 	for i := range file.WorldItems {
 		if file.WorldItems[i].ID != id {
 			continue

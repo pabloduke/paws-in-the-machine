@@ -171,6 +171,14 @@ func (r *worldRegistry) Create(name string) error {
 // are not carried over: a .bak belongs to the world that wrote it, and
 // copying one would offer a restore point the new world never had.
 func (r *worldRegistry) Copy(from, to string) error {
+	source, err := r.dirFor(from)
+	if err != nil {
+		return err
+	}
+	lockKey, _ := filepath.Abs(source)
+	lock, _ := editorWorldLocks.LoadOrStore(lockKey, &sync.Mutex{})
+	lock.(*sync.Mutex).Lock()
+	defer lock.(*sync.Mutex).Unlock()
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	fromDir, err := r.dirFor(from)
@@ -221,4 +229,60 @@ func copyFile(from, to string) error {
 		return fmt.Errorf("copy %s: %w", filepath.Base(from), err)
 	}
 	return writeAtomic(to, data, info.Mode().Perm())
+}
+
+// Named worlds can be renamed or removed while unloaded. Deletion moves the
+// directory into a hidden archive so authored work remains recoverable.
+func (r *worldRegistry) manageInactive(name, replacement string, remove bool) error {
+	if name == mainWorld {
+		return fmt.Errorf("The main world cannot be renamed or deleted.")
+	}
+	dir, err := r.dirFor(name)
+	if err != nil {
+		return err
+	}
+	if current := r.Current(); current != nil && current.name == name {
+		return fmt.Errorf("Load another world before renaming or deleting this one.")
+	}
+	lockKey, _ := filepath.Abs(dir)
+	lock, _ := editorWorldLocks.LoadOrStore(lockKey, &sync.Mutex{})
+	lock.(*sync.Mutex).Lock()
+	defer lock.(*sync.Mutex).Unlock()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if current := r.Current(); current != nil && current.name == name {
+		return fmt.Errorf("Load another world before renaming or deleting this one.")
+	}
+	if info, e := os.Stat(dir); e != nil || !info.IsDir() {
+		return errWorldNotFound
+	}
+	var target string
+	if remove {
+		archive := filepath.Join(r.root, ".deleted-worlds")
+		if err = os.MkdirAll(archive, 0700); err != nil {
+			return err
+		}
+		target, err = os.MkdirTemp(archive, name+"-")
+		if err != nil {
+			return err
+		}
+		// Rename requires a nonexistent destination on all supported platforms.
+		if err = os.Remove(target); err != nil {
+			return err
+		}
+	} else {
+		if replacement == mainWorld {
+			return fmt.Errorf("Choose a different world name.")
+		}
+		target, err = r.dirFor(replacement)
+		if err != nil {
+			return err
+		}
+		if _, e := os.Stat(target); e == nil {
+			return errWorldExists
+		} else if !os.IsNotExist(e) {
+			return e
+		}
+	}
+	return os.Rename(dir, target)
 }

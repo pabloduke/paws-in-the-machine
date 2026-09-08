@@ -149,8 +149,8 @@ func TestLoadingAWorldSwitchesWhatTheEditorEdits(t *testing.T) {
 	}
 
 	rec := postForm(t, registry, "/worlds/load", url.Values{"name": {"variant"}}, "http://example.com", false)
-	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != overviewBasePath {
-		t.Fatalf("load = %d %q, want a redirect to the overview", rec.Code, rec.Header().Get("Location"))
+	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/content/hubs" {
+		t.Fatalf("load = %d %q, want a redirect to Hub selection", rec.Code, rec.Header().Get("Location"))
 	}
 	body = getRequest(t, registry, "/content/hubs", nil).Body.String()
 	if !strings.Contains(body, "Variant Hub") || strings.Contains(body, "Main Hub") {

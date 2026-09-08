@@ -326,7 +326,7 @@ func (h *editorHandler) renderOwnership(w http.ResponseWriter, r *http.Request, 
 		http.Redirect(w, r, screen.basePath+"/"+url.PathEscape(parentID)+"/"+strings.ToLower(screen.childPlural)+"?saved=1", http.StatusSeeOther)
 		return
 	}
-	h.render(w, "page", data)
+	h.renderPage(w, r, data)
 }
 
 func (h *editorHandler) ownershipPage(screen ownershipScreen, parent describedFields, nestedForm describedForm, notice, generalError string) (spatialOwnershipPage, error) {

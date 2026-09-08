@@ -21,6 +21,7 @@ type drillGroup struct {
 }
 type drillVertical struct{ LowerID, UpperID, LowerName, UpperName string }
 type drillPage struct {
+	InteriorOpen                     bool
 	Level, Z                         int
 	Levels                           []int
 	Vertical                         []drillVertical
@@ -224,6 +225,7 @@ func (h *editorHandler) serveDrill(w http.ResponseWriter, r *http.Request, kind,
 	if r.URL.Query().Get("saved") == "1" {
 		d.Notice = "Saved."
 	}
+	d.InteriorOpen = r.URL.Query().Has("z")
 	d.Level, _ = strconv.Atoi(r.URL.Query().Get("z"))
 	if values != nil && values.Has("z") {
 		d.Level, _ = strconv.Atoi(values.Get("z"))
@@ -480,6 +482,9 @@ func (h *editorHandler) mutateDrill(w http.ResponseWriter, r *http.Request, kind
 			target += "?z=" + url.QueryEscape(r.FormValue("z"))
 		}
 	}
+	if r.FormValue("return") == "hubs" && kind == "hub" {
+		target = "/content/hubs"
+	}
 	h.redirectDrill(w, r, target)
 }
 
@@ -497,6 +502,18 @@ func (h *editorHandler) redirectDrill(w http.ResponseWriter, r *http.Request, ta
 func (h *editorHandler) applyDrillAction(kind, id string, r *http.Request) (string, error) {
 	action := r.FormValue("action")
 	switch action {
+	case "delete-self":
+		parent, _ := h.spatialParent(kind, id)
+		if err := h.deleteEntity(kind, id); err != nil {
+			return "", err
+		}
+		if kind == "hub" {
+			return "/content/hubs", nil
+		}
+		if kind == "room" && parent != "" {
+			return entityURL("location", parent), nil
+		}
+		return "/library", nil
 	case "save-details":
 		if kind == "hub" {
 			_, err := h.hubs.Update(id, r.FormValue("name"))

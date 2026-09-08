@@ -110,7 +110,7 @@ func (h *editorHandler) saveUser(w http.ResponseWriter, r *http.Request, id stri
 		http.Redirect(w, r, userBasePath+"/"+url.PathEscape(form.ID)+"?saved=1", http.StatusSeeOther)
 		return
 	}
-	h.render(w, "page", data)
+	h.renderPage(w, r, data)
 }
 
 func (h *editorHandler) deleteUser(w http.ResponseWriter, r *http.Request, id string) {
@@ -148,7 +148,7 @@ func (h *editorHandler) deleteUser(w http.ResponseWriter, r *http.Request, id st
 		http.Redirect(w, r, userBasePath, http.StatusSeeOther)
 		return
 	}
-	h.render(w, "page", data)
+	h.renderPage(w, r, data)
 }
 
 func (h *editorHandler) serveUserList(w http.ResponseWriter, r *http.Request) {

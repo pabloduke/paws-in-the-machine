@@ -137,8 +137,16 @@ type hostNetworkForm struct {
 func (f hostNetworkForm) Editing() bool { return f.ID != "" }
 
 type pageData struct {
-	Drill        drillPage
-	LibraryLoose []crumb
+	QuestPage                       questPage
+	RelatedQuests                   []crumb
+	EntityAssignment                entityAssignmentPanel
+	Selection                       editorSelection
+	SelectionHub, SelectionLocation describedFields
+	SelectedHub                     gamecontent.Hub
+	SelectedArrival                 playPage
+	SpatialTabs                     []tab
+	Drill                           drillPage
+	LibraryLoose                    []crumb
 
 	Play playPage
 
@@ -321,7 +329,7 @@ func (h *editorHandler) serveEditor(w http.ResponseWriter, r *http.Request) {
 			h.methodNotAllowed(w, http.MethodGet)
 			return
 		}
-		http.Redirect(w, r, "/content/hubs", http.StatusSeeOther)
+		http.Redirect(w, r, "/worlds", http.StatusSeeOther)
 		return
 	}
 	if target, ok := legacyRoute(r.URL.Path); ok {
@@ -340,9 +348,20 @@ func (h *editorHandler) serveEditor(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "editor writes require a same-origin request", http.StatusForbidden)
 		return
 	}
+	if strings.HasPrefix(r.URL.Path, "/worlds") {
+		h.routeWorlds(w, r)
+		return
+	}
 	if r.Method == http.MethodPost {
 		h.mutationMu.Lock()
 		defer h.mutationMu.Unlock()
+	}
+	if r.URL.Path == "/editor-assignment" {
+		h.saveAssignment(w, r)
+		return
+	}
+	if h.routeNavigation(w, r) {
+		return
 	}
 	if h.routeDrill(w, r) {
 		return
@@ -411,6 +430,8 @@ func (h *editorHandler) serveEditor(w http.ResponseWriter, r *http.Request) {
 		h.serveDescribed(w, r, h.roomScreen(), "")
 	case strings.HasPrefix(r.URL.Path, "/content/rooms/"):
 		h.routeDescribedID(w, r, h.roomScreen())
+	case r.URL.Path == "/content/quests" || strings.HasPrefix(r.URL.Path, "/content/quests/"):
+		h.serveQuests(w, r)
 	case r.URL.Path == "/content/npcs/list":
 		h.serveDescribedList(w, r, h.npcScreen())
 	case r.URL.Path == "/content/npcs" || r.URL.Path == "/content/npcs/new":
@@ -539,7 +560,7 @@ func (h *editorHandler) saveHub(w http.ResponseWriter, r *http.Request, id strin
 		http.Redirect(w, r, "/content/hubs/"+url.PathEscape(form.ID)+"?saved=1", http.StatusSeeOther)
 		return
 	}
-	h.render(w, "page", data)
+	h.renderPage(w, r, data)
 }
 
 func (h *editorHandler) deleteHub(w http.ResponseWriter, r *http.Request, id string) {
@@ -581,7 +602,7 @@ func (h *editorHandler) deleteHub(w http.ResponseWriter, r *http.Request, id str
 		http.Redirect(w, r, "/content/hubs?deleted=1", http.StatusSeeOther)
 		return
 	}
-	h.render(w, "page", data)
+	h.renderPage(w, r, data)
 }
 
 func (h *editorHandler) serveHubList(w http.ResponseWriter, r *http.Request) {
@@ -709,7 +730,7 @@ func (h *editorHandler) saveWorldItem(w http.ResponseWriter, r *http.Request, id
 		http.Redirect(w, r, "/content/world-items/"+url.PathEscape(form.ID)+"?saved=1", http.StatusSeeOther)
 		return
 	}
-	h.render(w, "page", data)
+	h.renderPage(w, r, data)
 }
 
 func (h *editorHandler) deleteWorldItem(w http.ResponseWriter, r *http.Request, id string) {
@@ -758,7 +779,7 @@ func (h *editorHandler) deleteWorldItem(w http.ResponseWriter, r *http.Request, 
 		http.Redirect(w, r, "/content/world-items?deleted=1", http.StatusSeeOther)
 		return
 	}
-	h.render(w, "page", data)
+	h.renderPage(w, r, data)
 }
 
 func (h *editorHandler) serveWorldItemList(w http.ResponseWriter, r *http.Request) {
@@ -822,14 +843,17 @@ func (h *editorHandler) serveStaticScreen(w http.ResponseWriter, r *http.Request
 
 func (h *editorHandler) renderPage(w http.ResponseWriter, r *http.Request, data pageData) {
 	data.WorldName = h.currentWorldName()
+	h.navigationData(w, r, &data)
 	name := "page"
-	if isHTMX(r) {
+	if isHTMX(r) && r.Header.Get("HX-History-Restore-Request") != "true" {
 		name = "workspace"
 	}
 	h.render(w, name, data)
 }
 
 func (h *editorHandler) render(w http.ResponseWriter, name string, data pageData) {
+	h.assignmentPanel(&data)
+	h.relatedQuests(&data)
 	if data.WorldName == "" {
 		data.WorldName = h.currentWorldName()
 	}
@@ -878,10 +902,14 @@ func headerTabs(active string) []tab {
 		active = "library"
 	}
 	return activeTabs([]tab{
-		{Label: "Hubs", URL: "/content/hubs", Key: "hubs"},
+		{Label: "World", URL: "/worlds", Key: "worlds"},
+		{Label: "Hub", URL: "/content/hubs", Key: "hubs"},
 		{Label: "Library", URL: "/library", Key: "library"},
+		{Label: "Item", URL: "/content/world-items", Key: "items"},
+		{Label: "Terminal", URL: "/content/terminals", Key: "terminals"},
+		{Label: "NPC", URL: "/content/npcs", Key: "npcs"},
+		{Label: "Quests", URL: "/content/quests", Key: "quests"},
 		{Label: "World Overview", URL: overviewBasePath, Key: "overview"},
-		{Label: "Worlds", URL: worldsBasePath, Key: "worlds"},
 	}, active)
 }
 

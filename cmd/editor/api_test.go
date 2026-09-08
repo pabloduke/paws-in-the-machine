@@ -205,3 +205,42 @@ func TestAPIWorldSwitchKeepsBoundHandler(t *testing.T) {
 		t.Fatal("write crossed worlds")
 	}
 }
+
+func TestOutdoorLocationNeedsNoRooms(t *testing.T) {
+	e := newContentsTestEditor(t)
+	hub, err := e.hubs.Create("Test Hub")
+	if err != nil {
+		t.Fatal(err)
+	}
+	hubURL := entityURL("hub", hub.ID)
+	locationURL := drillSubmit(t, e, hubURL, "create-child", url.Values{"child_name": {"Test Outdoors"}, "child_description": {"(Placeholder)"}, "x": {"0"}, "y": {"0"}})
+	id := locationURL[strings.LastIndex(locationURL, "/")+1:]
+	drillSubmit(t, e, locationURL, "save-thing", url.Values{"thing_kind": {"world_item"}, "thing_name": {"Test Item"}, "item_kind": {"takeable"}, "short_description": {"(Placeholder)"}, "full_description": {"Test full description"}})
+	drillSubmit(t, e, locationURL, "save-thing", url.Values{"thing_kind": {"npc"}, "thing_name": {"Test NPC"}, "thing_description": {"(Placeholder)"}})
+	drillSubmit(t, e, locationURL, "save-thing", url.Values{"thing_kind": {"terminal"}, "host_name": {"test-terminal"}})
+	body := drillCheck(t, e, locationURL, "This Location is an outdoor space", `id="optional-interior" ><summary>Add an optional interior`, "Test Item", "Test NPC", "test-terminal")
+	if strings.Contains(body, "<summary>Interior entry Room</summary>") {
+		t.Fatal("outdoor Location prompted for entry Room")
+	}
+	if strings.Index(body, `id="contents"`) > strings.Index(body, `id="optional-interior"`) {
+		t.Fatal("Room grid comes before outdoor contents")
+	}
+	drillSubmit(t, e, hubURL, "arrival", url.Values{"arrival_id": {id}})
+	postForm(t, e.handler, "/overview/play-settings", url.Values{"cell": {"location:" + id}}, "http://example.com", false)
+	result := game.LoadAuthored(filepath.Dir(e.rooms.path))
+	if !result.Ready() {
+		t.Fatal(result.DiagnosticText())
+	}
+	if strings.Contains(result.DiagnosticText(), "entry Room") {
+		t.Fatal("roomless Location warned about entry", result.DiagnosticText())
+	}
+	eng := engine.New(result.World)
+	if got := eng.Execute("examine Test Item"); got != "Test full description" {
+		t.Fatal(got)
+	}
+	eng.Execute("take Test Item")
+	rooms, err := e.rooms.List()
+	if err != nil || len(rooms) != 0 {
+		t.Fatal("Room created automatically", rooms, err)
+	}
+}

@@ -109,7 +109,7 @@ func (h *editorHandler) saveHostNetwork(w http.ResponseWriter, r *http.Request, 
 		http.Redirect(w, r, hostNetworkBasePath+"/"+url.PathEscape(form.ID)+"?saved=1", http.StatusSeeOther)
 		return
 	}
-	h.render(w, "page", data)
+	h.renderPage(w, r, data)
 }
 
 func (h *editorHandler) deleteHostNetwork(w http.ResponseWriter, r *http.Request, id string) {
@@ -147,7 +147,7 @@ func (h *editorHandler) deleteHostNetwork(w http.ResponseWriter, r *http.Request
 		http.Redirect(w, r, hostNetworkBasePath+"?deleted=1", http.StatusSeeOther)
 		return
 	}
-	h.render(w, "page", data)
+	h.renderPage(w, r, data)
 }
 
 func (h *editorHandler) serveNetworkTerminals(w http.ResponseWriter, r *http.Request, networkID string) {
@@ -292,7 +292,7 @@ func (h *editorHandler) renderNetworkTerminalsResponse(w http.ResponseWriter, r 
 		http.Redirect(w, r, hostNetworkBasePath+"/"+url.PathEscape(networkID)+"/terminals?saved=1", http.StatusSeeOther)
 		return
 	}
-	h.render(w, "page", data)
+	h.renderPage(w, r, data)
 }
 
 func (h *editorHandler) serveHostNetworkList(w http.ResponseWriter, r *http.Request) {

@@ -218,6 +218,12 @@ func (h *editorHandler) guardPlayReferences(w http.ResponseWriter, r *http.Reque
 		}
 	}
 	if kind != "" {
+		if strings.HasSuffix(path, "/delete") {
+			if err := h.questReferenceProblem(kind, id); err != nil {
+				h.renderPlayReferenceError(w, r, kind, id, err)
+				return false
+			}
+		}
 		if err := h.playReferenceProblem(kind, id); err != nil {
 			h.renderPlayReferenceError(w, r, kind, id, err)
 			return false

@@ -1,0 +1,49 @@
+{{define "quests"}}
+{{$p := .QuestPage}}
+{{if $p.Error}}<p class="error-banner" role="alert">{{$p.Error}}</p>{{end}}
+<div class="quest-layout">
+<aside class="catalog">
+<h2>Available Quests</h2><a class="button" href="/content/quests/new">New Quest</a>
+{{range $p.Quests}}<a class="catalog-item" href="/content/quests/{{.ID}}"><strong>{{.Name}}</strong><span>{{if .Enabled}}Enabled{{else}}Draft{{end}}</span></a>{{else}}<p>No quests yet.</p>{{end}}
+</aside>
+<section class="item-editor">
+<h2>{{if $p.Quest.ID}}{{$p.Quest.Name}}{{else}}New Quest{{end}}</h2>
+<form method="post" class="editor-form" action="/content/quests/{{$p.Quest.ID}}" data-dirty-form>
+<input type="hidden" name="revision" value="{{$p.Revision}}">
+<label>Quest Name<input name="name" value="{{$p.Quest.Name}}" required></label>
+<label>Description<textarea name="description">{{$p.Quest.Description}}</textarea></label>
+<label>Completion message<input name="completion_text" value="{{$p.Quest.CompletionText}}"></label>
+<label class="quest-check"><input type="checkbox" name="auto_start" {{if $p.Quest.AutoStart}}checked{{end}}>Start automatically</label>
+<label class="quest-check"><input type="checkbox" name="enabled" {{if $p.Quest.Enabled}}checked{{end}}>Enabled for play</label>
+<p>Save a draft, add objectives, then enable it. Changes apply to a new playtest.</p>
+<div class="actions"><button name="action" value="save">Save Quest</button>{{if $p.Quest.ID}}<button name="action" value="delete" class="danger" formnovalidate>Delete Quest</button>{{end}}</div>
+</form>
+{{if $p.Problems}}<h3>Needs attention</h3><ul>{{range $p.Problems}}<li>{{.}}</li>{{end}}</ul>{{end}}
+{{if $p.Quest.ID}}
+<h3>Steps</h3>
+<p>Objectives run in list order. Completed steps stay completed.</p>
+<ol>{{range $p.Quest.Steps}}<li><a href="/content/quests/{{$p.Quest.ID}}?step={{.ID}}">{{if .Text}}{{.Text}}{{else}}Untitled objective{{end}}</a>
+<form method="post" action="/content/quests/{{$p.Quest.ID}}">
+<input type="hidden" name="revision" value="{{$p.Revision}}"><input type="hidden" name="step_id" value="{{.ID}}">
+<button name="action" value="up" aria-label="Move {{.Text}} up">↑</button><button name="action" value="down" aria-label="Move {{.Text}} down">↓</button><button name="action" value="delete-step">Delete step</button>
+</form></li>{{end}}</ol>
+<a href="/content/quests/{{$p.Quest.ID}}?step=new">New Step</a>
+<h3>{{if $p.Step.ID}}Edit Step{{else}}New Step{{end}}</h3>
+<form method="post" action="/content/quests/{{$p.Quest.ID}}" class="editor-form" data-dirty-form>
+<input type="hidden" name="revision" value="{{$p.Revision}}"><input type="hidden" name="step_id" value="{{$p.Step.ID}}">
+<label>Objective text<input name="text" value="{{$p.Step.Text}}" required></label>
+<label>Condition<select name="kind" aria-label="Condition"><option value="carry" {{if eq $p.Step.Kind "carry"}}selected{{end}}>Carry item</option><option value="visit" {{if eq $p.Step.Kind "visit"}}selected{{end}}>Visit Location or Room</option></select></label>
+<label>Target<select name="target" aria-label="Target"><option value="">Choose target</option>{{$selected := printf "%s:%s" $p.Step.Target.Kind $p.Step.Target.ID}}{{range $p.Targets}}<option value="{{.Value}}" {{if eq .Value $selected}}selected{{end}}>{{.Name}}</option>{{end}}</select></label>
+<button name="action" value="save-step">Save Step</button>
+</form>
+<h3>Preview conditions</h3><p>Choose hypothetical facts. Preview uses a disposable world and never saves progress. Only one visit target can be occupied at a time.</p>
+<form method="post" action="/content/quests/{{$p.Quest.ID}}">
+<input type="hidden" name="revision" value="{{$p.Revision}}">
+{{range $p.Quest.Steps}}<label class="quest-check"><input type="checkbox" name="satisfied" value="{{.ID}}">{{.Text}}</label>{{end}}
+<button name="action" value="preview">Evaluate Preview</button>
+</form>
+{{if $p.Preview}}<pre class="quest-preview">{{$p.Preview}}</pre>{{end}}
+{{end}}
+</section></div>
+{{end}}
+{{define "related-quests"}}{{if .RelatedQuests}}<section class="related-quests"><h3>Related quests</h3>{{range .RelatedQuests}}<p><a href="{{.URL}}">{{.Name}}</a></p>{{end}}</section>{{end}}{{end}}

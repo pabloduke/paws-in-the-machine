@@ -78,14 +78,14 @@ func validItemForm(name string) url.Values {
 	}
 }
 
-func TestRootRedirectsToHubs(t *testing.T) {
+func TestRootRedirectsToWorlds(t *testing.T) {
 	handler, _ := testEditorHandler(t)
 	rec := getRequest(t, handler, "/", nil)
 	if rec.Code != http.StatusSeeOther {
 		t.Fatalf("root status = %d, want %d", rec.Code, http.StatusSeeOther)
 	}
-	if got := rec.Header().Get("Location"); got != "/content/hubs" {
-		t.Fatalf("root redirect = %q, want /content/hubs", got)
+	if got := rec.Header().Get("Location"); got != "/worlds" {
+		t.Fatalf("root redirect = %q, want /worlds", got)
 	}
 }
 
@@ -124,9 +124,7 @@ func TestLegacyCreateAndEditURLsRedirectToContent(t *testing.T) {
 
 func TestUndeclaredAndAssignmentScreensStayPlaceholders(t *testing.T) {
 	handler, _ := testEditorHandler(t)
-	for _, path := range []string{
-		"/content/quests",
-	} {
+	for _, path := range []string{} {
 		t.Run(path, func(t *testing.T) {
 			rec := getRequest(t, handler, path, nil)
 			if rec.Code != http.StatusOK {

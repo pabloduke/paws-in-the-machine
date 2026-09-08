@@ -55,6 +55,9 @@ func (h *editorHandler) saveEntity(kind, id string, v url.Values) (string, error
 }
 
 func (h *editorHandler) deleteEntity(kind, id string) error {
+	if err := h.questReferenceProblem(kind, id); err != nil {
+		return err
+	}
 	if err := h.playReferenceProblem(kind, id); err != nil {
 		return err
 	}

@@ -35,7 +35,8 @@ exploration playtests. Set a starting cell in World Overview and arrival Locatio
 in each Hub’s Hub arrival section. Placed cells derive lawful horizontal grid exits and reciprocal enter/out
 interior connections; room scope prevents exterior item access. Authored items,
 NPC descriptions, and terminal placeholders load from disk. Playtest save/load,
-terminal functionality, and authored quests remain outside this slice.
+and full terminal functionality remain outside this slice. Basic authored quests
+were added on 2026-09-07; see the quest section below.
 See `docs/EDITOR.md` for launch options and `docs/GAME_FLOW.md` for executed flow.
 
 ## Editor navigation (2026-09-06)
@@ -153,7 +154,7 @@ interior entry/return, Hub arrivals, NPC descriptions, and item interactions
 are covered by loader and editor-to-game integration tests. The built-in
 mission world remains assembled in Go and is a separate picker choice.
 
-Also unbuilt here: quests, terminal-filesystem authoring, and network
+Also unbuilt here: advanced quests, terminal-filesystem authoring, and network
 entry/routing. The terminal filesystem's on-disk representation is still
 an open design question (`docs/EDITOR.md`). The branch-history decision
 (squash or keep 15 commits, one of which restarts a since-retired TUI
@@ -327,3 +328,37 @@ content and geometry were preserved. Filled Lowtown's missing arrival with its
 sole placed Location so the world is ready to launch. See
 [the draft review](WORLD_DRAFT_REVIEW.md) for exact additions and remaining gaps,
 and [API documentation](EDITOR_API.md) for the automation interface.
+
+Outdoor Location convention (2026-09-07): Location pages lead with outdoor
+content; Room authoring is an optional interior section, collapsed when empty.
+No-room Locations remain fully playable and need no entry Room. No content or
+runtime rules were changed.
+
+Editor screen organization (2026-09-07): World → Hub → Location → Room grid,
+with Floor selecting a grid level. Persistent tabs enforce parent selection,
+while forms, lists, assignments and entry selectors are exposed on the relevant
+screens. Selection is per browser and cleared when ancestry changes. World
+management now supports rename and recoverable deletion of unloaded named Worlds.
+No runtime movement, authored content, or API schemas were changed.
+
+
+## Authored quest slice (2026-09-07)
+
+World-scoped quest CRUD and step forms now use versioned `quests.json`, with
+carry-item and exact-cell visit objectives, ordered progress, validation,
+related target links, hypothetical previews, and ETag-protected REST writes.
+Enabled definitions load into authored playtests; progress uses stable quest
+and step flags. `quests` inspects progress; manually activated definitions
+provide a `quests start <id>` instruction. Existing Go missions are unchanged.
+
+F12 opens an in-game developer console. `sudo devmode --meow` enables quest
+inspection and reset/force controls; `sudo devmode --off` disables them. The
+same commands work in existing gameplay terminals. Forced progress is visibly
+marked MODIFIED; developer enablement remains session-only. The authored
+playtest save restriction is unchanged, although engine snapshots retain
+quest flags and the modification marker.
+
+The user authorized a simple **Pick Up the Cup** demo in the existing world,
+using the existing Paper Cup at the Megasoft starting Location. It is authored
+through the editor REST API, has no rewards, and changes no existing placement
+or entity prose. See `docs/systems/quests.md` and `docs/GAME_FLOW.md`.

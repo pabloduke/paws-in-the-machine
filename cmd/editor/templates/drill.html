@@ -1,11 +1,18 @@
 {{define "hub-home"}}
+{{if .HubForm.Notice}}<p class="notice" role="status">{{.HubForm.Notice}}</p>{{end}}
 {{if .StoreError}}<p class="error-banner" role="alert">Hub storage is unavailable: {{.StoreError}}</p>{{end}}
-<p>Choose a Hub, then open a Location and its Rooms.</p>
-<details class="report" {{if or .HubForm.NameError .HubForm.GeneralError}}open{{end}}><summary>New Hub</summary>
+<p>Choose a Hub to load its Locations. Selection stays with you as you change tabs.</p>
+{{if .SelectedHub.ID}}<section class="report"><h2>Selected Hub</h2>
+<form class="editor-form" data-dirty-form method="post" action="/content/hubs/{{.SelectedHub.ID}}/work" hx-post="/content/hubs/{{.SelectedHub.ID}}/work" hx-target="#workspace"><input type="hidden" name="action" value="save-details"><input type="hidden" name="return" value="hubs"><label>Hub Name<input name="name" value="{{.SelectedHub.Name}}" required></label><button>Save Hub</button></form>
+<form class="editor-form" method="post" action="/content/hubs/{{.SelectedHub.ID}}/work" hx-post="/content/hubs/{{.SelectedHub.ID}}/work" hx-target="#workspace"><input type="hidden" name="action" value="arrival"><input type="hidden" name="return" value="hubs"><label>Arrival Location<select name="arrival_id" aria-label="Arrival Location"><option value="">Not set</option>{{range .SelectedArrival.Options}}<option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>{{end}}</select></label><button>Save arrival</button></form>
+<form method="post" action="/content/hubs/{{.SelectedHub.ID}}/work" hx-post="/content/hubs/{{.SelectedHub.ID}}/work" hx-target="#workspace" hx-confirm="Delete this Hub? It must have no assigned Locations."><input type="hidden" name="action" value="delete-self"><button class="danger">Delete Hub</button></form>
+</section>{{end}}
+<section class="report"><h2>New Hub</h2>
 <form class="editor-form" data-dirty-form method="post" action="/content/hubs" hx-post="/content/hubs" hx-target="#workspace">
 <input type="hidden" name="drill" value="1"><label>Hub Name<input name="name" value="{{.HubForm.Name}}" required></label>
 {{template "field-error" .HubForm.NameError}}{{if .HubForm.GeneralError}}<p class="error-banner">{{.HubForm.GeneralError}}</p>{{end}}
-<button type="submit" {{if .StoreError}}disabled{{end}}>Create Hub</button></form></details>
+<button type="submit" {{if .StoreError}}disabled{{end}}>Create Hub</button></form></section>
+<h2>Available Hubs</h2>
 <div class="drill-cards">
 {{range .Hubs}}<a class="drill-card" href="/content/hubs/{{.ID}}" hx-get="/content/hubs/{{.ID}}" hx-target="#workspace" hx-push-url="true" data-discard-check><strong>{{.Name}}</strong><span>Open Locations →</span></a>
 {{else}}<p>No Hubs yet. Create a Hub to begin.</p>{{end}}
@@ -29,6 +36,7 @@
 {{end}}
 
 {{define "drill"}}
+{{template "related-quests" .}}
 {{$d:=.Drill}}
 <nav class="breadcrumbs" aria-label="Breadcrumb">
 {{range $i,$crumb:=$d.Breadcrumbs}}{{if $i}}<span aria-hidden="true"> › </span>{{end}}<a href="{{.URL}}" hx-get="{{.URL}}" hx-target="#workspace" hx-push-url="true" data-discard-check {{if eq .URL $d.URL}}aria-current="page"{{end}}>{{.Name}}</a>{{end}}
@@ -36,13 +44,40 @@
 {{if $d.Error}}<p class="error-banner" role="alert">{{$d.Error}}</p>{{end}}
 {{if $d.Notice}}<p class="notice" role="status">{{$d.Notice}}</p>{{end}}
 
+<details class="report" open><summary>Details — {{$d.Name}}</summary>
+<form class="editor-form" data-dirty-form method="post" action="{{$d.URL}}/work" hx-post="{{$d.URL}}/work" hx-target="#workspace"><input type="hidden" name="action" value="save-details">
+<label>Name<input name="name" value="{{if eq $d.Action "save-details"}}{{$d.Values.Get "name"}}{{else}}{{$d.Name}}{{end}}" required></label>
+{{if ne $d.Kind "hub"}}<label>Description<textarea aria-label="Description" name="description" rows="6" required>{{if eq $d.Action "save-details"}}{{$d.Values.Get "description"}}{{else}}{{$d.Description}}{{end}}</textarea></label>{{end}}
+<button type="submit">Save details</button></form>
+<form method="post" action="{{$d.URL}}/work" hx-post="{{$d.URL}}/work" hx-target="#workspace" hx-confirm="Delete this entity? Remove its assignments and contents first."><input type="hidden" name="action" value="delete-self"><button class="danger">Delete {{$d.Kind}}</button></form>
+</details>
+
+{{if eq $d.Kind "hub"}}
+<details class="report" open><summary>Hub arrival</summary>
+<form class="editor-form" data-dirty-form method="post" action="{{$d.URL}}/work" hx-post="{{$d.URL}}/work" hx-target="#workspace"><input type="hidden" name="action" value="arrival">
+<label>Arrival Location<select aria-label="Arrival Location" name="arrival_id"><option value="">Not set</option>{{range $d.Arrival.Options}}<option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>{{end}}</select></label><button type="submit">Save arrival</button></form>
+{{if $d.Arrival.Error}}<p class="error-banner">{{$d.Arrival.Error}}</p>{{end}}
+</details>{{end}}
+{{if and (eq $d.Kind "location") $d.Grid.Entities}}
+<details class="report" open><summary>Interior entry Room</summary>
+<form class="editor-form" data-dirty-form method="post" action="{{$d.URL}}/work" hx-post="{{$d.URL}}/work" hx-target="#workspace"><input type="hidden" name="action" value="entry">
+<label>Entry Room<select aria-label="Entry Room" name="entry_id"><option value="">Not set</option>{{range $d.Entries}}<option value="{{.ID}}" {{if .Selected}}selected{{end}}>{{.Name}}</option>{{end}}</select></label><button type="submit">Save entry</button></form></details>{{end}}
+
+{{if eq $d.Kind "location"}}
+<p class="drill-description">{{$d.Description}}</p>
+<p class="field-note">This Location is an outdoor space. Add items, NPCs, and terminals directly here; Rooms are an optional interior.</p>
+{{template "drill-contents" $d}}
+<details class="report" id="optional-interior" {{if or $d.Grid.Entities $d.CellSelected $d.Error $d.InteriorOpen}}open{{end}}><summary>{{if $d.Grid.Entities}}Optional interior — Rooms{{else}}Add an optional interior{{end}}</summary>
+{{end}}
 {{if $d.ChildKind}}
-{{if $d.CellSelected}}{{template "cell-create" $d}}{{end}}
+{{template "cell-create" $d}}
 <section class="report drill-grid" aria-labelledby="children-heading">
+<h3>Available {{$d.ChildLabel}}s</h3><div class="drill-child-list">{{range $d.Grid.Entities}}<a class="button secondary" href="{{$d.ChildBase}}{{.ID}}" hx-get="{{$d.ChildBase}}{{.ID}}" hx-target="#workspace" hx-push-url="true" data-discard-check>{{.Name}} · {{.Placement}}</a>{{else}}<p>No {{$d.ChildLabel}}s assigned.</p>{{end}}</div>
 <h2 id="children-heading">{{$d.ChildLabel}}s in {{$d.Name}} · Level {{$d.Level}}</h2>
 <nav aria-label="Levels">{{range $d.Levels}}<a class="button secondary" href="{{$d.URL}}?z={{.}}" hx-get="{{$d.URL}}?z={{.}}" hx-target="#workspace" hx-push-url="true" data-discard-check>Level {{.}}</a> {{end}}</nav>
-<form method="get" action="{{$d.URL}}"><label>Go to level<input type="number" name="z" value="{{$d.Level}}" required></label><button>Show level</button></form>
+<form method="get" action="{{$d.URL}}"><label>Floor<input type="number" name="z" value="{{$d.Level}}" required></label><button>Show level</button></form>
 <p class="field-note">Open an occupied cell to drill down. Click an empty cell to create or place a {{$d.ChildLabel}}. Drag an occupied cell to an empty cell to move it.</p>
+<p class="field-note" aria-label="Grid directions">North ↑ · South ↓ · West ← · East →</p>
 <div class="room-grid-scroll"><div class="room-grid" data-move-url="{{$d.URL}}/work" data-level="{{$d.Level}}" style="grid-template-columns: auto repeat({{$d.Grid.GridWidth}}, minmax(6.5rem, 1fr));">
 <span class="grid-axis">Y\X</span>{{range $d.Grid.XHeaders}}<span class="grid-axis">{{.}}</span>{{end}}
 {{range $d.Grid.Rows}}<span class="grid-axis">{{.Y}}</span>{{range .Cells}}
@@ -54,31 +89,21 @@
 </div>
 </section>
 
-{{if not $d.CellSelected}}{{template "cell-create" $d}}{{end}}
-{{if $d.Unassigned}}<details class="report"><summary>Assign an existing {{$d.ChildLabel}} from Library</summary>
+
+{{if $d.Unassigned}}<details class="report" open><summary>Assign an existing {{$d.ChildLabel}} from Library</summary>
 <form class="editor-form" data-dirty-form method="post" action="{{$d.URL}}/work" hx-post="{{$d.URL}}/work" hx-target="#workspace"><input type="hidden" name="action" value="assign-child">
 <label>Unassigned {{$d.ChildLabel}}<select name="child_id">{{range $d.Unassigned}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select></label><button type="submit">Assign to {{$d.Name}}</button>
 </form></details>{{end}}
 {{end}}
+
+{{if eq $d.Kind "location"}}</details>{{end}}
 
 {{if $d.Placed}}<details class="report"><summary>Vertical connections</summary>
 {{range $d.Vertical}}<form method="post" action="{{$d.URL}}/work" hx-post="{{$d.URL}}/work" hx-target="#workspace"><input type="hidden" name="action" value="disconnect-vertical"><input type="hidden" name="lower_id" value="{{.LowerID}}"><p>{{.LowerName}} ↔ {{.UpperName}}</p><button>Remove connection</button></form>{{end}}
 {{if $d.VerticalChoices}}<form method="post" action="{{$d.URL}}/work" hx-post="{{$d.URL}}/work" hx-target="#workspace"><input type="hidden" name="action" value="connect-vertical"><label>Connect up to<select name="upper_id">{{range $d.VerticalChoices}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select></label><button>Connect levels</button></form>{{else}}<p>No aligned cell on the level above. Place one at the same x/y to connect it.</p>{{end}}
 </details>{{end}}
 {{if eq $d.Kind "room"}}<p class="drill-description">{{$d.Description}}</p>{{end}}
-{{if $d.Groups}}
-<section class="report" id="contents"><h2>Contents of {{$d.Name}}</h2>
-<div class="drill-contents">
-{{range $d.Groups}}{{$g:=.}}<section><h3>{{.Label}}</h3>
-{{range .Held}}<div class="drill-held"><a href="{{$d.URL}}?thing={{.Kind}}:{{.ID}}#thing-editor" hx-get="{{$d.URL}}?thing={{.Kind}}:{{.ID}}" hx-target="#workspace" hx-push-url="true" data-discard-check>{{.Name}}</a>
-<form method="post" action="{{$d.URL}}/work" hx-post="{{$d.URL}}/work" hx-target="#workspace"><input type="hidden" name="action" value="remove-thing"><input type="hidden" name="thing_kind" value="{{.Kind}}"><input type="hidden" name="thing_id" value="{{.ID}}"><button class="secondary compact" type="submit">Remove from cell</button></form></div>
-{{else}}<p class="field-note">None here.</p>{{end}}
-<p><a class="button compact" href="{{$d.URL}}?new={{.Kind}}#thing-editor" hx-get="{{$d.URL}}?new={{.Kind}}" hx-target="#workspace" hx-push-url="true" data-discard-check>Create here</a></p>
-{{if .Choices}}<form class="editor-form" data-dirty-form method="post" action="{{$d.URL}}/work" hx-post="{{$d.URL}}/work" hx-target="#workspace"><input type="hidden" name="action" value="add-thing"><input type="hidden" name="thing_kind" value="{{.Kind}}">
-<label>Add existing<select name="thing_id">{{range .Choices}}<option value="{{.ID}}">{{.Name}} — {{.Status}}</option>{{end}}</select></label><button type="submit">Put here</button></form>{{end}}
-</section>{{end}}
-</div></section>
-{{end}}
+{{if ne $d.Kind "location"}}{{template "drill-contents" $d}}{{end}}
 
 {{if $d.ThingKind}}
 <section class="report" id="thing-editor"><h2>{{if $d.ThingID}}Edit{{else}}Create{{end}} {{if eq $d.ThingKind "world_item"}}World Item{{else if eq $d.ThingKind "npc"}}NPC{{else}}Terminal{{end}} in {{$d.Name}}</h2>
@@ -94,27 +119,8 @@
 <div class="actions"><button type="submit">Save in {{$d.Name}}</button><a href="{{$d.URL}}#contents" data-discard-check>Cancel</a></div>
 </form></section>{{end}}
 
-<details class="report" {{if eq $d.Action "save-details"}}open{{end}}><summary>Details — {{$d.Name}}</summary>
-<form class="editor-form" data-dirty-form method="post" action="{{$d.URL}}/work" hx-post="{{$d.URL}}/work" hx-target="#workspace"><input type="hidden" name="action" value="save-details">
-<label>Name<input name="name" value="{{if eq $d.Action "save-details"}}{{$d.Values.Get "name"}}{{else}}{{$d.Name}}{{end}}" required></label>
-{{if ne $d.Kind "hub"}}<label>Description<textarea aria-label="Description" name="description" rows="6" required>{{if eq $d.Action "save-details"}}{{$d.Values.Get "description"}}{{else}}{{$d.Description}}{{end}}</textarea></label>{{end}}
-<button type="submit">Save details</button></form>
-<p><a href="{{$d.URL}}?details=1" data-discard-check>Catalog details and deletion</a></p>
-</details>
-
-{{if eq $d.Kind "hub"}}
-<details class="report"><summary>Hub arrival</summary>
-<form class="editor-form" data-dirty-form method="post" action="{{$d.URL}}/work" hx-post="{{$d.URL}}/work" hx-target="#workspace"><input type="hidden" name="action" value="arrival">
-<label>Arrival Location<select aria-label="Arrival Location" name="arrival_id"><option value="">Not set</option>{{range $d.Arrival.Options}}<option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>{{end}}</select></label><button type="submit">Save arrival</button></form>
-{{if $d.Arrival.Error}}<p class="error-banner">{{$d.Arrival.Error}}</p>{{end}}
-</details>{{end}}
-{{if eq $d.Kind "location"}}
-<details class="report"><summary>Interior entry Room</summary>
-<form class="editor-form" data-dirty-form method="post" action="{{$d.URL}}/work" hx-post="{{$d.URL}}/work" hx-target="#workspace"><input type="hidden" name="action" value="entry">
-<label>Entry Room<select aria-label="Entry Room" name="entry_id"><option value="">Not set</option>{{range $d.Entries}}<option value="{{.ID}}" {{if .Selected}}selected{{end}}>{{.Name}}</option>{{end}}</select></label><button type="submit">Save entry</button></form></details>{{end}}
-
 {{if ne $d.Kind "hub"}}
-<details class="report" {{if or (eq $d.Action "position") (eq $d.Action "unplace") (eq $d.Action "assign-parent") (eq $d.Action "unassign-parent")}}open{{end}}><summary>Placement — {{$d.Placement}}</summary>
+<details class="report" open><summary>Placement — {{$d.Placement}}</summary>
 {{if $d.ParentID}}<p><a href="{{$d.ParentURL}}" data-discard-check>Open parent</a></p>
 <form class="editor-form" data-dirty-form method="post" action="{{$d.URL}}/work" hx-post="{{$d.URL}}/work" hx-target="#workspace"><input type="hidden" name="action" value="position"><input type="hidden" name="parent_id" value="{{$d.ParentID}}">
 <div class="coordinate-fields"><label>Level<input type="number" name="z" value="{{if eq $d.Action "position"}}{{$d.Values.Get "z"}}{{else}}{{$d.Z}}{{end}}" required></label><label>X<input name="x" type="number" min="0" required value="{{if eq $d.Action "position"}}{{$d.Values.Get "x"}}{{else}}{{$d.X}}{{end}}"></label><label>Y<input name="y" type="number" min="0" required value="{{if eq $d.Action "position"}}{{$d.Values.Get "y"}}{{else}}{{$d.Y}}{{end}}"></label></div><button type="submit">{{if $d.Placed}}Reposition{{else}}Place{{end}}</button></form>
@@ -145,4 +151,21 @@
 <button type="submit">Place existing here</button>
 </form>{{end}}
 </section>
+{{end}}
+
+{{define "drill-contents"}}{{$d:=.}}
+{{if $d.Groups}}
+<section class="report" id="contents"><h2>Contents of {{$d.Name}}</h2>
+<div class="drill-contents">
+{{range $d.Groups}}{{$g:=.}}<section><h3>{{.Label}}</h3>
+{{range .Held}}<div class="drill-held"><a href="{{$d.URL}}?thing={{.Kind}}:{{.ID}}#thing-editor" hx-get="{{$d.URL}}?thing={{.Kind}}:{{.ID}}" hx-target="#workspace" hx-push-url="true" data-discard-check>{{.Name}}</a>
+<form method="post" action="{{$d.URL}}/work" hx-post="{{$d.URL}}/work" hx-target="#workspace"><input type="hidden" name="action" value="remove-thing"><input type="hidden" name="thing_kind" value="{{.Kind}}"><input type="hidden" name="thing_id" value="{{.ID}}"><button class="secondary compact" type="submit">Remove from cell</button></form></div>
+{{else}}<p class="field-note">None here.</p>{{end}}
+<p><a class="button compact" href="{{$d.URL}}?new={{.Kind}}#thing-editor" hx-get="{{$d.URL}}?new={{.Kind}}" hx-target="#workspace" hx-push-url="true" data-discard-check>Create here</a></p>
+{{if .Choices}}<form class="editor-form" data-dirty-form method="post" action="{{$d.URL}}/work" hx-post="{{$d.URL}}/work" hx-target="#workspace"><input type="hidden" name="action" value="add-thing"><input type="hidden" name="thing_kind" value="{{.Kind}}">
+<label>Add existing<select name="thing_id">{{range .Choices}}<option value="{{.ID}}">{{.Name}} — {{.Status}}</option>{{end}}</select></label><button type="submit">Put here</button></form>{{end}}
+</section>{{end}}
+</div></section>
+{{end}}
+
 {{end}}

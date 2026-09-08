@@ -56,6 +56,10 @@ func (h *editorHandler) serveAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("ETag", revision)
+	if len(parts) >= 5 && parts[4] == "quests" {
+		h.serveQuestAPI(w, r, parts, revision)
+		return
+	}
 	if r.Method == http.MethodGet {
 		if len(parts) == 4 {
 			json.NewEncoder(w).Encode(before)

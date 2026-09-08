@@ -695,3 +695,14 @@ details.report[open] > summary { margin-bottom: 1rem; }
 .room-cell[draggable="true"] { cursor: grab; }
 .room-cell.dragging { opacity: .45; cursor: grabbing; }
 .room-cell.drop-target { outline: 3px solid currentColor; outline-offset: -3px; }
+
+.selection-context { margin: .75rem 0; color: var(--muted); }
+.drill-child-list { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+.world-row { flex-wrap: wrap; align-items: center; }
+
+.quest-layout { display:grid; grid-template-columns:minmax(180px, 1fr) minmax(0, 3fr); gap:1.5rem; }
+.quest-preview { white-space:pre-wrap; overflow-wrap:anywhere; }
+@media (max-width:700px) { .quest-layout { grid-template-columns:1fr; } }
+
+.quest-layout label.quest-check { display:flex; align-items:center; gap:.65rem; }
+.quest-layout label.quest-check input { width:auto; margin:0; }

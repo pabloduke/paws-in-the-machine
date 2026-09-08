@@ -38,6 +38,7 @@ use `{"error":{"code":"validation","message":"…"}}` and status 422.
 | action | Context | Fields |
 |---|---|---|
 | save-details | Hub/Location/Room | name, description (except Hub) |
+| delete-self | Hub/Location/Room | remove ownership, placement and content references first |
 | create-child | Hub/Location | child_name, child_description; optional x,y,z to place immediately |
 | assign-child | Hub/Location | child_id (currently unassigned) |
 | place-child | Hub/Location | child_id (assigned, unplaced), x,y,z |
@@ -73,3 +74,38 @@ z=0. Omitted z on a new command means zero. x/y remain nonnegative. Two cells ma
 share x/y at different levels. Vertical connections are stored in
 `vertical_connections.json` version 1 and join aligned, adjacent levels within
 one parent. Remove connections before relocating their endpoints.
+
+
+## Quests
+
+`GET /api/v1/worlds/{world}/quests` lists definitions; append `/{id}` to read
+one. `POST` on the collection creates, `PUT /{id}` replaces, and `DELETE /{id}`
+removes. Quest bodies use structured JSON (unlike legacy string-field entity
+commands). IDs for new quests and steps are generated when omitted. Preserve
+step IDs when editing/reordering so existing progress remains associated with
+the same objective. IDs cannot contain URL delimiters.
+
+```json
+{
+  "name": "Pick Up the Cup",
+  "description": "Pick up the Paper Cup at Megasoft.",
+  "enabled": true,
+  "auto_start": true,
+  "completion_text": "Quest complete: Pick Up the Cup.",
+  "steps": [
+    {
+      "text": "Pick up the Paper Cup at Megasoft.",
+      "kind": "carry",
+      "target": {"kind": "world_item", "id": "a09e5e48-ae2c-40c8-a048-6c856d6dd3af"}
+    }
+  ]
+}
+```
+
+All writes require the snapshot's ETag in `If-Match`; missing/stale revisions
+return 428/409. Creation returns 201 and the saved definition with generated
+IDs. Successful writes return the new world ETag. Invalid enabled objectives
+return 422 without writing; incomplete disabled drafts are accepted. Unknown
+quest IDs return 404. Existing world-scoping and same-origin policies apply.
+Quests participate in snapshots, revisions, world copies, and validation.
+Preview is a read-only editor form operation, not a mutation API.

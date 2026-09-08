@@ -223,7 +223,7 @@ func (h *editorHandler) saveDescribed(w http.ResponseWriter, r *http.Request, sc
 		http.Redirect(w, r, screen.basePath+"/"+url.PathEscape(form.ID)+"?saved=1", http.StatusSeeOther)
 		return
 	}
-	h.render(w, "page", data)
+	h.renderPage(w, r, data)
 }
 
 func (h *editorHandler) deleteDescribed(w http.ResponseWriter, r *http.Request, screen describedScreen, id string) {
@@ -312,7 +312,7 @@ func (h *editorHandler) deleteDescribed(w http.ResponseWriter, r *http.Request, 
 		http.Redirect(w, r, screen.basePath+"?deleted=1", http.StatusSeeOther)
 		return
 	}
-	h.render(w, "page", data)
+	h.renderPage(w, r, data)
 }
 
 func (h *editorHandler) serveDescribedList(w http.ResponseWriter, r *http.Request, screen describedScreen) {

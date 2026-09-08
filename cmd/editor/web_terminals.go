@@ -123,7 +123,7 @@ func (h *editorHandler) saveTerminal(w http.ResponseWriter, r *http.Request, id 
 		http.Redirect(w, r, terminalBasePath+"/"+url.PathEscape(form.ID)+"?saved=1", http.StatusSeeOther)
 		return
 	}
-	h.render(w, "page", data)
+	h.renderPage(w, r, data)
 }
 
 func (h *editorHandler) deleteTerminal(w http.ResponseWriter, r *http.Request, id string) {
@@ -172,7 +172,7 @@ func (h *editorHandler) deleteTerminal(w http.ResponseWriter, r *http.Request, i
 		http.Redirect(w, r, terminalBasePath+"?deleted=1", http.StatusSeeOther)
 		return
 	}
-	h.render(w, "page", data)
+	h.renderPage(w, r, data)
 }
 
 func terminalFormFromRequest(r *http.Request) (terminalForm, terminalInput) {

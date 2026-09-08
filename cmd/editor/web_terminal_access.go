@@ -112,7 +112,7 @@ func (h *editorHandler) renderTerminalAccessResponse(w http.ResponseWriter, r *h
 		http.Redirect(w, r, terminalBasePath+"/"+url.PathEscape(terminalID)+"/access?saved=1", http.StatusSeeOther)
 		return
 	}
-	h.render(w, "page", data)
+	h.renderPage(w, r, data)
 }
 
 func (h *editorHandler) populateTerminalAccess(data *pageData, terminalID string) {

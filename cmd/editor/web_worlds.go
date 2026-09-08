@@ -42,6 +42,22 @@ func (h *editorHandler) routeWorlds(w http.ResponseWriter, r *http.Request) {
 		h.loadWorld(w, r)
 	case worldsBasePath + "/copy":
 		h.copyWorld(w, r)
+	case worldsBasePath + "/rename", worldsBasePath + "/delete":
+		if r.Method != http.MethodPost {
+			h.methodNotAllowed(w, http.MethodPost)
+			return
+		}
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "Invalid form.", http.StatusBadRequest)
+			return
+		}
+		err := h.worlds.manageInactive(r.FormValue("from"), strings.TrimSpace(r.FormValue("name")), r.URL.Path == worldsBasePath+"/delete")
+		page := worldsPage{Notice: "World list updated."}
+		if err != nil {
+			page.Notice = ""
+			page.GeneralError = err.Error()
+		}
+		h.renderPage(w, r, h.worldsPageData(page))
 	case worldsBasePath + "/new":
 		h.createWorld(w, r)
 	default:
@@ -69,11 +85,11 @@ func (h *editorHandler) loadWorld(w http.ResponseWriter, r *http.Request) {
 	if isHTMX(r) {
 		// The whole document changes worlds, including the header, so
 		// let the browser navigate rather than swapping a fragment.
-		w.Header().Set("HX-Redirect", overviewBasePath)
+		w.Header().Set("HX-Redirect", "/content/hubs")
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	http.Redirect(w, r, overviewBasePath, http.StatusSeeOther)
+	http.Redirect(w, r, "/content/hubs", http.StatusSeeOther)
 }
 
 func (h *editorHandler) copyWorld(w http.ResponseWriter, r *http.Request) {
