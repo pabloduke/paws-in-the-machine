@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "quests": [
+    {
+      "id": "04a83708-4e39-47e3-ac02-cfb1ad748a31",
+      "name": "Pick Up the Cup",
+      "description": "Pick up the Paper Cup at Megasoft.",
+      "enabled": true,
+      "auto_start": true,
+      "completion_text": "Quest complete: Pick Up the Cup.",
+      "steps": [
+        {
+          "id": "6928f3e3-fc95-4159-9979-8b0a71a335cb",
+          "text": "Pick up the Paper Cup at Megasoft.",
+          "kind": "carry",
+          "target": {
+            "kind": "world_item",
+            "id": "a09e5e48-ae2c-40c8-a048-6c856d6dd3af"
+          }
+        }
+      ]
+    }
+  ]
+}

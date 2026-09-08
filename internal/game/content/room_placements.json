@@ -26,19 +26,19 @@
       "w": 0
     },
     {
-      "room_id": "80111cf3-704f-475a-90b3-ed607a25cd4c",
-      "location_id": "30c01e94-b68b-41ea-819f-3dc514c8ac38",
-      "x": 1,
-      "y": 1,
-      "z": 0,
-      "w": 0
-    },
-    {
       "room_id": "f5695ddd-8ab1-45d8-8927-4dd2f753c629",
       "location_id": "30c01e94-b68b-41ea-819f-3dc514c8ac38",
       "x": 0,
       "y": 0,
       "z": 0,
+      "w": 0
+    },
+    {
+      "room_id": "80111cf3-704f-475a-90b3-ed607a25cd4c",
+      "location_id": "30c01e94-b68b-41ea-819f-3dc514c8ac38",
+      "x": 0,
+      "y": 4,
+      "z": 1,
       "w": 0
     }
   ]
