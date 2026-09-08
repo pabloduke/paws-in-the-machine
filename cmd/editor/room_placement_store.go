@@ -44,3 +44,7 @@ func (s *roomPlacementStore) Unassign(roomID string) (gamecontent.RoomPlacement,
 	}
 	return placement, err
 }
+
+func (s *roomPlacementStore) PlaceAt(entityID, parentID string, x, y, z int) (gamecontent.RoomPlacement, error) {
+	return s.Put(gamecontent.RoomPlacement{RoomID: entityID, LocationID: parentID, X: x, Y: y, Z: z})
+}

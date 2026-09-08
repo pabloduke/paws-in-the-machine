@@ -37,31 +37,46 @@ the current editor command does not read or write them.
 
 ## Browser interface
 
-The browser editor uses three deliberately simple interaction levels:
+**User ruling, implemented 2026-09-06:** author spatial content by drilling down
+from **Hubs → Locations → Rooms**, with editing in context. Location remains
+the name of the middle level, covering both buildings and outdoor cells.
 
-- **Header tabs** select the major workflow: Content or Place.
-- **Detail tabs** select the entity type or the part of an entity being worked
-  on.
-- **Assignment screens** connect existing entities to parents, coordinates,
-  exits, or other declared relationships.
+- **Hubs** is the landing page. Choose or create a Hub to open its Location grid.
+- A **Hub** shows its Location grid, assigned-but-unplaced Locations, creation
+  and assignment controls, details, and Hub-arrival selection.
+- A **Location** shows its Room grid, unplaced Rooms, contents, details, entry
+  Room, and its own placement controls.
+- A **Room** shows its description and contents, with details and placement
+  controls on the same page.
+- **Library** holds global catalogs and direct links to unassigned Locations
+  and Rooms. **World Overview** retains diagnostics and starting-point settings;
+  **Worlds** retains world switching, copying, and creation.
 
-Tabs are ordinary routable links so refresh, browser history, bookmarks, and
-navigation without JavaScript work normally. HTMX enhances those links by
-replacing the workspace instead of reloading the whole document. Forms, lists,
-tabs, property panels, and validation responses are rendered by Go. The
-initial spatial interface may be a simple clickable cell grid; dragging,
-floating panels, animation, and a canvas are not requirements.
+Occupied grid cells open their Location or Room. Empty cells offer **Create
+here** or **Place existing**, using the current parent and clicked coordinates.
+Existing choices are only that parent's assigned-but-unplaced children. Creating
+without coordinates assigns a child but leaves it unplaced. Repositioning and
+unplacement live on the child's page; changing its parent requires unplacement.
 
-Creation, containment, and placement are separate. A designer may create any
-number of locations, rooms, items, NPCs, terminals, or users without assigning
-them. A Hub's Locations tab and a Location's Rooms tab establish containment;
-the Place screens separately add coordinates. Removing a child from a grid
-keeps its parent assignment. Unassigning it from its parent does not delete it.
+Locations and Rooms group contents into World Items, NPCs, and Terminals.
+Create, add, edit, and remove contents without selecting the cell again. Saving
+returns to that containing cell. Removing a placement preserves the definition
+in Library; adding an existing entity uses the existing move-between-cells rule.
+If a later assignment or placement write fails after creation, the saved entity
+is retained and the error explains where to find it.
 
-Creation and editing share the same CRUD workspace rather than separate Header
-tabs. On each implemented Content screen, a searchable catalog remains on the
-left while one form on the right creates a new entity or edits the selected
-entity. Navigation away from a dirty form asks before discarding its values.
+Breadcrumbs derive from actual ownership. Unassigned entities lead back to
+Library rather than inventing a parent. URLs support refresh, browser history,
+bookmarks, ordinary HTML forms, and HTMX. Contextual responses replace the whole
+workspace even when reached from an old catalog's partial-update link. Failed
+forms retain entered values and display errors; dirty navigation asks before
+losing edits.
+
+The existing global catalog/form workspaces remain accessible through Library.
+Legacy placement routes and mutation endpoints still work. Canonical spatial
+entity URLs now open contextual pages; `?details=1` exposes the legacy catalog
+form and deletion controls. No authored JSON migration or runtime change is
+part of this navigation reorganization.
 
 ## Identity and relationships
 
@@ -99,9 +114,9 @@ Locations and Rooms remain valid.
 A Location may optionally name one of its placed Rooms as its entry Room. An
 unset entry is valid. A set entry must reference an existing Room placed in
 that same Location. A Location itself is player-standable; the entry Room is
-the destination when play descends into its optional interior grid. Runtime
-loading derives grid adjacency and connects the entry Room with a reciprocal
-`down` from the exterior Location and `up` back to it.
+the destination when play enters its optional interior grid. Runtime
+loading derives horizontal adjacency and connects the entry Room with a reciprocal
+`in`/`enter` from the exterior Location and `out` back to it.
 
 Cell-contents validation is implemented. An entity may be in at most one
 cell; the entity kind is part of that key because UUIDs are only unique within
@@ -234,9 +249,8 @@ world switching, which is what tests, scripts, and one-off inspections want.
 The `Worlds` screen then says so rather than offering controls that cannot
 work.
 
-Worlds are an editor concept only. The game does not read them: it still
-embeds `charts.json` at build time and loads no authored catalog, so extra
-worlds can be selected at game startup for fresh exploration playtests.
+Worlds are saved content directories that can be selected at game startup for
+fresh exploration playtests. The built-in game separately embeds `charts.json`.
 
 ## Running the editor
 
@@ -269,32 +283,20 @@ editor. The server does not open a browser automatically.
 
 ```text
 Game Editor
-├── Overview (Header tab)
-│   └── World Overview (tree, problem report, and what is still unplaced)
-├── Content (Header tab)
-│   ├── World (group tab)
-│   │   ├── World Items
-│   │   ├── Locations
-│   │   ├── Rooms
-│   │   └── Hubs
-│   ├── Characters (group tab)
-│   │   └── NPCs
-│   └── Corporations (group tab)
-│       ├── Corporations
-│       ├── Terminals
-│       └── Users
-└── Place (Header tab)
-    ├── Locations on a Hub (grid assignment)
-    ├── Rooms in a Location (grid assignment and optional entry Room)
-    ├── World Items (cell contents)
-    ├── NPCs (cell contents)
-    └── Terminals (cell contents)
-└── Worlds (Header tab)
-    └── Load, copy, or start a content directory
+├── Hubs (landing page)
+│   └── Hub: Location grid, unplaced children, details, arrival
+│       └── Location: Room grid, unplaced children, contents, details, entry
+│           └── Room: description, contents, details, placement
+├── Library
+│   ├── Locations and Rooms (including unassigned content)
+│   ├── World Items and NPCs
+│   └── Corporations, Terminals, Users
+├── World Overview (tree, diagnostics, starting cell)
+└── Worlds (load, copy, create)
 ```
 
-Opening the editor lands on the Overview, because the first useful question
-is "what does my world look like right now".
+The primary navigation follows spatial ownership. Content and Place are no
+longer top-level workflows; their old URLs remain available for compatibility.
 
 The browser retains a restrained version of the prototype's cyberpunk palette:
 dark panels, cyan primary tabs, magenta section labels, and high-contrast form
@@ -329,11 +331,10 @@ selection, a required Hub Name field, Save, Reset, and confirmed Delete. The
 editor generates an immutable UUID, while duplicate display names remain
 valid.
 
-A Hub may exist with no assigned Locations. A selected Hub has Details and
-Locations tabs. Locations lists owned children and their `Unplaced` or `x,y`
-status, creates and assigns a new Location, assigns an existing orphaned
-Location, and unassigns an unplaced Location. Spatial coordinates remain
-absent from Content CRUD and belong to Place > Locations.
+A Hub may exist with no assigned Locations. Its main page opens the grid even
+when it is empty, so the first Location can be created in a chosen cell. Details
+and arrival selection expand in place. The Hub's unplaced children stay visible
+beneath the grid, and existing unassigned Locations can be assigned from Library.
 
 ### Locations, Rooms, and NPCs
 
@@ -343,28 +344,25 @@ place on a Hub grid and may also contain an interior Room grid. Description is
 general place prose or NPC examine text. Dialogue, presence, parenting, and
 placement remain separate from these definition forms.
 
-A selected Location has Details and Rooms tabs. Rooms mirrors the Hub child
-workflow: it lists owned Rooms and placement status, creates and assigns a new
-Room, assigns an existing orphaned Room, and unassigns an unplaced Room. Entry
-Room selection also lives here and offers only Rooms already placed within the
-Location.
+A selected Location opens its Room grid with details, contents, entry-Room
+selection, and exterior placement controls on the same page. Entry choices are
+only Rooms placed within this Location.
 
-### Location and Room placement
-
-Place > Locations selects a Hub and displays its sparse Location grid. The
-picker contains only Locations already assigned to that Hub. Each Hub
-starts with a 10×10 viewport covering coordinates `0–9` on both axes. Place >
-Rooms selects a Location and displays its sparse interior Room grid, and its
-picker contains only Rooms already assigned to that Location. The grid
-starts with a 5×5 viewport covering `0–4`. Either viewport expands to include
-authored coordinates beyond its initial area; the defaults are not world-size
-limits. A designer selects a child and either clicks an empty cell or enters
-non-negative `x` and `y`. Placing an already assigned child moves it. Occupied
-cells can be explicitly unplaced without removing parent ownership.
+Hub grids default to 10×10; Room grids default to 5×5. Both expand to include
+occupied coordinates beyond their initial viewport. Coordinates are non-negative
+`x` and `y`. Clicking an occupied cell drills down; clicking an empty one selects
+a creation/placement destination and opens the creation form above the grid with
+the name field focused. Existing unplaced children can also be selected there.
+Drag an occupied cell onto an empty cell in the same grid to save a new position.
+Occupied destinations and stale moves are rejected. Dragging preserves child
+contents, ownership, entry and playtest references. The child's Placement section
+also provides coordinate controls for keyboard and non-JavaScript use.
+Unplacing preserves parent ownership. The legacy Place pages retain their prior
+parent pickers and coordinate forms for compatibility.
 
 The grids store only occupied cells in their respective placement files; empty
 cells are not serialized. `z` and `w` are zero in version 1. Entry Room
-selection is on the Location's Rooms tab. An entry Room must be cleared before
+selection is in the Location's Interior entry Room section. An entry Room must be cleared before
 it can be unplaced or unassigned. A placed child must be unplaced before its
 parent assignment can change. Ordinary cardinal exits are
 derived from adjacent occupied cells when an authored world is loaded.
@@ -618,7 +616,7 @@ warnings; Enter retries a failed load, `r` rereads files, and Esc returns to the
 world list. Enter on a ready world starts its prepared snapshot.
 
 Before playing, set **Starting Location or Room** in World Overview and an
-**Arrival Location** in each nonempty Hub's Details. The selectors offer placed
+**Arrival Location** in each nonempty Hub's Hub arrival section. The selectors offer placed
 cells with placed ancestry. These optional authoring settings live in
 `play_settings.json` (version 1): `start` is an optional `{kind, id}` reference,
 and `hub_arrivals` maps Hub UUIDs to Location UUIDs. Writes are atomic with one
@@ -631,7 +629,7 @@ Broken references, malformed catalogs, and conflicting placements block play.
 Unplaced content and empty Hubs are excluded with warnings. Disconnected cells
 and interiors without entry Rooms are reported without inventing passages.
 
-Playtests support grid movement, down/up interior entry and return, Hub travel,
+Playtests support grid movement, enter/out interior entry and return, explicit up/down floor connections, Hub travel,
 NPC examination, item descriptions, and take/drop. Takeable items are portable;
 Fixed items are listed but cannot be taken; Scenery is targetable but unlisted.
 Short item descriptions supplement names in YOU SEE; examination uses full
@@ -649,3 +647,28 @@ restart and reselect the world to pick up saved edits. The built-in game retains
 its terminal opening, missions, and save slot. Runtime assembly belongs to
 `internal/game`; data-only schemas and relationship validation belong to
 `internal/content`. Editor readiness uses the same loader as the game.
+
+
+### Contextual route contract
+
+`GET /content/hubs` is the landing page. Canonical `/content/hubs/{id}`,
+`/content/locations/{id}`, and `/content/rooms/{id}` pages derive their context
+from that entity. `?x=…&y=…` opens an empty-cell form; `?new=world_item|npc|terminal`
+opens a contents creation form; `?thing=kind:uuid` edits an entity only if it is
+still held in that cell. `POST` to the entity's `/work` endpoint performs the
+explicit form action under the existing mutation lock and relationship checks.
+These actions use the same stores and reference guards as the legacy screens.
+
+Validation tests cover browser-independent routing and mutations, HTMX workspace
+replacement, ordinary redirects, retained failed forms, ownership/occupancy/start
+and entry protections, stale contents edits, and loading the resulting world in
+the game. This change affects tooling workflows only; `docs/GAME_FLOW.md` remains
+unchanged because runtime behavior and saved-world interpretation are unchanged.
+
+## API and floors (2026-09-07)
+
+See [Editor API](EDITOR_API.md) and [OpenAPI contract](editor-openapi.json).
+Hub and Location grids show one signed elevation at a time. Use Go to level to
+open a new floor, then click an empty cell. Placement controls can move cells
+between levels. Vertical connections are edited on their endpoint pages and
+require aligned cells on adjacent levels. Ground is 0; basements are negative.

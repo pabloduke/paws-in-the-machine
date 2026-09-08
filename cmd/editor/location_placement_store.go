@@ -42,3 +42,7 @@ func (s *locationPlacementStore) Unassign(locationID string) (gamecontent.Locati
 	}
 	return placement, err
 }
+
+func (s *locationPlacementStore) PlaceAt(entityID, parentID string, x, y, z int) (gamecontent.LocationPlacement, error) {
+	return s.Put(gamecontent.LocationPlacement{LocationID: entityID, HubID: parentID, X: x, Y: y, Z: z})
+}

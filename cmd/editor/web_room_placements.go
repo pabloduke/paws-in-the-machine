@@ -24,7 +24,7 @@ type placementOption struct {
 type placementEntityOption struct{ ID, Name, Placement string }
 type spatialPlacement struct {
 	EntityID, ParentID string
-	X, Y               int
+	X, Y, Z            int
 }
 type spatialGridCell struct {
 	X, Y                 int
@@ -37,6 +37,7 @@ type spatialGridRow struct {
 }
 
 type roomPlacementPage struct {
+	Level                                 int
 	Parents                               []placementOption
 	Entities                              []placementEntityOption
 	SelectedParentID, SelectedParentName  string
@@ -50,13 +51,14 @@ type roomPlacementPage struct {
 type placementScreen struct {
 	key, title, parentLabel, entityLabel, basePath string
 	gridSize                                       int
+	level                                          int
 	listParents                                    func() ([]describedFields, error)
 	getParent                                      func(string) (describedFields, error)
 	listEntities                                   func() ([]describedFields, error)
 	getEntity                                      func(string) (describedFields, error)
 	listPlacements                                 func() ([]spatialPlacement, error)
 	listAssignments                                func() (map[string]string, error)
-	place                                          func(string, string, int, int) error
+	place                                          func(string, string, int, int, ...int) error
 	unassign                                       func(string) error
 }
 
@@ -91,7 +93,7 @@ func (h *editorHandler) locationPlacementScreen() placementScreen {
 			records, err := h.locationPlacements.List()
 			out := make([]spatialPlacement, len(records))
 			for i, v := range records {
-				out[i] = spatialPlacement{EntityID: v.LocationID, ParentID: v.HubID, X: v.X, Y: v.Y}
+				out[i] = spatialPlacement{EntityID: v.LocationID, ParentID: v.HubID, X: v.X, Y: v.Y, Z: v.Z}
 			}
 			return out, err
 		},
@@ -103,11 +105,24 @@ func (h *editorHandler) locationPlacementScreen() placementScreen {
 			}
 			return out, err
 		},
-		place: func(entityID, parentID string, x, y int) error {
-			_, err := h.locationPlacements.Place(entityID, parentID, x, y)
+		place: func(entityID, parentID string, x, y int, levels ...int) error {
+			if err := h.guardVertical("location", entityID); err != nil {
+				return err
+			}
+			z := 0
+			if len(levels) > 0 {
+				z = levels[0]
+			}
+			_, err := h.locationPlacements.PlaceAt(entityID, parentID, x, y, z)
 			return err
 		},
-		unassign: func(id string) error { _, err := h.locationPlacements.Unassign(id); return err },
+		unassign: func(id string) error {
+			if err := h.guardVertical("location", id); err != nil {
+				return err
+			}
+			_, err := h.locationPlacements.Unassign(id)
+			return err
+		},
 	}
 }
 
@@ -139,7 +154,7 @@ func (h *editorHandler) roomPlacementScreen() placementScreen {
 			records, err := h.roomPlacements.List()
 			out := make([]spatialPlacement, len(records))
 			for i, v := range records {
-				out[i] = spatialPlacement{EntityID: v.RoomID, ParentID: v.LocationID, X: v.X, Y: v.Y}
+				out[i] = spatialPlacement{EntityID: v.RoomID, ParentID: v.LocationID, X: v.X, Y: v.Y, Z: v.Z}
 			}
 			return out, err
 		},
@@ -151,11 +166,24 @@ func (h *editorHandler) roomPlacementScreen() placementScreen {
 			}
 			return out, err
 		},
-		place: func(entityID, parentID string, x, y int) error {
-			_, err := h.roomPlacements.Place(entityID, parentID, x, y)
+		place: func(entityID, parentID string, x, y int, levels ...int) error {
+			if err := h.guardVertical("room", entityID); err != nil {
+				return err
+			}
+			z := 0
+			if len(levels) > 0 {
+				z = levels[0]
+			}
+			_, err := h.roomPlacements.PlaceAt(entityID, parentID, x, y, z)
 			return err
 		},
-		unassign: func(id string) error { _, err := h.roomPlacements.Unassign(id); return err },
+		unassign: func(id string) error {
+			if err := h.guardVertical("room", id); err != nil {
+				return err
+			}
+			_, err := h.roomPlacements.Unassign(id)
+			return err
+		},
 	}
 }
 
@@ -183,6 +211,12 @@ func (h *editorHandler) servePlacements(w http.ResponseWriter, r *http.Request, 
 		h.methodNotAllowed(w, http.MethodGet)
 		return
 	}
+	level, err := levelCoordinate(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	screen.level = level
 	h.renderPage(w, r, h.spatialPlacementsPage(screen, r.URL.Query().Get("parent_id"), "", "", ""))
 }
 
@@ -195,6 +229,12 @@ func (h *editorHandler) placeSpatialEntity(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "invalid placement form", http.StatusBadRequest)
 		return
 	}
+	level, err := levelCoordinate(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	screen.level = level
 	parentID, entityID := r.FormValue("parent_id"), r.FormValue("entity_id")
 	x, y, coordinateErr := placementCoordinates(r)
 	var notice, generalError string
@@ -207,13 +247,13 @@ func (h *editorHandler) placeSpatialEntity(w http.ResponseWriter, r *http.Reques
 			generalError = err.Error()
 		} else if assignments[entityID] != parentID {
 			generalError = "Assign this " + screen.entityLabel + " to the selected " + screen.parentLabel + " before placing it."
-		} else if occupied, err := h.spatialCellOccupied(screen, parentID, entityID, x, y); err != nil {
+		} else if occupied, err := h.spatialCellOccupied(screen, parentID, entityID, x, y, screen.level); err != nil {
 			generalError = err.Error()
 		} else if occupied {
 			coordinateErr = "That cell is already occupied by another " + screen.entityLabel + "."
 		} else if screen.key == "rooms" && h.roomIsEntryElsewhere(entityID, parentID) {
 			generalError = "Clear this Room as its current Location entry before moving it."
-		} else if err := screen.place(entityID, parentID, x, y); err != nil {
+		} else if err := screen.place(entityID, parentID, x, y, screen.level); err != nil {
 			generalError = err.Error()
 		} else {
 			notice = fmt.Sprintf("Placed %s at %d, %d.", entity.Name, x, y)
@@ -231,6 +271,12 @@ func (h *editorHandler) unassignSpatialEntity(w http.ResponseWriter, r *http.Req
 		http.Error(w, "invalid placement form", http.StatusBadRequest)
 		return
 	}
+	level, err := levelCoordinate(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	screen.level = level
 	parentID, entityID := r.FormValue("parent_id"), r.FormValue("unassign_entity_id")
 	entity, _ := screen.getEntity(entityID)
 	var notice, generalError string
@@ -283,7 +329,7 @@ func (h *editorHandler) renderPlacementResponse(w http.ResponseWriter, r *http.R
 
 func (h *editorHandler) spatialPlacementsPage(screen placementScreen, parentID, notice, generalError, coordinateError string) pageData {
 	data := basePage("place", screen.key, screen.title, "room-placement")
-	data.Placement = roomPlacementPage{Notice: notice, GeneralError: generalError, CoordinateError: coordinateError, ParentLabel: screen.parentLabel, EntityLabel: screen.entityLabel, BasePath: screen.basePath}
+	data.Placement = roomPlacementPage{Level: screen.level, Notice: notice, GeneralError: generalError, CoordinateError: coordinateError, ParentLabel: screen.parentLabel, EntityLabel: screen.entityLabel, BasePath: screen.basePath}
 	if err := h.validateSpatialRelationships(); err != nil {
 		data.StoreError = err.Error()
 		return data
@@ -350,14 +396,14 @@ func (h *editorHandler) spatialPlacementsPage(screen placementScreen, parentID, 
 					break
 				}
 			}
-			option.Placement = fmt.Sprintf("%s at %d,%d", parentName, p.X, p.Y)
+			option.Placement = fmt.Sprintf("%s at %d,%d (level %d)", parentName, p.X, p.Y, p.Z)
 		}
 		data.Placement.Entities = append(data.Placement.Entities, option)
 	}
 	width, height := screen.gridSize, screen.gridSize
 	cells := map[string]spatialPlacement{}
 	for _, p := range placements {
-		if p.ParentID != parentID {
+		if p.ParentID != parentID || p.Z != screen.level {
 			continue
 		}
 		cells[fmt.Sprintf("%d,%d", p.X, p.Y)] = p
@@ -386,13 +432,17 @@ func (h *editorHandler) spatialPlacementsPage(screen placementScreen, parentID, 
 	return data
 }
 
-func (h *editorHandler) spatialCellOccupied(screen placementScreen, parentID, exceptID string, x, y int) (bool, error) {
+func (h *editorHandler) spatialCellOccupied(screen placementScreen, parentID, exceptID string, x, y int, levels ...int) (bool, error) {
+	z := 0
+	if len(levels) > 0 {
+		z = levels[0]
+	}
 	ps, err := screen.listPlacements()
 	if err != nil {
 		return false, err
 	}
 	for _, p := range ps {
-		if p.ParentID == parentID && p.EntityID != exceptID && p.X == x && p.Y == y {
+		if p.ParentID == parentID && p.EntityID != exceptID && p.X == x && p.Y == y && p.Z == z {
 			return true, nil
 		}
 	}

@@ -137,6 +137,9 @@ type hostNetworkForm struct {
 func (f hostNetworkForm) Editing() bool { return f.ID != "" }
 
 type pageData struct {
+	Drill        drillPage
+	LibraryLoose []crumb
+
 	Play playPage
 
 	Title               string
@@ -222,8 +225,11 @@ var contentSubTabs = map[string][]tab{
 	},
 }
 
+var editorWorldLocks sync.Map // content directory → shared mutation lock across handler reloads
+
 type editorHandler struct {
-	mutationMu   sync.Mutex // Serialize cross-catalog reference checks and writes.
+	worldName    string
+	mutationMu   *sync.Mutex // Serialize cross-catalog reference checks and writes.
 	playSettings *playSettingsStore
 
 	templates           *template.Template
@@ -270,7 +276,14 @@ func newEditorHandler(items *worldItemStore, hubs *hubStore, rooms *roomStore, n
 	if len(worlds) > 0 {
 		registry = worlds[0]
 	}
+	worldName := mainWorld
+	if registry != nil && filepath.Clean(contentDir) != filepath.Clean(registry.mainDir) {
+		worldName = filepath.Base(contentDir)
+	}
+	lockKey, _ := filepath.Abs(contentDir)
+	lock, _ := editorWorldLocks.LoadOrStore(lockKey, &sync.Mutex{})
 	h := &editorHandler{
+		worldName: worldName, mutationMu: lock.(*sync.Mutex),
 		worlds:              registry,
 		templates:           templates,
 		static:              http.StripPrefix("/static/", http.FileServer(http.FS(staticFiles))),
@@ -299,12 +312,16 @@ func newEditorHandler(items *worldItemStore, hubs *hubStore, rooms *roomStore, n
 }
 
 func (h *editorHandler) serveEditor(w http.ResponseWriter, r *http.Request) {
+	if strings.HasPrefix(r.URL.Path, "/api/") {
+		h.serveAPI(w, r)
+		return
+	}
 	if r.URL.Path == "/" {
 		if r.Method != http.MethodGet {
 			h.methodNotAllowed(w, http.MethodGet)
 			return
 		}
-		http.Redirect(w, r, overviewBasePath, http.StatusSeeOther)
+		http.Redirect(w, r, "/content/hubs", http.StatusSeeOther)
 		return
 	}
 	if target, ok := legacyRoute(r.URL.Path); ok {
@@ -326,6 +343,9 @@ func (h *editorHandler) serveEditor(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		h.mutationMu.Lock()
 		defer h.mutationMu.Unlock()
+	}
+	if h.routeDrill(w, r) {
+		return
 	}
 	if r.Method == http.MethodPost && (strings.HasPrefix(r.URL.Path, terminalBasePath) || strings.HasPrefix(r.URL.Path, hostNetworkBasePath) || strings.HasPrefix(r.URL.Path, userBasePath) || strings.HasPrefix(r.URL.Path, roomPlacementBasePath) || strings.HasPrefix(r.URL.Path, locationPlacementBasePath) || strings.HasPrefix(r.URL.Path, "/content/locations") || strings.HasPrefix(r.URL.Path, "/content/rooms") || strings.HasPrefix(r.URL.Path, "/content/hubs") || strings.HasPrefix(r.URL.Path, worldItemContentsBasePath) || strings.HasPrefix(r.URL.Path, npcContentsBasePath) || strings.HasPrefix(r.URL.Path, terminalContentsBasePath)) {
 		if err := h.validateEditorRelationships(); err != nil {
@@ -492,6 +512,19 @@ func (h *editorHandler) saveHub(w http.ResponseWriter, r *http.Request, id strin
 			form = formFromHub(hub)
 			form.Notice = "Saved " + hub.Name + "."
 		}
+	}
+	if r.FormValue("drill") == "1" {
+		if form.Notice != "" {
+			h.redirectDrill(w, r, entityURL("hub", form.ID))
+			return
+		}
+		data := h.hubsPage("", form)
+		data.Content = "hub-home"
+		data.HeaderTabs = headerTabs("hubs")
+		data.DetailTabs = nil
+		data.SubTabs = nil
+		h.renderDrillPage(w, r, data)
+		return
 	}
 	data := h.hubsPage("", form)
 	if isHTMX(r) {
@@ -841,10 +874,13 @@ func contentGroup(detail string) string {
 }
 
 func headerTabs(active string) []tab {
+	if active == "content" || active == "place" {
+		active = "library"
+	}
 	return activeTabs([]tab{
-		{Label: "Overview", URL: overviewBasePath, Key: "overview"},
-		{Label: "Content", URL: "/content/world-items", Key: "content"},
-		{Label: "Place", URL: "/place/locations", Key: "place"},
+		{Label: "Hubs", URL: "/content/hubs", Key: "hubs"},
+		{Label: "Library", URL: "/library", Key: "library"},
+		{Label: "World Overview", URL: overviewBasePath, Key: "overview"},
 		{Label: "Worlds", URL: worldsBasePath, Key: "worlds"},
 	}, active)
 }

@@ -9,7 +9,7 @@ import (
 
 var errLocationEntryNotFound = errors.New("location entry not found")
 
-// The optional Room a Location descends into. Keyed by Location, so a
+// The optional Room a Location enters. Keyed by Location, so a
 // Location has at most one entry Room.
 type locationEntryStore struct {
 	*relationStore[gamecontent.LocationEntry]

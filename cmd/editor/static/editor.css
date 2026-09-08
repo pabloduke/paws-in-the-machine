@@ -674,3 +674,24 @@ button.danger:focus-visible {
 .world-row form {
   margin: 0;
 }
+
+/* Spatial authoring follows the same parent chain as the world. */
+.breadcrumbs { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 1.25rem; }
+.breadcrumbs [aria-current="page"] { color: var(--text); font-weight: 700; }
+.drill-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 1rem; margin: 1rem 0; }
+.drill-card { display: flex; flex-direction: column; gap: .75rem; padding: 1.5rem; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+.drill-card:hover, .drill-card:focus-visible { border-color: var(--cyan); }
+.drill-card span { color: var(--muted); }
+.drill-grid .room-cell { text-decoration: none; justify-content: center; gap: .5rem; }
+.drill-grid .room-cell small { font-size: .7rem; color: var(--muted); }
+.drill-unplaced { margin-top: 1rem; }
+.drill-contents { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1.5rem; }
+.drill-held { display: flex; align-items: center; justify-content: space-between; gap: .5rem; padding: .5rem 0; border-bottom: 1px solid var(--line); }
+.drill-held form { margin: 0; }
+details.report > summary { cursor: pointer; font-weight: 600; color: var(--cyan); }
+details.report[open] > summary { margin-bottom: 1rem; }
+#cell-editor, #thing-editor { scroll-margin-top: 1rem; }
+
+.room-cell[draggable="true"] { cursor: grab; }
+.room-cell.dragging { opacity: .45; cursor: grabbing; }
+.room-cell.drop-target { outline: 3px solid currentColor; outline-offset: -3px; }

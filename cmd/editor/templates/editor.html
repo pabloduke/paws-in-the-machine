@@ -761,7 +761,7 @@
           {{range .Placement.Parents}}<option value="{{.ID}}" {{if .Selected}}selected{{end}}>{{.Name}}</option>{{end}}
         </select>
       </label>
-      <noscript><button type="submit">Open {{.Placement.ParentLabel}}</button></noscript>
+      <label>Level<input type="number" name="z" value="{{.Placement.Level}}" required></label><button type="submit">Open {{.Placement.ParentLabel}} level</button>
     </form>
     {{if not .Placement.Parents}}
       <p class="empty-catalog">Create a {{.Placement.ParentLabel}} before placing {{.Placement.EntityLabel}}s.</p>
@@ -770,7 +770,7 @@
     {{else}}
     <form class="editor-form" method="post" action="{{.Placement.BasePath}}/place"
           hx-post="{{.Placement.BasePath}}/place" hx-target="#room-placement-workspace">
-      <input type="hidden" name="parent_id" value="{{.Placement.SelectedParentID}}">
+      <input type="hidden" name="parent_id" value="{{.Placement.SelectedParentID}}"><input type="hidden" name="z" value="{{.Placement.Level}}">
       <label>
         {{.Placement.EntityLabel}}
         <select name="entity_id">
@@ -916,7 +916,7 @@
   {{if .Play.Error}}<p class="error-banner">{{.Play.Error}}</p>{{end}}
   {{if .Play.Ready}}<p class="notice">Ready to play. Select this world when starting the game.</p>{{else}}<p>Not ready to play. Resolve the errors below.</p>{{end}}
   <ul>{{range .Play.Diagnostics}}<li>{{.Severity}}: {{.Message}}</li>{{end}}</ul>
-  <p class="field-note">Set each Hub’s arrival Location in its Details tab. Playtests start fresh; restart the game to load editor changes.</p>
+  <p class="field-note">Set each Hub’s arrival Location in its Hub arrival section. Playtests start fresh; restart the game to load editor changes.</p>
 </section>
 {{if .StoreError}}<p class="error-banner" role="alert">Content storage is unavailable: {{.StoreError}}</p>{{end}}
 
@@ -1063,7 +1063,13 @@
     <h1 id="screen-title">{{.Title}}</h1>
   </header>
 
-  {{if eq .Content "world-items"}}
+  {{if eq .Content "hub-home"}}
+  {{template "hub-home" .}}
+  {{else if eq .Content "library"}}
+  {{template "library" .}}
+  {{else if eq .Content "drill"}}
+  {{template "drill" .}}
+  {{else if eq .Content "world-items"}}
   <div id="world-items-workspace">{{template "world-items-body" .}}</div>
   {{else if eq .Content "hubs"}}
   <div id="hubs-workspace">{{template "hubs-body" .}}</div>

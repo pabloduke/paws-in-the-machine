@@ -32,11 +32,20 @@ game takes shape.
 
 The game startup picker can load editor `main` and named worlds for fresh
 exploration playtests. Set a starting cell in World Overview and arrival Locations
-in Hub Details. Placed cells derive lawful grid exits and reciprocal down/up
+in each Hub’s Hub arrival section. Placed cells derive lawful horizontal grid exits and reciprocal enter/out
 interior connections; room scope prevents exterior item access. Authored items,
 NPC descriptions, and terminal placeholders load from disk. Playtest save/load,
 terminal functionality, and authored quests remain outside this slice.
 See `docs/EDITOR.md` for launch options and `docs/GAME_FLOW.md` for executed flow.
+
+## Editor navigation (2026-09-06)
+
+The editor lands on Hubs and drills down through Location grids to Room grids
+and cell contents. Breadcrumbs follow ownership; empty grid cells create or place
+children in context. Library retains global catalogs and unassigned content.
+Details, contents editing, placement, and entry/arrival controls stay on their
+spatial page. Existing catalog/placement URLs remain compatible; JSON schemas
+and game behavior are unchanged.
 
 ## Current Focus
 
@@ -303,3 +312,18 @@ Closed since this list was filed:
 
 After the open ones: content production — the city map, act one, and
 replacing every `(Placeholder)` — which the user writes.
+
+## Editor API, elevation and ambient draft — 2026-09-07
+
+Implemented the world-scoped revision-checked JSON editor API, signed Location
+and Room elevations, floor selection/creation/dragging, and explicit reciprocal
+vertical links. Editor-authored interiors now use enter/out; up/down changes
+elevation only through authored links. Legacy placement files still load.
+
+User authorized ambient drafts as an exception to the no-new-lore rule, while
+retaining control of missions and major world facts. Added 16 items, 7 NPCs and
+4 terminals via the API across all eight existing cells. Existing authored
+content and geometry were preserved. Filled Lowtown's missing arrival with its
+sole placed Location so the world is ready to launch. See
+[the draft review](WORLD_DRAFT_REVIEW.md) for exact additions and remaining gaps,
+and [API documentation](EDITOR_API.md) for the automation interface.

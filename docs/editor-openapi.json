@@ -1,0 +1,412 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "World Editor API",
+    "version": "1.0.0",
+    "description": "See EDITOR_API.md for command fields and failure semantics."
+  },
+  "paths": {
+    "/api/v1/worlds/{world}": {
+      "parameters": [
+        {
+          "name": "world",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "summary": "GET ",
+        "responses": {
+          "200": {
+            "description": "Snapshot, entity, collection or validation result"
+          },
+          "409": {
+            "description": "World/revision conflict"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/api/v1/worlds/{world}/validation": {
+      "parameters": [
+        {
+          "name": "world",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "summary": "GET /validation",
+        "responses": {
+          "200": {
+            "description": "Snapshot, entity, collection or validation result"
+          },
+          "409": {
+            "description": "World/revision conflict"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/api/v1/worlds/{world}/entities/{kind}": {
+      "parameters": [
+        {
+          "name": "world",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "kind",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "summary": "GET /entities/{kind}",
+        "responses": {
+          "200": {
+            "description": "Snapshot, entity, collection or validation result"
+          },
+          "409": {
+            "description": "World/revision conflict"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /entities/{kind}",
+        "responses": {
+          "200": {
+            "description": "Snapshot, entity, collection or validation result"
+          },
+          "409": {
+            "description": "World/revision conflict"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/worlds/{world}/entities/{kind}/{id}": {
+      "parameters": [
+        {
+          "name": "world",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "kind",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "summary": "GET /entities/{kind}/{id}",
+        "responses": {
+          "200": {
+            "description": "Snapshot, entity, collection or validation result"
+          },
+          "409": {
+            "description": "World/revision conflict"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        }
+      },
+      "put": {
+        "summary": "PUT /entities/{kind}/{id}",
+        "responses": {
+          "200": {
+            "description": "Snapshot, entity, collection or validation result"
+          },
+          "409": {
+            "description": "World/revision conflict"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "DELETE /entities/{kind}/{id}",
+        "responses": {
+          "200": {
+            "description": "Snapshot, entity, collection or validation result"
+          },
+          "409": {
+            "description": "World/revision conflict"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/worlds/{world}/hubs": {
+      "parameters": [
+        {
+          "name": "world",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "summary": "POST /hubs",
+        "responses": {
+          "200": {
+            "description": "Snapshot, entity, collection or validation result"
+          },
+          "409": {
+            "description": "World/revision conflict"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/worlds/{world}/{collection}/{id}/actions": {
+      "parameters": [
+        {
+          "name": "world",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "collection",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "summary": "POST /{collection}/{id}/actions",
+        "responses": {
+          "200": {
+            "description": "Snapshot, entity, collection or validation result"
+          },
+          "409": {
+            "description": "World/revision conflict"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/worlds/{world}/play-settings": {
+      "parameters": [
+        {
+          "name": "world",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "summary": "POST /play-settings",
+        "responses": {
+          "200": {
+            "description": "Snapshot, entity, collection or validation result"
+          },
+          "409": {
+            "description": "World/revision conflict"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

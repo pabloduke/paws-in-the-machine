@@ -20,7 +20,7 @@ type worldThing struct {
 type worldRoomNode struct {
 	ID, Name    string
 	Placed      bool
-	X, Y        int
+	X, Y, Z     int
 	IsEntry     bool
 	Contents    []worldThing
 	Description string
@@ -29,7 +29,7 @@ type worldRoomNode struct {
 type worldLocationNode struct {
 	ID, Name    string
 	Placed      bool
-	X, Y        int
+	X, Y, Z     int
 	Rooms       []worldRoomNode
 	Contents    []worldThing
 	EntryRoomID string
@@ -223,7 +223,7 @@ func (h *editorHandler) worldSnapshot() (worldSnapshot, error) {
 	buildRoom := func(room gamecontent.Room, entryRoomID string) worldRoomNode {
 		node := worldRoomNode{ID: room.ID, Name: room.Name, Description: room.Description, IsEntry: room.ID == entryRoomID}
 		if coords, ok := roomCoords[room.ID]; ok {
-			node.Placed, node.X, node.Y = true, coords.X, coords.Y
+			node.Placed, node.X, node.Y, node.Z = true, coords.X, coords.Y, coords.Z
 		}
 		node.Contents = contentsOfCell[gamecontent.ContainerKindRoom+":"+room.ID]
 		return node
@@ -238,7 +238,7 @@ func (h *editorHandler) worldSnapshot() (worldSnapshot, error) {
 			EntryRoomID: entryOfLocation[location.ID],
 		}
 		if coords, ok := locationCoords[location.ID]; ok {
-			node.Placed, node.X, node.Y = true, coords.X, coords.Y
+			node.Placed, node.X, node.Y, node.Z = true, coords.X, coords.Y, coords.Z
 		}
 		node.Contents = contentsOfCell[gamecontent.ContainerKindLocation+":"+location.ID]
 		owned := roomsOfLocation[location.ID]

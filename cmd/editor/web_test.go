@@ -78,18 +78,18 @@ func validItemForm(name string) url.Values {
 	}
 }
 
-func TestRootRedirectsToOverview(t *testing.T) {
+func TestRootRedirectsToHubs(t *testing.T) {
 	handler, _ := testEditorHandler(t)
 	rec := getRequest(t, handler, "/", nil)
 	if rec.Code != http.StatusSeeOther {
 		t.Fatalf("root status = %d, want %d", rec.Code, http.StatusSeeOther)
 	}
-	if got := rec.Header().Get("Location"); got != "/overview" {
-		t.Fatalf("root redirect = %q, want /overview", got)
+	if got := rec.Header().Get("Location"); got != "/content/hubs" {
+		t.Fatalf("root redirect = %q, want /content/hubs", got)
 	}
 }
 
-func TestFullPageHasContentPlaceTabsAndWorldItemWorkspace(t *testing.T) {
+func TestFullPageHasLibraryNavigationAndWorldItemWorkspace(t *testing.T) {
 	handler, _ := testEditorHandler(t)
 	rec := getRequest(t, handler, "/content/world-items", nil)
 	if rec.Code != http.StatusOK {
@@ -98,7 +98,7 @@ func TestFullPageHasContentPlaceTabsAndWorldItemWorkspace(t *testing.T) {
 	body := rec.Body.String()
 	for _, want := range []string{
 		"<!doctype html>", "PAWS_IN_THE_SHELL", `href="/content/world-items"`,
-		`href="/place/locations"`, `aria-label="content details"`,
+		`href="/library"`, `aria-label="content details"`,
 		`hx-target="#workspace"`, `aria-current="page"`, "New Item",
 		"Item Name", "Takeable", "Fixed", "Scenery", "Short Description",
 		"Full Description", "/static/htmx.min.js", "/static/editor.js",
@@ -448,7 +448,7 @@ func TestHubValidationPlainRedirectAndDelete(t *testing.T) {
 	if err != nil || len(hubs) != 1 {
 		t.Fatalf("plain create did not persist: %+v %v", hubs, err)
 	}
-	selected := getRequest(t, handler, "/content/hubs/"+hubs[0].ID, nil)
+	selected := getRequest(t, handler, "/content/hubs/"+hubs[0].ID+"?details=1", nil)
 	for _, want := range []string{">Delete</button>", `hx-confirm="Delete Plain Hub? This cannot be undone from the editor."`} {
 		if !strings.Contains(selected.Body.String(), want) {
 			t.Errorf("selected hub missing delete UI %q", want)
