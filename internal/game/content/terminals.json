@@ -16,6 +16,26 @@
     {
       "id": "5f957127-0e6d-47b5-94b9-3011f1e4a24f",
       "host_name": "archives"
+    },
+    {
+      "id": "36746f1b-f344-4046-9998-ebc6c9ccdc3a",
+      "host_name": "paws"
+    },
+    {
+      "id": "2fd66456-8a6e-4109-865b-feff2c258f24",
+      "host_name": "worstum-visitor-kiosk"
+    },
+    {
+      "id": "b9369711-b0b0-4f99-95bb-91c1aae800d3",
+      "host_name": "microslop-directory"
+    },
+    {
+      "id": "b85d521b-0886-441d-9206-6e3d23d2b91e",
+      "host_name": "megasoft-check-in"
+    },
+    {
+      "id": "1b247e99-0dcb-4148-a9ac-e340df55802b",
+      "host_name": "megasoft-cafeteria-register"
     }
   ]
 }

@@ -15,7 +15,7 @@ func TestRoomPlacementsRoundTripAndValidation(t *testing.T) {
 	}
 	otherRoom := "123e4567-e89b-42d3-a456-426614174002"
 	for name, invalid := range map[string]RoomPlacementsFile{
-		"version":        {Version: 2, Placements: []RoomPlacement{}},
+		"version":        {Version: 99, Placements: []RoomPlacement{}},
 		"room UUID":      {Version: 1, Placements: []RoomPlacement{{RoomID: "bad", LocationID: hubID}}},
 		"location UUID":  {Version: 1, Placements: []RoomPlacement{{RoomID: testUUID, LocationID: "bad"}}},
 		"negative":       {Version: 1, Placements: []RoomPlacement{{RoomID: testUUID, LocationID: hubID, X: -1}}},
@@ -40,5 +40,31 @@ func TestRoomPlacementsDecoderIsStrict(t *testing.T) {
 		if _, err := DecodeRoomPlacements(data); err == nil {
 			t.Fatalf("invalid JSON accepted: %s", data)
 		}
+	}
+}
+
+func TestSignedLevelsAndVerticalGeometry(t *testing.T) {
+	parent := "123e4567-e89b-42d3-a456-426614174001"
+	upper := "123e4567-e89b-42d3-a456-426614174002"
+	c := Catalogs{VerticalConnections: EmptyVerticalConnections(), RoomPlacements: RoomPlacementsFile{Version: 2, Placements: []RoomPlacement{{RoomID: testUUID, LocationID: parent, Z: -1}, {RoomID: upper, LocationID: parent, Z: 0}}}}
+	if _, err := EncodeRoomPlacements(c.RoomPlacements); err != nil {
+		t.Fatal(err)
+	}
+	c.VerticalConnections.Connections = []VerticalConnection{{Kind: "room", LowerID: testUUID, UpperID: upper}}
+	if err := ValidateVerticalGeometry(c); err != nil {
+		t.Fatal(err)
+	}
+	c.RoomPlacements.Placements[1].X = 1
+	if ValidateVerticalGeometry(c) == nil {
+		t.Fatal("unaligned connection accepted")
+	}
+	c.RoomPlacements.Placements[1].X = 0
+	c.RoomPlacements.Placements[1].Z = 2
+	if ValidateVerticalGeometry(c) == nil {
+		t.Fatal("nonadjacent connection accepted")
+	}
+	c.RoomPlacements.Placements[1].Z = -1
+	if ValidateRoomPlacements(c.RoomPlacements) == nil {
+		t.Fatal("same xyz occupied twice")
 	}
 }

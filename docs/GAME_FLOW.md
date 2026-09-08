@@ -191,7 +191,7 @@ flowchart TD
     Errors -->|Enter or r after editor fixes| Read
     Errors -->|Esc| Picker
     Entries -->|Yes| Assemble[Exclude unplaced content and empty Hubs; assemble entity tree]
-    Assemble --> Charts[Derive adjacency within each grid; glue designated interior entries down and up]
+    Assemble --> Charts[Derive horizontal adjacency; explicit vertical links and enter/out boundaries; see Authored elevation below]
     Charts --> Integrity{Chart assembly succeeds?}
     Integrity -->|No| Errors
     Integrity -->|Yes| Review[Show readiness and warnings: exclusions, unreachable cells, missing interior entries, unsupported terminals]
@@ -243,3 +243,35 @@ sets or clears the starting Location/Room; Hub Details sets or clears an arrival
 Location. Both settings require placed ancestry. Referenced cells and their
 ancestors cannot be deleted or unplaced until the dependent setting is cleared.
 Missing settings are permitted during authoring and block only play launch.
+
+## Authored elevation and interior boundaries
+
+User ruling 2026-09-07. Applies to editor-authored worlds; the built-in demo
+retains its chart behavior. Executed by `game.AssembleAuthored` and engine movement.
+
+```mermaid
+flowchart TD
+    Load3D[Load version 1 ground grids or version 2 xyz placements] --> Horizontal[Derive horizontal exits within each parent and level]
+    Horizontal --> VerticalValid{Explicit vertical connections valid?}
+    VerticalValid -->|No: missing endpoint, wrong parent, nonaligned or nonadjacent| Reject3D[Reject playtest with diagnostic]
+    VerticalValid -->|Yes| Link3D[Add reciprocal up/down only for explicit connections]
+    Link3D --> Interior3D[Location entry creates in/enter and reciprocal out]
+    Interior3D --> Ready3D[Continue readiness and reachability checks]
+    Ready3D --> Input3D{Player movement}
+    Input3D -->|enter or in| Enter3D{Location has entry Room?}
+    Enter3D -->|Yes| Inside3D[Move to entry Room]
+    Enter3D -->|No| Stay3D[Stay put; unavailable-direction response]
+    Input3D -->|out| Out3D{At designated entry Room?}
+    Out3D -->|Yes| Outside3D[Move to containing Location]
+    Out3D -->|No| Stay3D
+    Input3D -->|up or down| HasLink3D{Explicit connection in direction?}
+    HasLink3D -->|Yes| Floor3D[Move one level; preserve normal action checkpoint]
+    HasLink3D -->|No, including an unconnected stacked cell| Stay3D
+```
+
+The 2026-09-07 ambient population uses the existing authored item branches
+(take/drop for takeable items; examination for all item kinds), descriptive NPC
+examination, and the existing unsupported-terminal response. No mission or flag
+transitions were added. Exact entities and placements are in
+[the draft review](WORLD_DRAFT_REVIEW.md). Lowtown now has Megarise 7 as its arrival
+Location, enabling its existing Hub travel branch.

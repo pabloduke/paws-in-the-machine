@@ -12,6 +12,26 @@
     {
       "location_id": "e56ad7ab-7e4f-4b0a-b7fa-68222dd19f5c",
       "hub_id": "7e3d3913-1712-42dc-af67-304000d6081e"
+    },
+    {
+      "location_id": "30c01e94-b68b-41ea-819f-3dc514c8ac38",
+      "hub_id": "f55fc863-324c-4732-9ea9-75614c541057"
+    },
+    {
+      "location_id": "9d94b9e9-50b1-4882-afbc-1d91ed0ffc5d",
+      "hub_id": "f55fc863-324c-4732-9ea9-75614c541057"
+    },
+    {
+      "location_id": "34b7800d-e784-4731-b6e7-993d2dec515d",
+      "hub_id": "f55fc863-324c-4732-9ea9-75614c541057"
+    },
+    {
+      "location_id": "01470f04-d7c9-45ac-9de9-07af620f21a5",
+      "hub_id": "f55fc863-324c-4732-9ea9-75614c541057"
+    },
+    {
+      "location_id": "5022042a-1eca-4c98-8766-f7282b82ff35",
+      "hub_id": "f55fc863-324c-4732-9ea9-75614c541057"
     }
   ]
 }

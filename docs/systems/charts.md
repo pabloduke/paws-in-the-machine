@@ -224,3 +224,13 @@ eventually have caught instead.
 - `internal/game/` — content declares charts; the composition root wires
 - `docs/SYSTEMS.md` — one row, added on main
 - No engine changes required
+
+## Editor-authored elevation ruling (2026-09-07)
+
+User-approved exception: authored-world loading derives only horizontal
+adjacency. A vertical connection explicitly joins cells of the same kind and
+parent at identical x/y and adjacent z; it creates reciprocal up/down exits.
+Stacking rooms alone does not connect them. Interior entry uses in (also parsed
+as enter), with out returning from the designated entry Room. Existing built-in
+charts retain their original adjacency and gluing behavior. Both Location and
+Room placement version 2 supports signed z, while w remains zero.

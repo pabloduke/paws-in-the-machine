@@ -36,7 +36,7 @@ func TestLocationPlacementsRoundTripAndValidation(t *testing.T) {
 		t.Fatalf("round trip = %+v, %v", decoded, err)
 	}
 	for name, invalid := range map[string]LocationPlacementsFile{
-		"version":            {Version: 2, Placements: []LocationPlacement{}},
+		"version":            {Version: 99, Placements: []LocationPlacement{}},
 		"location UUID":      {Version: 1, Placements: []LocationPlacement{{LocationID: "bad", HubID: hubID}}},
 		"hub UUID":           {Version: 1, Placements: []LocationPlacement{{LocationID: testUUID, HubID: "bad"}}},
 		"negative":           {Version: 1, Placements: []LocationPlacement{{LocationID: testUUID, HubID: hubID, X: -1}}},

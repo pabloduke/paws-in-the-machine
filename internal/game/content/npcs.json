@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "npcs": [
+    {
+      "id": "20f5f8e9-5290-48d6-8fbd-5f3dd0063cae",
+      "name": "Waiting Visitor",
+      "description": "A visitor stands near the entrance, smoothing the edge of a document folder and occasionally checking the doors."
+    },
+    {
+      "id": "c547f8c8-e3a8-4b1b-ae44-37fb265a5bfd",
+      "name": "Arriving Employee",
+      "description": "An employee slows near the entrance to tuck a loose sleeve under the strap of a shoulder bag."
+    },
+    {
+      "id": "1e338f53-2576-403e-a100-8ccc4423b6e4",
+      "name": "Waiting Courier",
+      "description": "A courier balances a small parcel against one hip, shifting their weight while they wait."
+    },
+    {
+      "id": "8252a986-e78b-4656-831b-47f7ef38b36e",
+      "name": "Returning Resident",
+      "description": "A resident pauses with a shopping bag in each hand, readjusting the handles before continuing."
+    },
+    {
+      "id": "481cb64d-e464-4341-9c14-b61bcac65ec8",
+      "name": "Lobby Receptionist",
+      "description": "The receptionist sits behind the desk, straightening a small stack of blank forms between glances toward the entrance."
+    },
+    {
+      "id": "65fffa28-9367-4c5d-8f17-52bf3c091ae6",
+      "name": "Lunch Break Employee",
+      "description": "An employee sits with an open lunch container, carefully separating the pieces with a fork."
+    },
+    {
+      "id": "0a82e387-51f6-49b5-8b0c-b1cc3719c4a0",
+      "name": "Passing Employee",
+      "description": "An employee carries a mug through the hallway, keeping it level with both hands."
+    }
+  ]
+}

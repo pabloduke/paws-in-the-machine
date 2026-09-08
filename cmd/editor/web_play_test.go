@@ -56,7 +56,7 @@ func TestEditorAuthoredPlayThrough(t *testing.T) {
 		t.Fatal("hub lacks selected arrival")
 	}
 	eng := engine.New(r.World)
-	eng.Execute("down")
+	eng.Execute("enter")
 	if r.World.Room().ID != "room:"+room {
 		t.Fatal("could not enter authored interior")
 	}
@@ -68,7 +68,7 @@ func TestEditorAuthoredPlayThrough(t *testing.T) {
 		t.Fatal("could not take editor item")
 	}
 	eng.Execute("drop Test Item")
-	eng.Execute("up")
+	eng.Execute("out")
 	if r.World.Room().ID != "location:"+location {
 		t.Fatal("could not return outside")
 	}

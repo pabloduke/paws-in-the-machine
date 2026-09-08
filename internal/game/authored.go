@@ -94,8 +94,8 @@ func AssembleAuthored(c content.Catalogs) AuthoredResult {
 	w.Stats = engine.Stats{Stealth: 10, Agility: 12, Charm: 8}
 	entities := map[string]*engine.Entity{}
 	chartCells := map[string]map[charts.Coord]string{}
-	cellChart, cellCoord := map[string]string{}, map[string]charts.Coord{}
-	addCell := func(kind, id, name, description, parent, chart string, x, y int) {
+	cellChart := map[string]string{}
+	addCell := func(kind, id, name, description, parent, chart string, x, y, z int) {
 		key := authoredID(kind, id)
 		e := engine.NewEntity(key, name).With(engine.RoomBoundary{}, engine.Description{Text: description})
 		entities[parent].Add(e)
@@ -103,9 +103,9 @@ func AssembleAuthored(c content.Catalogs) AuthoredResult {
 		if chartCells[chart] == nil {
 			chartCells[chart] = map[charts.Coord]string{}
 		}
-		at := charts.Coord{X: x, Y: y}
+		at := charts.Coord{X: x, Y: y, Z: z}
 		chartCells[chart][at] = key
-		cellChart[key], cellCoord[key] = chart, at
+		cellChart[key] = chart
 	}
 	for _, h := range c.Hubs.Hubs {
 		if !hubHasCells[h.ID] {
@@ -121,7 +121,7 @@ func AssembleAuthored(c content.Catalogs) AuthoredResult {
 			report("warning", fmt.Sprintf("Excluded unplaced Location %q.", l.Name))
 			continue
 		}
-		addCell("location", l.ID, l.Name, l.Description, authoredID("hub", p.HubID), authoredID("hub", p.HubID), p.X, p.Y)
+		addCell("location", l.ID, l.Name, l.Description, authoredID("hub", p.HubID), authoredID("hub", p.HubID), p.X, p.Y, p.Z)
 	}
 	for _, r := range c.Rooms.Rooms {
 		p, ok := rp[r.ID]
@@ -129,7 +129,7 @@ func AssembleAuthored(c content.Catalogs) AuthoredResult {
 			report("warning", fmt.Sprintf("Excluded Room %q: it or its ancestry is unplaced.", r.Name))
 			continue
 		}
-		addCell("room", r.ID, r.Name, r.Description, authoredID("location", p.LocationID), authoredID("location", p.LocationID), p.X, p.Y)
+		addCell("room", r.ID, r.Name, r.Description, authoredID("location", p.LocationID), authoredID("location", p.LocationID), p.X, p.Y, p.Z)
 	}
 	chartIDs := make([]string, 0, len(chartCells))
 	for id := range chartCells {
@@ -144,13 +144,6 @@ func AssembleAuthored(c content.Catalogs) AuthoredResult {
 	entryFor := map[string]string{}
 	for _, e := range c.LocationEntries.Entries {
 		entryFor[e.LocationID] = e.RoomID
-		from, to := authoredID("location", e.LocationID), authoredID("room", e.RoomID)
-		if entities[from] == nil || entities[to] == nil {
-			continue
-		}
-		for _, bug := range weave.Glue(cellChart[from], charts.Gluing{From: cellCoord[from], Dir: "down", To: cellCoord[to], Chart: cellChart[to]}) {
-			report("error", bug)
-		}
 	}
 	for _, l := range c.Locations.Locations {
 		if len(chartCells[authoredID("location", l.ID)]) > 0 && entryFor[l.ID] == "" {
@@ -159,6 +152,40 @@ func AssembleAuthored(c content.Catalogs) AuthoredResult {
 	}
 	for _, bug := range weave.Apply(w) {
 		report("error", bug)
+	}
+	// Authored worlds use explicit vertical links, with separate interior boundaries.
+	for key := range cellChart {
+		ex, _ := engine.Part[engine.Exits](entities[key])
+		delete(ex.Dirs, "up")
+		delete(ex.Dirs, "down")
+		if ex.Dirs == nil {
+			ex.Dirs = map[string]string{}
+			for i, p := range entities[key].Parts {
+				if _, ok := p.(engine.Exits); ok {
+					entities[key].Parts[i] = ex
+				}
+			}
+		}
+	}
+	if err := content.ValidateVerticalGeometry(c); err != nil {
+		report("error", err.Error())
+		return result
+	}
+	link := func(from, dir, to, back string) {
+		a, b := entities[from], entities[to]
+		if a == nil || b == nil {
+			return
+		}
+		ex, _ := engine.Part[engine.Exits](a)
+		ex.Dirs[dir] = to
+		ex, _ = engine.Part[engine.Exits](b)
+		ex.Dirs[back] = from
+	}
+	for _, v := range c.VerticalConnections.Connections {
+		link(authoredID(v.Kind, v.LowerID), "up", authoredID(v.Kind, v.UpperID), "down")
+	}
+	for _, v := range c.LocationEntries.Entries {
+		link(authoredID("location", v.LocationID), "in", authoredID("room", v.RoomID), "out")
 	}
 	placements := map[string]content.Content{}
 	for _, v := range c.Contents.Contents {

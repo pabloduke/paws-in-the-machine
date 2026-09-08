@@ -15,6 +15,16 @@
       "id": "a0c39783-9a9b-40f1-89ff-0d1f6e7cb56c",
       "name": "Megasoft Hallway to Cafeteria",
       "description": "Megasoft Hallway to Cafeteria"
+    },
+    {
+      "id": "80111cf3-704f-475a-90b3-ed607a25cd4c",
+      "name": "Paw's Apartment",
+      "description": "An area only a cat could reach found in an abandoned area high up in the building and claimed it for his own."
+    },
+    {
+      "id": "f5695ddd-8ab1-45d8-8927-4dd2f753c629",
+      "name": "Megarise 7 Lobby",
+      "description": "A massive lobby area filled people of every variety.  All poor."
     }
   ]
 }

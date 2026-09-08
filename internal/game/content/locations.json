@@ -15,6 +15,31 @@
       "id": "e56ad7ab-7e4f-4b0a-b7fa-68222dd19f5c",
       "name": "Microslop",
       "description": "Famous for making O/S that are terrible."
+    },
+    {
+      "id": "30c01e94-b68b-41ea-819f-3dc514c8ac38",
+      "name": "Megarise 7",
+      "description": "An imposing skyscraper home to thousands of humans, their pets, and anything else that can find a way to survive."
+    },
+    {
+      "id": "9d94b9e9-50b1-4882-afbc-1d91ed0ffc5d",
+      "name": "Main St. and 1st",
+      "description": "The smell of ozone fills the air."
+    },
+    {
+      "id": "34b7800d-e784-4731-b6e7-993d2dec515d",
+      "name": "Main St. and 2nd",
+      "description": "To the south is an old run down tech shop."
+    },
+    {
+      "id": "01470f04-d7c9-45ac-9de9-07af620f21a5",
+      "name": "Main St. and 3rd",
+      "description": "To the south is Megarise 7, your home turf"
+    },
+    {
+      "id": "5022042a-1eca-4c98-8766-f7282b82ff35",
+      "name": "Run Down Tech Shop",
+      "description": "A run down tech shop.  Dusty and full of old tech.  If you ever need an ancient computer, this would be the place."
     }
   ]
 }

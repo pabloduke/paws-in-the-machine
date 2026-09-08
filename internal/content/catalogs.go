@@ -4,6 +4,7 @@ import "fmt"
 
 // Catalogs is an immutable input snapshot shared by tooling and runtime assembly.
 type Catalogs struct {
+	VerticalConnections VerticalConnectionsFile
 	Hubs                HubsFile
 	Locations           LocationsFile
 	Rooms               RoomsFile
@@ -24,6 +25,7 @@ type Catalogs struct {
 }
 
 var CatalogNames = []string{
+	"vertical_connections.json",
 	"hubs.json",
 	"locations.json",
 	"rooms.json",
@@ -47,6 +49,13 @@ var CatalogNames = []string{
 func DecodeCatalogs(files map[string][]byte) (Catalogs, error) {
 	var c Catalogs
 	var err error
+	c.VerticalConnections = EmptyVerticalConnections()
+	if data, ok := files["vertical_connections.json"]; ok {
+		c.VerticalConnections, err = DecodeVerticalConnections(data)
+		if err != nil {
+			return c, err
+		}
+	}
 	c.Hubs = EmptyHubs()
 	if data, ok := files["hubs.json"]; ok {
 		c.Hubs, err = DecodeHubs(data)

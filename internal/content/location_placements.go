@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-const LocationPlacementsVersion = 1
+const LocationPlacementsVersion = 2
 
 type LocationPlacement struct {
 	LocationID string `json:"location_id"`
@@ -60,7 +60,7 @@ func EncodeLocationPlacements(file LocationPlacementsFile) ([]byte, error) {
 }
 
 func ValidateLocationPlacements(file LocationPlacementsFile) error {
-	if file.Version != LocationPlacementsVersion {
+	if file.Version != 1 && file.Version != LocationPlacementsVersion {
 		return fmt.Errorf("location placements: file version %d, want %d", file.Version, LocationPlacementsVersion)
 	}
 	entities, cells := map[string]struct{}{}, map[string]string{}
@@ -75,14 +75,14 @@ func ValidateLocationPlacements(file LocationPlacementsFile) error {
 		if placement.X < 0 || placement.Y < 0 {
 			return fmt.Errorf("%s has negative x or y coordinate", where)
 		}
-		if placement.Z != 0 || placement.W != 0 {
-			return fmt.Errorf("%s must use z=0 and w=0 in version 1", where)
+		if (file.Version == 1 && placement.Z != 0) || placement.W != 0 {
+			return fmt.Errorf("%s requires w=0 (and z=0 for legacy version 1)", where)
 		}
 		if _, ok := entities[placement.LocationID]; ok {
 			return fmt.Errorf("%s duplicates location UUID %q", where, placement.LocationID)
 		}
 		entities[placement.LocationID] = struct{}{}
-		cell := fmt.Sprintf("%s:%d,%d", placement.HubID, placement.X, placement.Y)
+		cell := fmt.Sprintf("%s:%d,%d,%d", placement.HubID, placement.X, placement.Y, placement.Z)
 		if other, ok := cells[cell]; ok {
 			return fmt.Errorf("%s occupies the same cell as location %s", where, other)
 		}

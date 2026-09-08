@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-const RoomPlacementsVersion = 1
+const RoomPlacementsVersion = 2
 
 type RoomPlacement struct {
 	RoomID     string `json:"room_id"`
@@ -60,7 +60,7 @@ func EncodeRoomPlacements(file RoomPlacementsFile) ([]byte, error) {
 }
 
 func ValidateRoomPlacements(file RoomPlacementsFile) error {
-	if file.Version != RoomPlacementsVersion {
+	if file.Version != 1 && file.Version != RoomPlacementsVersion {
 		return fmt.Errorf("room placements: file version %d, want %d", file.Version, RoomPlacementsVersion)
 	}
 	rooms := make(map[string]struct{}, len(file.Placements))
@@ -76,8 +76,8 @@ func ValidateRoomPlacements(file RoomPlacementsFile) error {
 		if placement.X < 0 || placement.Y < 0 {
 			return fmt.Errorf("%s has negative x or y coordinate", where)
 		}
-		if placement.Z != 0 || placement.W != 0 {
-			return fmt.Errorf("%s must use z=0 and w=0 in version 1", where)
+		if (file.Version == 1 && placement.Z != 0) || placement.W != 0 {
+			return fmt.Errorf("%s requires w=0 (and z=0 for legacy version 1)", where)
 		}
 		if _, exists := rooms[placement.RoomID]; exists {
 			return fmt.Errorf("%s duplicates room UUID %q", where, placement.RoomID)

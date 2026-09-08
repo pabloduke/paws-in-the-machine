@@ -14,6 +14,125 @@
       "kind": "takeable",
       "short_description": "An acoustic guitar",
       "full_description": "The acoustic guitar is old with a pick stuck underneath the top fret."
+    },
+    {
+      "id": "d0ae6f3f-b568-4cfa-a4fe-5aea7a30911d",
+      "name": "Cat Tree",
+      "kind": "fixed",
+      "short_description": "A cat tree",
+      "full_description": "A beautiful tall cat tree,  Perfect to look out the window over the neon glow of the city."
+    },
+    {
+      "id": "3b53f2f8-9ba7-4fc6-b677-e45e2ce8f886",
+      "name": "Umbrella Stand",
+      "kind": "fixed",
+      "short_description": "A narrow stand beside the entrance.",
+      "full_description": "A few plain umbrellas rest in the stand. Water has collected in its removable tray."
+    },
+    {
+      "id": "37137b5e-2f5f-44ba-9b0c-449b390b6d98",
+      "name": "Folded Receipt",
+      "kind": "takeable",
+      "short_description": "A folded receipt on the ground.",
+      "full_description": "The paper has been folded into a small square. Its faded printing is no longer readable."
+    },
+    {
+      "id": "83b8485d-cf4b-42bc-9034-22a2fd8ef27d",
+      "name": "Entrance Planter",
+      "kind": "fixed",
+      "short_description": "A broad planter beside the entrance.",
+      "full_description": "Closely trimmed foliage fills the planter. Its smooth rim is interrupted by a few shallow scratches."
+    },
+    {
+      "id": "a09e5e48-ae2c-40c8-a048-6c856d6dd3af",
+      "name": "Paper Cup",
+      "kind": "takeable",
+      "short_description": "An empty paper cup near the doorway.",
+      "full_description": "The cup is empty and dry. A small crescent has been pressed into its rolled rim."
+    },
+    {
+      "id": "39945df4-6c37-45f3-b6bb-ec8434334b65",
+      "name": "Scuffed Bench",
+      "kind": "fixed",
+      "short_description": "A bench with a worn seat.",
+      "full_description": "The middle of the seat has been rubbed smooth. Dust remains along the seam beneath its backrest."
+    },
+    {
+      "id": "bf93615a-a8b4-4770-91f6-eeb600faf2a9",
+      "name": "Rubber Band",
+      "kind": "takeable",
+      "short_description": "A rubber band beside the bench.",
+      "full_description": "A plain rubber band, slightly stretched and still springy."
+    },
+    {
+      "id": "adf9356b-6c00-41bb-89ff-b1ed2cbe3344",
+      "name": "Worn Doormat",
+      "kind": "fixed",
+      "short_description": "A broad mat near the building entrance.",
+      "full_description": "The center of the mat has flattened under many footsteps. Its curled corner catches dust."
+    },
+    {
+      "id": "67e22b6c-d9b1-4e36-a60b-f80cedee1807",
+      "name": "Bottle Cap",
+      "kind": "takeable",
+      "short_description": "A bottle cap caught along the edge of the mat.",
+      "full_description": "The cap is dented on one side. Its printed surface has been scraped nearly blank."
+    },
+    {
+      "id": "c039bcc7-a72c-40e5-893c-3f921f785e0b",
+      "name": "Reception Desk",
+      "kind": "fixed",
+      "short_description": "A smooth desk beneath the lobby lights.",
+      "full_description": "The desktop is almost bare. A circular mark interrupts the polish where a cup has repeatedly been set down."
+    },
+    {
+      "id": "760128be-716b-4bb7-b657-c9b04d2711ca",
+      "name": "Lobby Seating",
+      "kind": "fixed",
+      "short_description": "A row of neatly aligned seats.",
+      "full_description": "Firm cushions sit in polished frames. One cushion has a shallow crease where someone has recently been sitting."
+    },
+    {
+      "id": "5ea54e5c-941c-448e-ac70-be6e8bc0e2a3",
+      "name": "Tray Return",
+      "kind": "fixed",
+      "short_description": "A rack holding a short stack of lunch trays.",
+      "full_description": "The trays nest unevenly. Small scratches cross their broad plastic surfaces."
+    },
+    {
+      "id": "f4e73766-108c-4d5e-b847-22e66e42c2fb",
+      "name": "Paper Napkin",
+      "kind": "takeable",
+      "short_description": "An unused napkin beside a table.",
+      "full_description": "The napkin is folded in half, with one corner bent upward."
+    },
+    {
+      "id": "2581ddb0-9b02-4560-bc63-9a6330677cf0",
+      "name": "Waste Bin",
+      "kind": "fixed",
+      "short_description": "A small bin against the hallway wall.",
+      "full_description": "The bin has a brushed metal lid and a dark scuff close to its base."
+    },
+    {
+      "id": "ad8219fe-b10e-4964-8256-8991059b489a",
+      "name": "Crinkled Wrapper",
+      "kind": "takeable",
+      "short_description": "A small wrapper along the skirting board.",
+      "full_description": "The empty wrapper crackles when disturbed. Its shiny inner surface catches the light."
+    },
+    {
+      "id": "4bcf6e4d-8a03-4d7e-9661-ee5efc9b4d2f",
+      "name": "Folded Blanket",
+      "kind": "fixed",
+      "short_description": "A soft blanket folded into a resting place.",
+      "full_description": "The blanket has been worked into a shallow hollow. Loose fibers cling to its edges."
+    },
+    {
+      "id": "77fc434d-7f2a-42fc-ba14-9fba2a1d8c32",
+      "name": "Cardboard Box",
+      "kind": "fixed",
+      "short_description": "A low cardboard box with folded flaps.",
+      "full_description": "The box has softened at the corners. One flap carries a line of small tooth marks."
     }
   ]
 }

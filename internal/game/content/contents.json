@@ -6,6 +6,186 @@
       "entity_kind": "world_item",
       "parent_id": "3024886f-3c29-43a7-9dca-52e5c2aab0f3",
       "parent_kind": "room"
+    },
+    {
+      "entity_id": "4631fff6-f528-407a-af53-ce198201116b",
+      "entity_kind": "world_item",
+      "parent_id": "65167489-98fa-4efe-b478-2543f41f06b2",
+      "parent_kind": "room"
+    },
+    {
+      "entity_id": "d0ae6f3f-b568-4cfa-a4fe-5aea7a30911d",
+      "entity_kind": "world_item",
+      "parent_id": "80111cf3-704f-475a-90b3-ed607a25cd4c",
+      "parent_kind": "room"
+    },
+    {
+      "entity_id": "36746f1b-f344-4046-9998-ebc6c9ccdc3a",
+      "entity_kind": "terminal",
+      "parent_id": "80111cf3-704f-475a-90b3-ed607a25cd4c",
+      "parent_kind": "room"
+    },
+    {
+      "entity_id": "3b53f2f8-9ba7-4fc6-b677-e45e2ce8f886",
+      "entity_kind": "world_item",
+      "parent_id": "bbc294fa-3812-4c8c-95bc-8782579ec33b",
+      "parent_kind": "location"
+    },
+    {
+      "entity_id": "37137b5e-2f5f-44ba-9b0c-449b390b6d98",
+      "entity_kind": "world_item",
+      "parent_id": "bbc294fa-3812-4c8c-95bc-8782579ec33b",
+      "parent_kind": "location"
+    },
+    {
+      "entity_id": "20f5f8e9-5290-48d6-8fbd-5f3dd0063cae",
+      "entity_kind": "npc",
+      "parent_id": "bbc294fa-3812-4c8c-95bc-8782579ec33b",
+      "parent_kind": "location"
+    },
+    {
+      "entity_id": "2fd66456-8a6e-4109-865b-feff2c258f24",
+      "entity_kind": "terminal",
+      "parent_id": "bbc294fa-3812-4c8c-95bc-8782579ec33b",
+      "parent_kind": "location"
+    },
+    {
+      "entity_id": "83b8485d-cf4b-42bc-9034-22a2fd8ef27d",
+      "entity_kind": "world_item",
+      "parent_id": "a90406ac-9345-4cea-818f-eb0f5f180563",
+      "parent_kind": "location"
+    },
+    {
+      "entity_id": "a09e5e48-ae2c-40c8-a048-6c856d6dd3af",
+      "entity_kind": "world_item",
+      "parent_id": "a90406ac-9345-4cea-818f-eb0f5f180563",
+      "parent_kind": "location"
+    },
+    {
+      "entity_id": "c547f8c8-e3a8-4b1b-ae44-37fb265a5bfd",
+      "entity_kind": "npc",
+      "parent_id": "a90406ac-9345-4cea-818f-eb0f5f180563",
+      "parent_kind": "location"
+    },
+    {
+      "entity_id": "39945df4-6c37-45f3-b6bb-ec8434334b65",
+      "entity_kind": "world_item",
+      "parent_id": "e56ad7ab-7e4f-4b0a-b7fa-68222dd19f5c",
+      "parent_kind": "location"
+    },
+    {
+      "entity_id": "bf93615a-a8b4-4770-91f6-eeb600faf2a9",
+      "entity_kind": "world_item",
+      "parent_id": "e56ad7ab-7e4f-4b0a-b7fa-68222dd19f5c",
+      "parent_kind": "location"
+    },
+    {
+      "entity_id": "1e338f53-2576-403e-a100-8ccc4423b6e4",
+      "entity_kind": "npc",
+      "parent_id": "e56ad7ab-7e4f-4b0a-b7fa-68222dd19f5c",
+      "parent_kind": "location"
+    },
+    {
+      "entity_id": "b9369711-b0b0-4f99-95bb-91c1aae800d3",
+      "entity_kind": "terminal",
+      "parent_id": "e56ad7ab-7e4f-4b0a-b7fa-68222dd19f5c",
+      "parent_kind": "location"
+    },
+    {
+      "entity_id": "adf9356b-6c00-41bb-89ff-b1ed2cbe3344",
+      "entity_kind": "world_item",
+      "parent_id": "30c01e94-b68b-41ea-819f-3dc514c8ac38",
+      "parent_kind": "location"
+    },
+    {
+      "entity_id": "67e22b6c-d9b1-4e36-a60b-f80cedee1807",
+      "entity_kind": "world_item",
+      "parent_id": "30c01e94-b68b-41ea-819f-3dc514c8ac38",
+      "parent_kind": "location"
+    },
+    {
+      "entity_id": "8252a986-e78b-4656-831b-47f7ef38b36e",
+      "entity_kind": "npc",
+      "parent_id": "30c01e94-b68b-41ea-819f-3dc514c8ac38",
+      "parent_kind": "location"
+    },
+    {
+      "entity_id": "c039bcc7-a72c-40e5-893c-3f921f785e0b",
+      "entity_kind": "world_item",
+      "parent_id": "3024886f-3c29-43a7-9dca-52e5c2aab0f3",
+      "parent_kind": "room"
+    },
+    {
+      "entity_id": "760128be-716b-4bb7-b657-c9b04d2711ca",
+      "entity_kind": "world_item",
+      "parent_id": "3024886f-3c29-43a7-9dca-52e5c2aab0f3",
+      "parent_kind": "room"
+    },
+    {
+      "entity_id": "481cb64d-e464-4341-9c14-b61bcac65ec8",
+      "entity_kind": "npc",
+      "parent_id": "3024886f-3c29-43a7-9dca-52e5c2aab0f3",
+      "parent_kind": "room"
+    },
+    {
+      "entity_id": "b85d521b-0886-441d-9206-6e3d23d2b91e",
+      "entity_kind": "terminal",
+      "parent_id": "3024886f-3c29-43a7-9dca-52e5c2aab0f3",
+      "parent_kind": "room"
+    },
+    {
+      "entity_id": "5ea54e5c-941c-448e-ac70-be6e8bc0e2a3",
+      "entity_kind": "world_item",
+      "parent_id": "65167489-98fa-4efe-b478-2543f41f06b2",
+      "parent_kind": "room"
+    },
+    {
+      "entity_id": "f4e73766-108c-4d5e-b847-22e66e42c2fb",
+      "entity_kind": "world_item",
+      "parent_id": "65167489-98fa-4efe-b478-2543f41f06b2",
+      "parent_kind": "room"
+    },
+    {
+      "entity_id": "65fffa28-9367-4c5d-8f17-52bf3c091ae6",
+      "entity_kind": "npc",
+      "parent_id": "65167489-98fa-4efe-b478-2543f41f06b2",
+      "parent_kind": "room"
+    },
+    {
+      "entity_id": "1b247e99-0dcb-4148-a9ac-e340df55802b",
+      "entity_kind": "terminal",
+      "parent_id": "65167489-98fa-4efe-b478-2543f41f06b2",
+      "parent_kind": "room"
+    },
+    {
+      "entity_id": "2581ddb0-9b02-4560-bc63-9a6330677cf0",
+      "entity_kind": "world_item",
+      "parent_id": "a0c39783-9a9b-40f1-89ff-0d1f6e7cb56c",
+      "parent_kind": "room"
+    },
+    {
+      "entity_id": "ad8219fe-b10e-4964-8256-8991059b489a",
+      "entity_kind": "world_item",
+      "parent_id": "a0c39783-9a9b-40f1-89ff-0d1f6e7cb56c",
+      "parent_kind": "room"
+    },
+    {
+      "entity_id": "0a82e387-51f6-49b5-8b0c-b1cc3719c4a0",
+      "entity_kind": "npc",
+      "parent_id": "a0c39783-9a9b-40f1-89ff-0d1f6e7cb56c",
+      "parent_kind": "room"
+    },
+    {
+      "entity_id": "4bcf6e4d-8a03-4d7e-9661-ee5efc9b4d2f",
+      "entity_kind": "world_item",
+      "parent_id": "80111cf3-704f-475a-90b3-ed607a25cd4c",
+      "parent_kind": "room"
+    },
+    {
+      "entity_id": "77fc434d-7f2a-42fc-ba14-9fba2a1d8c32",
+      "entity_kind": "world_item",
+      "parent_id": "80111cf3-704f-475a-90b3-ed607a25cd4c",
+      "parent_kind": "room"
     }
   ]
 }

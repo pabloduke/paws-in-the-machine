@@ -78,7 +78,7 @@ func TestAuthoredWorldExploration(t *testing.T) {
 			t.Fatalf("bad %s exit", step.dir)
 		}
 	}
-	engine.Go(w, "down")
+	engine.Go(w, "in")
 	if w.Room().ID != authoredID("room", ar) || hubs.Current(w).ID != authoredID("hub", ah) {
 		t.Fatal("interior descent or ancestry failed")
 	}
@@ -124,7 +124,7 @@ func TestAuthoredWorldExploration(t *testing.T) {
 	if got := eng.Execute("use test-host"); !strings.Contains(got, "(Placeholder)") {
 		t.Fatal(got)
 	}
-	engine.Go(w, "up")
+	engine.Go(w, "out")
 	if w.Room().ID != authoredID("location", al) {
 		t.Fatal("return gluing failed")
 	}
