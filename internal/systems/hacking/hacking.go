@@ -482,6 +482,9 @@ func (s *Session) ExecDetailed(line string) ExecResult {
 	if s.pending != nil {
 		return ExecResult{Output: s.password(line)}
 	}
+	if out, handled := s.w.DevCommand(line); handled {
+		return ExecResult{Output: out}
+	}
 	args := strings.Fields(line)
 	if len(args) == 0 {
 		return ExecResult{}

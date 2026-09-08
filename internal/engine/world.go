@@ -38,6 +38,9 @@ func IsStat(name string) bool {
 
 // World is the complete game state: one entity tree plus story flags.
 type World struct {
+	Quests               []Quest
+	DevMode, DevModified bool
+	QuestTrace           []string
 	// Root anchors the tree; rooms are its children.
 	Root *Entity
 	// Player is an entity inside a room; its Contents are the inventory.

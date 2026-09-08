@@ -15,13 +15,14 @@ const SaveVersion = 1
 
 // SaveState is everything a session needs to resume.
 type SaveState struct {
-	Version    int             `json:"version"`
-	Flags      map[string]bool `json:"flags"`
-	Stats      Stats           `json:"stats"`
-	XP         int             `json:"xp"`
-	Level      int             `json:"level"`
-	StatPoints int             `json:"stat_points"`
-	Seed       int64           `json:"seed"`
+	DevModified bool            `json:"dev_modified,omitempty"`
+	Version     int             `json:"version"`
+	Flags       map[string]bool `json:"flags"`
+	Stats       Stats           `json:"stats"`
+	XP          int             `json:"xp"`
+	Level       int             `json:"level"`
+	StatPoints  int             `json:"stat_points"`
+	Seed        int64           `json:"seed"`
 	// Positions maps entity ID -> parent entity ID for every entity
 	// in the tree at save time.
 	Positions map[string]string `json:"positions"`
@@ -30,14 +31,15 @@ type SaveState struct {
 // Snapshot captures the current world.
 func Snapshot(w *World) SaveState {
 	s := SaveState{
-		Version:    SaveVersion,
-		Flags:      map[string]bool{},
-		Stats:      w.Stats,
-		XP:         w.XP,
-		Level:      w.Level,
-		StatPoints: w.StatPoints,
-		Seed:       w.Seed,
-		Positions:  map[string]string{},
+		DevModified: w.DevModified,
+		Version:     SaveVersion,
+		Flags:       map[string]bool{},
+		Stats:       w.Stats,
+		XP:          w.XP,
+		Level:       w.Level,
+		StatPoints:  w.StatPoints,
+		Seed:        w.Seed,
+		Positions:   map[string]string{},
 	}
 	for k, v := range w.Flags {
 		s.Flags[k] = v
@@ -66,6 +68,7 @@ func (s SaveState) Apply(w *World) error {
 	if s.Version != SaveVersion {
 		return fmt.Errorf("save is version %d; this build reads %d", s.Version, SaveVersion)
 	}
+	w.DevModified = w.DevModified || s.DevModified
 	w.Flags = map[string]bool{}
 	for k, v := range s.Flags {
 		w.Flags[k] = v

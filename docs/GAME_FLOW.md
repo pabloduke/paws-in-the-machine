@@ -11,6 +11,7 @@ flowchart TD
         Boot([Program starts]) --> WorldPicker{Startup world picker}
         WorldPicker -->|Built-in game| Geometry[NewWorld applies the chart weave; see Geometry below]
         WorldPicker -->|Authored world| AuthoredLoad[Load saved catalogs; see Authored world playtests below]
+        AuthoredLoad -.-> QuestRuntime[Authored quests and developer inspection; see focused diagrams below]
         Geometry -.->|Malformed or unknown-entity chart| ChartBug[Content bug queues on Pending as a story-beat modal]
         Geometry --> Deck[BootIntoDeck opens the deck terminal]
         Deck --> Note[use_the_messenger.md is present]
@@ -197,7 +198,7 @@ flowchart TD
     Integrity -->|Yes| Review[Show readiness and warnings: exclusions, unreachable cells, missing interior entries, unsupported terminals]
     Review -->|r| Read
     Review -->|Esc| Picker
-    Review -->|Enter| Fresh[New overworld session at selected cell; fresh seed and initial stats; no authored missions or events]
+    Review -->|Enter| Fresh[New overworld session at selected cell; fresh seed and initial stats; enabled authored quests initialized]
     Picker -->|q or Ctrl+C| Quit[Quit]
     Review -->|q or Ctrl+C| Quit
     Errors -->|q or Ctrl+C| Quit
@@ -205,8 +206,8 @@ flowchart TD
     Action -->|Compass movement| ExitExists{Derived exit exists?}
     ExitExists -->|Yes| Move[Move to adjacent occupied cell; normal action checkpoint]
     ExitExists -->|No| Stay[Existing blocked-movement response; remain in cell]
-    Action -->|Down from exterior with designated entry| Interior[Move into designated Room]
-    Interior -->|Up from entry Room| Exterior[Return to containing Location]
+    Action -->|Enter from exterior with designated entry| Interior[Move into designated Room]
+    Interior -->|Out from entry Room| Exterior[Return to containing Location]
     Action -->|Travel panel: included Hub| Arrival[Move to configured arrival Location]
     Action -->|Look or inspect| Scope[Current cell scope; nested Room boundaries exclude Rooms and their contents]
     Scope --> List[YOU SEE: Takeable and Fixed items, NPCs, terminals; item name plus short description]
@@ -275,3 +276,77 @@ examination, and the existing unsupported-terminal response. No mission or flag
 transitions were added. Exact entities and placements are in
 [the draft review](WORLD_DRAFT_REVIEW.md). Lowtown now has Megarise 7 as its arrival
 Location, enabling its existing Hub travel branch.
+
+## Authored quests and developer inspection
+
+Implemented by `internal/engine/quests.go`, `internal/game/authored.go`,
+`internal/ui/quest_debug_ui.go`, and the terminal's `ExecDetailed` dispatch.
+The authored loader uses enabled `quests.json` definitions; drafts are omitted.
+The existing built-in mission remains independent and unchanged.
+
+```mermaid
+flowchart TD
+    Load[Load authored catalogs] --> Valid{Enabled quest objectives valid?}
+    Valid -->|No| Error[Blocking diagnostic; no play session]
+    Valid -->|Yes| Assemble[Map stable target IDs to runtime entities]
+    Assemble --> Warning[Warn about excluded or unreachable targets]
+    Warning --> Init[Evaluate quests on initialized world]
+    Init --> Auto{Auto-start?}
+    Auto -->|Yes| Active[Set quest active flag]
+    Auto -->|No| Available[Available; show quests start ID]
+    Available -->|quests start ID| Active
+    Active --> Poll[Evaluate ordered objectives]
+    Action[Normal action checkpoint after event rules] --> Poll
+    Poll --> DoneAlready{Quest complete?}
+    DoneAlready -->|Yes| Retain[Retain progress; no repeated announcement]
+    DoneAlready -->|No| Step[Next incomplete step]
+    Step --> Target{Target exists and condition holds?}
+    Target -->|Carry: item in inventory| CompleteStep[Set stable step completion flag]
+    Target -->|Visit: current cell equals target| CompleteStep
+    Target -->|Missing, elsewhere, or not carried| Block[Leave step incomplete; later steps wait]
+    CompleteStep --> More{Any steps left?}
+    More -->|Yes| Step
+    More -->|No| Complete[Set quest completion flag; queue completion text once]
+    Complete --> Retain
+    Drop[Drop previously collected item] --> Retain
+    Inspect[quests command] --> Read[Read-only objective list; no checkpoint]
+    Save[Engine snapshot and restore] --> Flags[Preserve quest flags and forced-session marker]
+    Flags --> Poll
+    Draft[Editor hypothetical preview] --> Disposable[Build disposable facts and use same evaluator; no disk or save mutation]
+```
+
+Visit conditions use exact cell identity: occupying an interior Room does not
+also satisfy a visit to its exterior Location. Already-satisfied objectives
+can complete together in list order. Completion is sticky. The existing
+restriction on saving/loading authored playtest sessions remains in place;
+engine save snapshots support quest flags for save-enabled sessions.
+
+```mermaid
+flowchart TD
+    F12[F12 from any in-game screen] --> Console[Developer console; Esc or F12 restores prior screen]
+    Shell[Existing gameplay terminal; outside password prompt] --> Command{Developer command?}
+    Console --> Command
+    Command -->|sudo devmode --meow| Enabled[Enable for session; visible DEV indicator]
+    Command -->|sudo devmode --off| Disabled[Disable controls; retain MODIFIED indicator if applicable]
+    Command -->|Unknown option| Usage[Show usage; no state change]
+    Enabled --> Inspect[quest-debug: states, targets, satisfied facts and blockers]
+    Enabled --> Trace[quest-debug trace: last 100 trace entries]
+    Enabled --> Reset[quest-debug reset ID]
+    Enabled --> Force[quest-debug complete ID]
+    Reset --> Clear[Clear only selected quest flags; mark session MODIFIED]
+    Clear --> Next[Next normal checkpoint reevaluates unchanged inventory and position]
+    Force --> Forced[Set selected quest active, step and completion flags; mark MODIFIED]
+    Disabled -->|quest-debug| Refuse[Explain developer mode is disabled]
+    Inspect --> NoTurn[No gameplay checkpoint or rewards]
+    Trace --> NoTurn
+    Forced --> NoTurn
+    Clear --> NoTurn
+    Enabled --> NoTurn
+    Disabled --> NoTurn
+```
+
+Unknown quest IDs and malformed debugger commands report errors without
+mutation. Developer enablement is not saved. Forced progress is identified
+in snapshots by optional `dev_modified`, compatible with existing saves.
+The cup demo starts at world initialization, remains blocked until the
+existing Paper Cup is carried, then completes once without XP or item removal.

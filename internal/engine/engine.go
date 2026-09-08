@@ -20,6 +20,20 @@ func New(w *World) *Engine {
 // Execute runs one turn: the command executes, then the event rules
 // are polled (docs/systems/events.md) — the end-of-turn checkpoint.
 func (e *Engine) Execute(input string) string {
+	if strings.TrimSpace(input) == "quests" {
+		return e.World.QuestText(false)
+	}
+	if args := strings.Fields(input); len(args) == 3 && args[0] == "quests" && args[1] == "start" {
+		for _, q := range e.World.Quests {
+			if q.ID == args[2] {
+				e.World.Flags[questFlag(q.ID, "active")] = true
+				e.World.EvaluateQuests()
+				return e.World.QuestText(false)
+			}
+		}
+		return "Unknown quest ID."
+	}
+	e.World.traceQuest("Action: " + input)
 	out := e.execute(input)
 	e.World.CheckEvents()
 	return out
@@ -247,6 +261,7 @@ const helpText = `Commands:
   parkour <thing>       the acrobatic route (also: leap, vault)
   charm <thing>         weaponized cuteness (also: purr)
   meow <person>         get a person's attention
+  quests                view authored quest objectives
   stats                 your numbers
 	train <stat>          spend a stat point (earned by leveling up)
 	inventory (i)         what you're carrying

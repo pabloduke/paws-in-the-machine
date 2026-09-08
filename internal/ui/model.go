@@ -64,6 +64,7 @@ type interceptorSurface interface {
 // earlier surfaces render on top. Registering a new system's UI is
 // one line here (docs/BOUNDARIES.md).
 var surfaces = []surface{
+	questDebugSurface{},
 	shellSurface{},
 	eventsSurface{},
 	modalSurface{},
@@ -79,6 +80,10 @@ var surfaces = []surface{
 // persistent transcript. Per-system fields are appended by the system
 // that owns them; the surface registry above dispatches to them.
 type Model struct {
+	questConsole     bool
+	questInput       textinput.Model
+	questViewport    viewport.Model
+	questConsoleText string
 	// Playtest sessions deliberately cannot read or write the built-in save.
 	Playtest bool
 
@@ -239,6 +244,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		if msg.String() == "f12" {
+			m.toggleQuestConsole()
+			return m, nil
+		}
 		for _, s := range surfaces {
 			if s.Active(&m) {
 				return m, s.HandleKey(&m, msg)
@@ -324,7 +333,15 @@ func (m *Model) executeLine(line string) {
 	m.maybeLevelUp()
 }
 
-func (m Model) View() string {
+func (m Model) View() (view string) {
+	defer func() {
+		if label := m.eng.World.DevLabel(); label != "" {
+			lines := strings.SplitN(view, "\n", 2)
+			badge := " [" + label + "]"
+			lines[0] = ansi.Truncate(lines[0], max(0, m.width-ansi.StringWidth(badge)), "") + badge
+			view = strings.Join(lines, "\n")
+		}
+	}()
 	styles := m.presentation().Overworld
 	if !m.ready {
 		return styles.panelTitle.Render("PAWS IN THE MACHINE") + "\n" +

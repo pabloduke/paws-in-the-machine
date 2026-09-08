@@ -9,6 +9,18 @@ import (
 // Missing play settings are draft-valid and are checked separately by the loader.
 func (c Catalogs) RelationshipProblems() []string {
 	var problems []string
+	if c.Quests.Version != 0 || len(c.Quests.Quests) > 0 {
+		if err := c.Quests.Validate(); err != nil {
+			problems = append(problems, err.Error())
+		}
+	}
+	for _, q := range c.Quests.Quests {
+		if q.Enabled {
+			for _, issue := range c.QuestProblems(q) {
+				problems = append(problems, fmt.Sprintf("Quest %q: %s", q.Name, issue))
+			}
+		}
+	}
 	report := func(format string, args ...any) { problems = append(problems, fmt.Sprintf(format, args...)) }
 	ids := map[string]map[string]bool{}
 	for _, kind := range []string{"hub", "location", "room", "npc", "world_item", "terminal", "network", "user"} {

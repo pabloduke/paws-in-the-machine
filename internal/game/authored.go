@@ -268,6 +268,30 @@ func AssembleAuthored(c content.Catalogs) AuthoredResult {
 			return result
 		}
 	}
+	for _, q := range c.Quests.Quests {
+		if !q.Enabled {
+			continue
+		}
+		rq := engine.Quest{ID: q.ID, Name: q.Name, Description: q.Description, CompletionText: q.CompletionText, AutoStart: q.AutoStart}
+		for _, s := range q.Steps {
+			target := authoredID(s.Target.Kind, s.Target.ID)
+			e := w.FindID(target)
+			if e == nil {
+				report("warning", fmt.Sprintf("Quest %q target %s is excluded from play.", q.Name, target))
+			} else {
+				cell := e
+				if s.Kind == "carry" {
+					cell = e.Parent
+				}
+				if cell == nil || !reached[cell.ID] {
+					report("warning", fmt.Sprintf("Quest %q target %s is unreachable.", q.Name, target))
+				}
+			}
+			rq.Steps = append(rq.Steps, engine.QuestStep{ID: s.ID, Text: s.Text, Kind: s.Kind, Target: target})
+		}
+		w.Quests = append(w.Quests, rq)
+	}
+	w.EvaluateQuests()
 	result.World = w
 	return result
 }
