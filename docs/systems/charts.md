@@ -234,3 +234,15 @@ Stacking rooms alone does not connect them. Interior entry uses in (also parsed
 as enter), with out returning from the designated entry Room. Existing built-in
 charts retain their original adjacency and gluing behavior. Both Location and
 Room placement version 2 supports signed z, while w remains zero.
+
+### Authored path blocks (2026-09-08)
+
+User ruling: adjoining editor cells should be individually blockable. Authored
+world loading therefore removes explicitly blocked horizontal passages after
+chart adjacency is derived. `blocked_passages.json` names two same-kind endpoints
+in the same parent and floor, one orthogonal cell apart. A block removes both
+compass directions, and removing it restores the default adjacency on the next
+load. It cannot redirect an exit, connect distant cells, or create a one-way
+passage. Existing built-in chart behavior is unchanged. These are static authored
+walls, not gameplay flags or terminal checks. Entrance and vertical links remain
+separate reciprocal connections.

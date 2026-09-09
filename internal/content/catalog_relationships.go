@@ -9,6 +9,9 @@ import (
 // Missing play settings are draft-valid and are checked separately by the loader.
 func (c Catalogs) RelationshipProblems() []string {
 	var problems []string
+	if err := ValidateBlockedGeometry(c); err != nil {
+		problems = append(problems, err.Error())
+	}
 	if c.Quests.Version != 0 || len(c.Quests.Quests) > 0 {
 		if err := c.Quests.Validate(); err != nil {
 			problems = append(problems, err.Error())

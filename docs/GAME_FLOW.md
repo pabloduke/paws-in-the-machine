@@ -195,7 +195,8 @@ flowchart TD
     Assemble --> Charts[Derive horizontal adjacency; explicit vertical links and enter/out boundaries; see Authored elevation below]
     Charts --> Integrity{Chart assembly succeeds?}
     Integrity -->|No| Errors
-    Integrity -->|Yes| Review[Show readiness and warnings: exclusions, unreachable cells, missing interior entries, unsupported terminals]
+    Integrity -->|Yes| Walls[Apply authored blocked adjoining paths; see focused diagram below]
+    Walls --> Review[Show readiness and warnings: exclusions, unreachable cells, missing interior entries, unsupported terminals]
     Review -->|r| Read
     Review -->|Esc| Picker
     Review -->|Enter| Fresh[New overworld session at selected cell; fresh seed and initial stats; enabled authored quests initialized]
@@ -350,3 +351,32 @@ mutation. Developer enablement is not saved. Forced progress is identified
 in snapshots by optional `dev_modified`, compatible with existing saves.
 The cup demo starts at world initialization, remains blocked until the
 existing Paper Cup is carried, then completes once without XP or item removal.
+
+### Authored entrances and blocked adjoining paths
+
+`internal/content/blocked_passages.go` validates static wall endpoints;
+`AssembleAuthored` removes both corresponding compass exits before calculating
+reachability. A missing catalog preserves default adjacency. This affects only
+authored worlds. Existing built-in charts and mission paths are unchanged.
+
+```mermaid
+flowchart TD
+    Catalog[Read blocked_passages and entrance settings] --> Valid{Schema and endpoint geometry valid?}
+    Valid -->|No| Error[Blocking diagnostic; do not launch]
+    Valid -->|Yes| Derive[Derive horizontal adjacency and explicit vertical links]
+    Derive --> Entry{Location entrance Room selected?}
+    Entry -->|Yes| Pair[Create enter from Location and out from selected Room]
+    Entry -->|No| None[No interior passage; warn if internal Rooms exist]
+    Pair --> Walls[Remove both directions for each blocked adjoining pair]
+    None --> Walls
+    Walls --> Reach[Recompute cell and quest-target reachability warnings]
+    Reach --> Play[Fresh playtest]
+    Play --> Move{Player chooses compass direction}
+    Move -->|Passage open| Neighbor[Move to adjoining cell; action checkpoint]
+    Move -->|Blocked or no adjoining cell| Stay[Existing blocked-movement response; remain in place; checkpoint]
+    Play -->|enter with selected entrance| Inside[Move to entrance Room]
+    Inside -->|out| Exterior[Return to exterior Location]
+    Play -->|enter without entrance| Stay
+    Edit[Editor reopens a blocked passage] --> Reload[Next playtest derives both directions again]
+    Reload --> Derive
+```

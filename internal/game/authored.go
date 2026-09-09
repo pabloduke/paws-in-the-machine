@@ -187,6 +187,20 @@ func AssembleAuthored(c content.Catalogs) AuthoredResult {
 	for _, v := range c.LocationEntries.Entries {
 		link(authoredID("location", v.LocationID), "in", authoredID("room", v.RoomID), "out")
 	}
+	// Apply authored walls after deriving adjacency and interior connections.
+	for _, v := range c.BlockedPassages.Passages {
+		a, b := authoredID(v.Kind, v.AID), authoredID(v.Kind, v.BID)
+		for _, pair := range [][2]string{{a, b}, {b, a}} {
+			if cell := entities[pair[0]]; cell != nil {
+				ex, _ := engine.Part[engine.Exits](cell)
+				for dir, dest := range ex.Dirs {
+					if dest == pair[1] {
+						delete(ex.Dirs, dir)
+					}
+				}
+			}
+		}
+	}
 	placements := map[string]content.Content{}
 	for _, v := range c.Contents.Contents {
 		placements[authoredID(v.EntityKind, v.EntityID)] = v
