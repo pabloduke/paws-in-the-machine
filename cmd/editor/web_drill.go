@@ -21,6 +21,8 @@ type drillGroup struct {
 }
 type drillVertical struct{ LowerID, UpperID, LowerName, UpperName string }
 type drillPage struct {
+	Passages                         []passageRow
+	IsEntrance                       bool
 	InteriorOpen                     bool
 	Level, Z                         int
 	Levels                           []int
@@ -378,6 +380,7 @@ func (h *editorHandler) serveDrill(w http.ResponseWriter, r *http.Request, kind,
 			}
 		}
 	}
+	h.passagePanel(&d)
 	if kind != "hub" {
 		for _, screen := range []contentsScreen{h.worldItemContentsScreen(), h.npcContentsScreen(), h.terminalContentsScreen()} {
 			data := h.contentsPageData(screen, kind+":"+id, "", "")
@@ -582,6 +585,8 @@ func (h *editorHandler) applyDrillAction(kind, id string, r *http.Request) (stri
 			}
 			return nil
 		})
+	case "set-passage":
+		return "", h.setPassage(kind, id, r.FormValue("other_id"), r.FormValue("blocked"), r.FormValue("expected_blocked"))
 	case "entry":
 		if kind != "location" {
 			return "", fmt.Errorf("Entry belongs to a Location.")

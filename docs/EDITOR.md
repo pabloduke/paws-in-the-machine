@@ -756,3 +756,28 @@ by loading a save. These commands are absent from ordinary terminal help.
 The **Pick Up the Cup** demo references the existing Paper Cup at Megasoft.
 It has one automatic carry objective, no rewards, and editable text. It is
 created through the REST API, with no migration of the Go-built mission.
+
+## Entrance and exits
+
+Open a Location or Room from its grid. **Entrance and exits** is above the
+Details form. On a Location, choose **Entrance Room** and **Save entrance**:
+`enter` takes the player from the exterior Location into that Room, and `out`
+returns to the Location. Choices include placed Rooms on every floor, regardless
+of the selected grid floor. A Room also offers **Use this Room as the entrance**
+and a link to its parent's entrance settings. With no entrance selected, internal
+Rooms cannot be entered from the exterior; with no placed Rooms, the Location
+continues to work as an outdoor cell.
+
+The adjoining-path table lists north/east/south/west destinations and whether
+the passage is open or blocked. **Block … path** removes both directions;
+**Reopen … path** restores both. There must be an actual adjoining cell in the
+same parent and floor: this control does not create distant or diagonal links.
+Blocked passages are stored by endpoint IDs in `blocked_passages.json` and
+participate in snapshots, world copies, validation, and playtest loading.
+Reopen a blocked passage before moving, unplacing, or deleting an endpoint.
+Stale forms explain when the passage changed instead of silently reversing it.
+
+Up/down connections are in the same section. These remain explicit connections
+between aligned cells on adjoining floors. No path setting changes a running
+playtest; start a fresh playtest after editing. Readiness warns when the resulting
+layout leaves cells or quest targets unreachable.

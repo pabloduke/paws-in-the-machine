@@ -706,3 +706,7 @@ details.report[open] > summary { margin-bottom: 1rem; }
 
 .quest-layout label.quest-check { display:flex; align-items:center; gap:.65rem; }
 .quest-layout label.quest-check input { width:auto; margin:0; }
+
+#entrances-exits { overflow-x:auto; }
+#entrances-exits table { width:100%; border-collapse:collapse; }
+#entrances-exits th, #entrances-exits td { padding:.65rem; text-align:left; border-bottom:1px solid #28424d; }

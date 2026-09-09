@@ -109,3 +109,19 @@ return 422 without writing; incomplete disabled drafts are accepted. Unknown
 quest IDs return 404. Existing world-scoping and same-origin policies apply.
 Quests participate in snapshots, revisions, world copies, and validation.
 Preview is a read-only editor form operation, not a mutation API.
+
+### Adjoining paths
+
+Use the existing `POST /api/v1/worlds/{world}/locations/{id}/actions` or
+`/rooms/{id}/actions` endpoint with the world ETag in `If-Match`:
+
+```json
+{"action":"set-passage","other_id":"<neighbor UUID>","blocked":"true","expected_blocked":"false"}
+```
+
+This blocks both directions of a horizontal adjacency. To reopen, send
+`blocked:"false"` and `expected_blocked:"true"`. Both cells must share kind,
+parent, and floor and be adjoining on one compass axis. The expected state
+protects stale forms; existing API ETag validation also applies. No neighboring
+cell means no configurable passage. Entrance selection still uses the Location
+`entry` action with `entry_id`; an empty ID removes the reciprocal enter/out pair.

@@ -16,6 +16,9 @@ func (h *editorHandler) verticalStore() *relationStore[content.VerticalConnectio
 	}}
 }
 func (h *editorHandler) guardVertical(kind, id string) error {
+	if err := h.guardPassages(kind, id); err != nil {
+		return err
+	}
 	vs, err := h.verticalStore().List()
 	if err != nil {
 		return err

@@ -362,3 +362,15 @@ The user authorized a simple **Pick Up the Cup** demo in the existing world,
 using the existing Paper Cup at the Megasoft starting Location. It is authored
 through the editor REST API, has no rewards, and changes no existing placement
 or entity prose. See `docs/systems/quests.md` and `docs/GAME_FLOW.md`.
+
+
+## Entrance and path controls (2026-09-08)
+
+Location and Room screens now put **Entrance and exits** above their Details
+forms. Location entrance selection includes placed Rooms across all floors;
+Rooms can designate themselves as their parent's entrance. The compass table
+shows adjoining destinations and can block/reopen reciprocal paths. Vertical
+connections are grouped in the same section. `blocked_passages.json` is a
+versioned optional catalog consumed by the authored loader; no built-in mission
+geometry changes. The shop remains a separate Location unless the user chooses
+to change its ownership/type. Existing authored placement edits are preserved.

@@ -44,6 +44,7 @@
 {{if $d.Error}}<p class="error-banner" role="alert">{{$d.Error}}</p>{{end}}
 {{if $d.Notice}}<p class="notice" role="status">{{$d.Notice}}</p>{{end}}
 
+{{template "entrances-exits" $d}}
 <details class="report" open><summary>Details — {{$d.Name}}</summary>
 <form class="editor-form" data-dirty-form method="post" action="{{$d.URL}}/work" hx-post="{{$d.URL}}/work" hx-target="#workspace"><input type="hidden" name="action" value="save-details">
 <label>Name<input name="name" value="{{if eq $d.Action "save-details"}}{{$d.Values.Get "name"}}{{else}}{{$d.Name}}{{end}}" required></label>
@@ -58,10 +59,7 @@
 <label>Arrival Location<select aria-label="Arrival Location" name="arrival_id"><option value="">Not set</option>{{range $d.Arrival.Options}}<option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>{{end}}</select></label><button type="submit">Save arrival</button></form>
 {{if $d.Arrival.Error}}<p class="error-banner">{{$d.Arrival.Error}}</p>{{end}}
 </details>{{end}}
-{{if and (eq $d.Kind "location") $d.Grid.Entities}}
-<details class="report" open><summary>Interior entry Room</summary>
-<form class="editor-form" data-dirty-form method="post" action="{{$d.URL}}/work" hx-post="{{$d.URL}}/work" hx-target="#workspace"><input type="hidden" name="action" value="entry">
-<label>Entry Room<select aria-label="Entry Room" name="entry_id"><option value="">Not set</option>{{range $d.Entries}}<option value="{{.ID}}" {{if .Selected}}selected{{end}}>{{.Name}}</option>{{end}}</select></label><button type="submit">Save entry</button></form></details>{{end}}
+
 
 {{if eq $d.Kind "location"}}
 <p class="drill-description">{{$d.Description}}</p>
@@ -98,10 +96,7 @@
 
 {{if eq $d.Kind "location"}}</details>{{end}}
 
-{{if $d.Placed}}<details class="report"><summary>Vertical connections</summary>
-{{range $d.Vertical}}<form method="post" action="{{$d.URL}}/work" hx-post="{{$d.URL}}/work" hx-target="#workspace"><input type="hidden" name="action" value="disconnect-vertical"><input type="hidden" name="lower_id" value="{{.LowerID}}"><p>{{.LowerName}} ↔ {{.UpperName}}</p><button>Remove connection</button></form>{{end}}
-{{if $d.VerticalChoices}}<form method="post" action="{{$d.URL}}/work" hx-post="{{$d.URL}}/work" hx-target="#workspace"><input type="hidden" name="action" value="connect-vertical"><label>Connect up to<select name="upper_id">{{range $d.VerticalChoices}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select></label><button>Connect levels</button></form>{{else}}<p>No aligned cell on the level above. Place one at the same x/y to connect it.</p>{{end}}
-</details>{{end}}
+
 {{if eq $d.Kind "room"}}<p class="drill-description">{{$d.Description}}</p>{{end}}
 {{if ne $d.Kind "location"}}{{template "drill-contents" $d}}{{end}}
 
@@ -168,4 +163,38 @@
 </div></section>
 {{end}}
 
+{{end}}
+
+{{define "entrances-exits"}}
+{{$d:=.}}
+{{if ne $d.Kind "hub"}}
+<section class="report" id="entrances-exits" aria-labelledby="entrances-exits-title">
+<h2 id="entrances-exits-title">Entrance and exits</h2>
+{{if eq $d.Kind "location"}}
+<h3>Entrance into this Location's interior</h3>
+<p>Choose the Room reached by <strong>enter</strong> from {{$d.Name}}. That Room gets an <strong>out</strong> exit back here.</p>
+{{if $d.Entries}}
+{{if not $d.EntryID}}<p class="error-banner">No entrance selected. Players cannot enter these Rooms from this Location.</p>{{end}}
+<form class="editor-form" method="post" action="{{$d.URL}}/work" hx-post="{{$d.URL}}/work" hx-target="#workspace">
+<input type="hidden" name="action" value="entry">
+<label>Entrance Room<select aria-label="Entrance Room" name="entry_id"><option value="">No interior entrance</option>{{range $d.Entries}}<option value="{{.ID}}" {{if .Selected}}selected{{end}}>{{.Name}}</option>{{end}}</select></label>
+<button>Save entrance</button></form>
+{{else}}<p>No placed interior Rooms. This Location currently works as an outdoor space. Create or place a Room below to choose an entrance.</p>{{end}}
+{{else}}
+{{if $d.IsEntrance}}<p>This is the entrance Room. <strong>out</strong> returns to its Location.</p>{{else if $d.ParentID}}<p>This Room is not the interior entrance.</p>{{end}}
+{{if $d.ParentID}}<a href="{{$d.ParentURL}}#entrances-exits">Set the entrance on the parent Location</a>
+{{if and $d.Placed (not $d.IsEntrance)}}<form method="post" action="/content/locations/{{$d.ParentID}}/work" hx-post="/content/locations/{{$d.ParentID}}/work" hx-target="#workspace"><input type="hidden" name="action" value="entry"><input type="hidden" name="entry_id" value="{{$d.ID}}"><button>Use this Room as the entrance</button></form>{{end}}{{end}}
+{{end}}
+<h3>Adjoining paths</h3>
+<p>Open paths connect adjoining cells on the same floor. Blocking a path removes both directions; reopening restores both.</p>
+<table><thead><tr><th>Direction</th><th>Destination</th><th>Path</th><th>Change</th></tr></thead><tbody>
+{{range $d.Passages}}<tr><td>{{.Direction}}</td>{{if .OtherID}}<td><a href="{{.URL}}">{{.Name}}</a></td><td>{{if .Blocked}}Blocked{{else}}Open{{end}}</td><td>
+<form method="post" action="{{$d.URL}}/work" hx-post="{{$d.URL}}/work" hx-target="#workspace"><input type="hidden" name="action" value="set-passage"><input type="hidden" name="other_id" value="{{.OtherID}}"><input type="hidden" name="expected_blocked" value="{{.Blocked}}"><input type="hidden" name="blocked" value="{{if .Blocked}}false{{else}}true{{end}}"><button>{{if .Blocked}}Reopen{{else}}Block{{end}} {{.Direction}} path</button></form>
+</td>{{else}}<td>No adjoining cell</td><td>—</td><td>—</td>{{end}}</tr>{{end}}</tbody></table>
+{{if $d.Placed}}<section><h3>Up/down connections</h3>
+{{range $d.Vertical}}<form method="post" action="{{$d.URL}}/work" hx-post="{{$d.URL}}/work" hx-target="#workspace"><input type="hidden" name="action" value="disconnect-vertical"><input type="hidden" name="lower_id" value="{{.LowerID}}"><p>{{.LowerName}} ↔ {{.UpperName}}</p><button>Remove connection</button></form>{{end}}
+{{if $d.VerticalChoices}}<form method="post" action="{{$d.URL}}/work" hx-post="{{$d.URL}}/work" hx-target="#workspace"><input type="hidden" name="action" value="connect-vertical"><label>Connect up to<select name="upper_id">{{range $d.VerticalChoices}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select></label><button>Connect levels</button></form>{{else}}<p>No aligned cell on the level above. Place one at the same x/y to connect it.</p>{{end}}
+</section>{{end}}
+<p>Interior entrance/exit, compass paths, and up/down connections are separate settings.</p>
+</section>{{end}}
 {{end}}
