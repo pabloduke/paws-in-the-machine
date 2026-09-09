@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "connections": [
+    {
+      "kind": "room",
+      "lower_id": "f5695ddd-8ab1-45d8-8927-4dd2f753c629",
+      "upper_id": "80111cf3-704f-475a-90b3-ed607a25cd4c"
+    }
+  ]
+}
